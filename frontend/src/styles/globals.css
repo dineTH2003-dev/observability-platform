@@ -1,0 +1,231 @@
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* Nebula Dark Theme Colors */
+  --nebula-navy-bg: #0A0E27;
+  --nebula-navy-dark: #070B1F;
+  --nebula-navy-light: #131832;
+  --nebula-navy-lighter: #1A1F3A;
+  
+  --nebula-purple: #7C3AED;
+  --nebula-purple-light: #9F67FF;
+  --nebula-purple-dark: #6D28D9;
+  
+  --nebula-blue: #3B82F6;
+  --nebula-blue-light: #60A5FA;
+  --nebula-cyan: #06B6D4;
+  
+  --nebula-pink: #EC4899;
+  --nebula-gradient-start: #06B6D4;
+  --nebula-gradient-mid: #7C3AED;
+  --nebula-gradient-end: #EC4899;
+  
+  /* Base tokens */
+  --font-size: 16px;
+  --background: #0A0E27;
+  --foreground: #F1F5F9;
+  --card: #131832;
+  --card-foreground: #F1F5F9;
+  --popover: #1A1F3A;
+  --popover-foreground: #F1F5F9;
+  --primary: #7C3AED;
+  --primary-foreground: #FFFFFF;
+  --secondary: #1A1F3A;
+  --secondary-foreground: #F1F5F9;
+  --muted: #1A1F3A;
+  --muted-foreground: #94A3B8;
+  --accent: #7C3AED;
+  --accent-foreground: #FFFFFF;
+  --destructive: #EF4444;
+  --destructive-foreground: #FFFFFF;
+  --border: rgba(148, 163, 184, 0.1);
+  --input: rgba(148, 163, 184, 0.1);
+  --input-background: #1A1F3A;
+  --ring: #7C3AED;
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  --radius: 0.5rem;
+  
+  /* Chart colors */
+  --chart-1: #7C3AED;
+  --chart-2: #3B82F6;
+  --chart-3: #06B6D4;
+  --chart-4: #EC4899;
+  --chart-5: #F59E0B;
+  
+  /* Sidebar tokens */
+  --sidebar: #070B1F;
+  --sidebar-foreground: #F1F5F9;
+  --sidebar-primary: #7C3AED;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #1A1F3A;
+  --sidebar-accent-foreground: #F1F5F9;
+  --sidebar-border: rgba(148, 163, 184, 0.1);
+  --sidebar-ring: #7C3AED;
+}
+
+.dark {
+  --background: #0A0E27;
+  --foreground: #F1F5F9;
+  --card: #131832;
+  --card-foreground: #F1F5F9;
+  --popover: #1A1F3A;
+  --popover-foreground: #F1F5F9;
+  --primary: #7C3AED;
+  --primary-foreground: #FFFFFF;
+  --secondary: #1A1F3A;
+  --secondary-foreground: #F1F5F9;
+  --muted: #1A1F3A;
+  --muted-foreground: #94A3B8;
+  --accent: #7C3AED;
+  --accent-foreground: #FFFFFF;
+  --destructive: #EF4444;
+  --destructive-foreground: #FFFFFF;
+  --border: rgba(148, 163, 184, 0.1);
+  --input: rgba(148, 163, 184, 0.1);
+  --ring: #7C3AED;
+  --sidebar: #070B1F;
+  --sidebar-foreground: #F1F5F9;
+  --sidebar-primary: #7C3AED;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #1A1F3A;
+  --sidebar-accent-foreground: #F1F5F9;
+  --sidebar-border: rgba(148, 163, 184, 0.1);
+  --sidebar-ring: #7C3AED;
+}
+
+@theme inline {
+  --color-nebula-navy-bg: var(--nebula-navy-bg);
+  --color-nebula-navy-dark: var(--nebula-navy-dark);
+  --color-nebula-navy-light: var(--nebula-navy-light);
+  --color-nebula-navy-lighter: var(--nebula-navy-lighter);
+  --color-nebula-purple: var(--nebula-purple);
+  --color-nebula-purple-light: var(--nebula-purple-light);
+  --color-nebula-purple-dark: var(--nebula-purple-dark);
+  --color-nebula-blue: var(--nebula-blue);
+  --color-nebula-blue-light: var(--nebula-blue-light);
+  --color-nebula-cyan: var(--nebula-cyan);
+  --color-nebula-pink: var(--nebula-pink);
+  
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-input-background: var(--input-background);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-nebula-navy-bg text-foreground;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/**
+ * Base typography. This is not applied to elements which have an ancestor with a Tailwind text class.
+ */
+@layer base {
+  :where(:not(:has([class*=' text-']), :not(:has([class^='text-'])))) {
+    h1 {
+      font-size: var(--text-2xl);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    h2 {
+      font-size: var(--text-xl);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    h3 {
+      font-size: var(--text-lg);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    h4 {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    label {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    button {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-medium);
+      line-height: 1.5;
+    }
+
+    input {
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-normal);
+      line-height: 1.5;
+    }
+  }
+}
+
+html {
+  font-size: var(--font-size);
+}
+
+/* Custom scrollbar styling for Nebula theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--nebula-navy-dark);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--nebula-navy-lighter);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--nebula-purple);
+}

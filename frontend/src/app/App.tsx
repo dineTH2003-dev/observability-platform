@@ -7,11 +7,12 @@ import { Applications } from './pages/infrastructure/Applications';
 import { Services } from './pages/infrastructure/Services';
 import { ServiceMetrics } from './pages/infrastructure/ServiceMetrics';
 import { Logs } from './pages/monitoring/Logs';
+import { Anomalies } from './pages/anomalies/Anomalies';
 
 function AppContent() {
   const { currentPage, selectedServiceId, handleNavigate } = useNavigation();
 
-  
+
 
   return (
     <MainLayout
@@ -39,6 +40,7 @@ function AppContent() {
       )}
 
       {currentPage === 'logs' && <Logs />}
+      {currentPage === 'anomalies' && <Anomalies />}
     </MainLayout>
   );
 }

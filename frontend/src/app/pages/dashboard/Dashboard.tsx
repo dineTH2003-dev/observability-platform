@@ -111,21 +111,13 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     },
   ];
 
-  // Incident Summary Stats
-  const incidentStats = {
-    total: 4,
-    unassigned: 2,
-    critical: 1,
-    high: 2,
-    acknowledged: 1
-  };
-
   // Top Affected Resources
   const topAffectedResources = [
     { name: 'prod-db-01 / User Service', health: 65, status: 'critical', anomalyCount: 3 },
     { name: 'API Gateway / gateway', health: 72, status: 'degraded', anomalyCount: 2 },
     { name: 'Auth Service / auth-api', health: 85, status: 'degraded', anomalyCount: 1 },
     { name: 'Payment Service / payment-db', health: 92, status: 'healthy', anomalyCount: 1 },
+     {name: 'prod-db-01 / Analytics Engine', health: 97, status: 'healthy', anomalyCount: 1 },
   ];
 
 
@@ -167,23 +159,6 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         return 'text-red-400';
       default:
         return 'text-slate-400';
-    }
-  };
-
-  const getActivityIcon = (type: string) => {
-    switch (type) {
-      case 'incident':
-        return '🔴';
-      case 'action':
-        return '👤';
-      case 'anomaly':
-        return '⚠️';
-      case 'resolved':
-        return '✅';
-      case 'alert':
-        return '🔔';
-      default:
-        return '•';
     }
   };
 
@@ -465,56 +440,6 @@ export function Dashboard({ onNavigate }: DashboardProps) {
               </div>
             </CardContent>
           </Card>
-
-          {/* Anomaly Trend Graph */}
-          <Card className="bg-nebula-navy-light border-nebula-navy-lighter">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h3 className="text-lg font-semibold text-white">Anomaly Trend</h3>
-                  <p className="text-sm text-slate-400 mt-1">Anomalies detected over time</p>
-                </div>
-              </div>
-
-              <ResponsiveContainer width="100%" height={280}>
-                <ComposedChart data={anomalyTrendData}>
-                  <defs>
-                    <linearGradient id="anomalyGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#EF4444" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#EF4444" stopOpacity={0.05}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" />
-                  <XAxis 
-                    dataKey="time" 
-                    stroke="#64748B"
-                    style={{ fontSize: '12px' }}
-                  />
-                  <YAxis 
-                    stroke="#64748B"
-                    style={{ fontSize: '12px' }}
-                    label={{ value: 'Anomalies', angle: -90, position: 'insideLeft', style: { fill: '#64748B', fontSize: '12px' } }}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: '#0F172A',
-                      border: '1px solid #1E293B',
-                      borderRadius: '8px',
-                      color: '#F1F5F9'
-                    }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="anomalies"
-                    stroke="#EF4444"
-                    strokeWidth={2}
-                    fill="url(#anomalyGradient)"
-                    name="Anomalies"
-                  />
-                </ComposedChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
         </div>
 
         {/* Right Column - Resources & Activity (1/3 width) */}
@@ -558,6 +483,56 @@ export function Dashboard({ onNavigate }: DashboardProps) {
           </Card>
         </div>
       </div>
+
+      {/* Anomaly Trend Graph - Full Width */}
+      <Card className="bg-nebula-navy-light border-nebula-navy-lighter">
+        <CardContent className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-lg font-semibold text-white">Anomaly Trend</h3>
+              <p className="text-sm text-slate-400 mt-1">Anomalies detected over time</p>
+            </div>
+          </div>
+
+          <ResponsiveContainer width="100%" height={280}>
+            <ComposedChart data={anomalyTrendData}>
+              <defs>
+                <linearGradient id="anomalyGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#EF4444" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="#EF4444" stopOpacity={0.05}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" />
+              <XAxis 
+                dataKey="time" 
+                stroke="#64748B"
+                style={{ fontSize: '12px' }}
+              />
+              <YAxis 
+                stroke="#64748B"
+                style={{ fontSize: '12px' }}
+                label={{ value: 'Anomalies', angle: -90, position: 'insideLeft', style: { fill: '#64748B', fontSize: '12px' } }}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: '#0F172A',
+                  border: '1px solid #1E293B',
+                  borderRadius: '8px',
+                  color: '#F1F5F9'
+                }}
+              />
+              <Area
+                type="monotone"
+                dataKey="anomalies"
+                stroke="#EF4444"
+                strokeWidth={2}
+                fill="url(#anomalyGradient)"
+                name="Anomalies"
+              />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
     </div>
   );
 }

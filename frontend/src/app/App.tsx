@@ -8,6 +8,7 @@ import { Services } from './pages/infrastructure/Services';
 import { ServiceMetrics } from './pages/infrastructure/ServiceMetrics';
 import { Logs } from './pages/monitoring/Logs';
 import { Anomalies } from './pages/anomalies/Anomalies';
+import { Reports } from './pages/reports/Reports';
 
 function AppContent() {
   const { currentPage, selectedServiceId, handleNavigate } = useNavigation();
@@ -41,6 +42,7 @@ function AppContent() {
 
       {currentPage === 'logs' && <Logs />}
       {currentPage === 'anomalies' && <Anomalies />}
+      {currentPage === 'reports' && <Reports />}
     </MainLayout>
   );
 }

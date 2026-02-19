@@ -10,6 +10,7 @@ import { Logs } from './pages/monitoring/Logs';
 import { Anomalies } from './pages/anomalies/Anomalies';
 import { Reports } from './pages/reports/Reports';
 
+
 function AppContent() {
   const { currentPage, selectedServiceId, handleNavigate } = useNavigation();
 

@@ -9,6 +9,7 @@ import { ServiceMetrics } from './pages/infrastructure/ServiceMetrics';
 import { Logs } from './pages/monitoring/Logs';
 import { Anomalies } from './pages/anomalies/Anomalies';
 import { Reports } from './pages/reports/Reports';
+import { AlertSettings } from './pages/settings/alertSettings';
 
 
 function AppContent() {
@@ -44,6 +45,7 @@ function AppContent() {
       {currentPage === 'logs' && <Logs />}
       {currentPage === 'anomalies' && <Anomalies />}
       {currentPage === 'reports' && <Reports />}
+       {currentPage === 'alert-settings' && <AlertSettings />}
     </MainLayout>
   );
 }

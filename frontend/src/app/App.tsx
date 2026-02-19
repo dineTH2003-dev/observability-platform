@@ -10,7 +10,7 @@ import { Logs } from './pages/monitoring/Logs';
 import { Anomalies } from './pages/anomalies/Anomalies';
 import { Reports } from './pages/reports/Reports';
 import { AlertSettings } from './pages/settings/alertSettings';
-
+import { Metrics } from './pages/monitoring/Metrics';
 
 function AppContent() {
   const { currentPage, selectedServiceId, handleNavigate } = useNavigation();
@@ -46,6 +46,7 @@ function AppContent() {
       {currentPage === 'anomalies' && <Anomalies />}
       {currentPage === 'reports' && <Reports />}
        {currentPage === 'alert-settings' && <AlertSettings />}
+      {currentPage === 'metrics' && <Metrics />}
     </MainLayout>
   );
 }

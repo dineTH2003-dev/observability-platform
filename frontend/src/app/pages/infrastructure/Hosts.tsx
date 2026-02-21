@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Server, Search, Plus, Trash2, Download, Copy } from 'lucide-react';
+import { Server, Search, Plus, Trash2, Download, Copy, Upload } from 'lucide-react';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -146,6 +146,26 @@ export function Hosts() {
                   className="bg-nebula-navy-dark border-nebula-navy-lighter text-white placeholder:text-slate-500 min-h-[80px]"
                 />
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="pem-file" className="text-slate-300">PEM File *</Label>
+                <div className="relative">
+                  <Input 
+                    id="pem-file" 
+                    type="file"
+                    accept=".pem"
+                    className="hidden"
+                  />
+                  <label 
+                    htmlFor="pem-file"
+                    className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-nebula-navy-dark border border-dashed border-nebula-navy-lighter rounded-lg text-slate-400 hover:text-white hover:border-nebula-purple/50 cursor-pointer transition-colors"
+                  >
+                    <Upload className="size-4" />
+                    <span className="text-sm">Select PEM File</span>
+                  </label>
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="ssh-port">SSH Port</Label>
                 <Input 

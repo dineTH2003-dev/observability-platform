@@ -274,11 +274,6 @@ export function Hosts() {
         </CardContent>
       </Card>
 
-      {/* Footer */}
-      <div className="text-slate-500 text-sm">
-        ©2026 Nebula. All Rights Reserved.
-      </div>
-
       {/* Install Agent Dialog */}
       <Dialog open={isInstallDialogOpen} onOpenChange={setIsInstallDialogOpen}>
         <DialogContent className="bg-nebula-navy-light border-nebula-navy-lighter text-white max-w-2xl">

@@ -5,6 +5,7 @@ import { Dashboard } from './pages/dashboard/Dashboard';
 import { Hosts } from './pages/infrastructure/Hosts';
 import { Applications } from './pages/infrastructure/Applications';
 import { Services } from './pages/infrastructure/Services';
+import { ServiceMetrics } from './pages/infrastructure/ServiceMetrics';
 import { Logs } from './pages/monitoring/Logs';
 import { Anomalies } from './pages/anomalies/Anomalies';
 import { Reports } from './pages/reports/Reports';
@@ -50,6 +51,7 @@ function AppContent() {
       {currentPage === 'hosts' && <Hosts />}
       {currentPage === 'applications' && <Applications />}
       {currentPage === 'services' && <Services onNavigate={handleNavigate} />}
+      {currentPage === 'service-metrics' && (<ServiceMetrics serviceId={selectedServiceId} onNavigate={handleNavigate} />)}
       
       {currentPage === 'logs' && <Logs />}
      

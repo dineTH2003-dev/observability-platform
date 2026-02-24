@@ -17,6 +17,7 @@ import { AuthLayout } from './layouts/AuthLayout';
 import { useAuth } from './hooks/useAuth';
 import { AuthProvider } from './context/AuthContext';
 import { Metrics } from './pages/monitoring/Metrics';
+import { Tickets } from './pages/tickets/Tickets';
 
 function AppContent() {
   const { isAuthenticated, login, signup, logout } = useAuth();
@@ -61,6 +62,8 @@ function AppContent() {
       {currentPage === 'reports' && <Reports />}
       {currentPage === 'alert-settings' && <AlertSettings />}
       {currentPage === 'metrics' && <Metrics />}
+      {currentPage === 'tickets' && <Tickets />}
+      
     </MainLayout>
   );
 }

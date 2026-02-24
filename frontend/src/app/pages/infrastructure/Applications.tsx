@@ -17,8 +17,10 @@ export function Applications() {
 
   // Mock servers data
   const servers = [
-    { id: 'test2', name: 'test2' },
-    { id: 'test', name: 'test' },
+    { id: 'web-server-prod-01', name: 'web-server-prod-01' },
+    { id: 'api-server-prod-02', name: 'api-server-prod-02' },
+    { id: 'db-server-staging-01', name: 'db-server-staging-01' },
+    { id: 'cache-server-prod-01', name: 'cache-server-prod-01' },
   ];
 
   // Mock data

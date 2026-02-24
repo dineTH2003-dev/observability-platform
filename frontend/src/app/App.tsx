@@ -58,7 +58,6 @@ function AppContent() {
       
       {currentPage === 'anomalies' && <Anomalies selectedAnomalyId={selectedAnomalyId} />}
       
-      {currentPage === 'alert-settings' && <AlertSettings />}
       {currentPage === 'reports' && <Reports />}
       {currentPage === 'alert-settings' && <AlertSettings />}
       {currentPage === 'metrics' && <Metrics />}

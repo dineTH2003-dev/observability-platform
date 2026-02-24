@@ -1,3 +1,4 @@
+import { NotificationsPage } from './pages/notifications/NotificationsPage';
 import { useState } from 'react';
 import { useNavigation } from './hooks/useNavigation';
 import { MainLayout } from './layouts/MainLayout';
@@ -41,6 +42,7 @@ function AppContent() {
           <Signup onSignup={signup} onSwitchToLogin={() => setAuthView('login')} />
         )}
       </AuthLayout>
+      
     );
   }  
 
@@ -61,6 +63,7 @@ function AppContent() {
       {currentPage === 'reports' && <Reports />}
       {currentPage === 'alert-settings' && <AlertSettings />}
       {currentPage === 'metrics' && <Metrics />}
+      {currentPage === 'notifications' && <NotificationsPage onNavigate={handleNavigate} />}
     </MainLayout>
   );
 }

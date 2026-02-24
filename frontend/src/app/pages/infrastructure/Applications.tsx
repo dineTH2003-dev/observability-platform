@@ -21,7 +21,6 @@ export function Applications() {
     { id: 'api-server-prod-02', name: 'api-server-prod-02' },
     { id: 'db-server-staging-01', name: 'db-server-staging-01' },
     { id: 'cache-server-prod-01', name: 'cache-server-prod-01' },
-    
   ];
 
   // Mock data

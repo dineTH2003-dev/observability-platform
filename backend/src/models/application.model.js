@@ -1,13 +1,27 @@
 const pool = require("../config/db");
 
-exports.create = async ({ name, description, version, server_id, status }) => {
+exports.create = async ({
+  name,
+  description,
+  version,
+  server_id,
+  application_status,
+}) => {
   const query = `
-    INSERT INTO applications (name, description, version, server_id, status)
+    INSERT INTO applications 
+    (name, description, version, server_id, application_status)
     VALUES ($1, $2, $3, $4, $5)
     RETURNING *
   `;
 
-  const { rows } = await pool.query(query, [name, description, version, server_id, status]);
+  const { rows } = await pool.query(query, [
+    name,
+    description,
+    version,
+    server_id,
+    application_status,
+  ]);
+
   return rows[0];
 };
 
@@ -27,19 +41,24 @@ exports.findById = async (id) => {
 };
 
 exports.update = async (id, data) => {
-  const { name, description, environment } = data;
+  const { name, description, version, application_status } = data;
 
   const query = `
     UPDATE applications
-    SET name=$1, description=$2, environment=$3, updated_at=CURRENT_TIMESTAMP
-    WHERE application_id=$4
+    SET name=$1,
+        description=$2,
+        version=$3,
+        application_status=$4,
+        updated_at=CURRENT_TIMESTAMP
+    WHERE application_id=$5
     RETURNING *
   `;
 
   const { rows } = await pool.query(query, [
     name,
     description,
-    environment,
+    version,
+    application_status,
     id,
   ]);
 

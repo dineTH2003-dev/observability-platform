@@ -1,6 +1,7 @@
 const asyncHandler = require("../middlewares/asyncHandler");
 const ServerService = require("../services/host.service");
 
+
 exports.create = asyncHandler(async (req, res) => {
   const server = await ServerService.createServer(req.body);
 

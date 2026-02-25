@@ -32,8 +32,8 @@ exports.create = async (data) => {
     ip_address,
     os,
     environment,
-    server_status || "ACTIVE",
-    agent_status || "NOT_INSTALLED",
+    server_status || "HEALTHY",
+    agent_status || "INACTIVE",
     username,
     ssh_port || 22,
   ]);

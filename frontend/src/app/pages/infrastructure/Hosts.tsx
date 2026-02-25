@@ -42,6 +42,8 @@ interface Host {
 }
 
 export function Hosts() {
+  const [environment, setEnvironment] = useState('');
+  const [osType, setOsType] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isInstallDialogOpen, setIsInstallDialogOpen] = useState(false);
@@ -60,7 +62,7 @@ export function Hosts() {
         id: h.server_id,
         name: h.hostname,
         ip: h.ip_address,
-        env: h.os,
+        env: h.environment,
         ssh_port: h.ssh_port ? Number(h.ssh_port) : 22,
         health: h.server_status,
         agent: h.agent_status,
@@ -103,7 +105,7 @@ export function Hosts() {
         return 'bg-green-500/10 text-green-400 border-green-500/20';
       case 'ERROR':
         return 'bg-red-500/10 text-red-400 border-red-500/20';
-      case 'NOT_INSTALLED':
+      case 'INACTIVE':
         return 'bg-slate-500/10 text-slate-400 border-slate-500/20';
       default:
         return 'bg-slate-500/10 text-slate-400 border-slate-500/20';
@@ -111,7 +113,7 @@ export function Hosts() {
   };
 
   const getAgentTooltip = (agent: string) => {
-    if (agent === 'NOT_INSTALLED') {
+    if (agent === 'INACTIVE') {
       return 'Installation Pending';
     }
     return agent;
@@ -150,43 +152,34 @@ export function Hosts() {
   };
 
   const handleRegisterHost = async () => {
-    const hostname = (document.getElementById('host-name') as HTMLInputElement)?.value;
-    const ip = (document.getElementById('ip-address') as HTMLInputElement)?.value;
-    const username = (document.getElementById('ssh-username') as HTMLInputElement)?.value;
-    const ssh_port = (document.getElementById('ssh-port') as HTMLInputElement)?.value;
-
     try {
+      const hostname = (document.getElementById('host-name') as HTMLInputElement)?.value;
+      const ip = (document.getElementById('ip-address') as HTMLInputElement)?.value;
+      const username = (document.getElementById('ssh-username') as HTMLInputElement)?.value;
+      const ssh_port = (document.getElementById('ssh-port') as HTMLInputElement)?.value;
+  
       const newHost = await hostService.register({
         hostname,
         ip_address: ip,
         username,
-        os: 'linux',
+        os: osType || 'linux', 
+        environment: environment,  
         ssh_port: ssh_port ? parseInt(ssh_port) : 22,
       });
-
-      const mapped: Host = {
-        id: newHost.server_id,
-        name: newHost.hostname,
-        ip: newHost.ip_address,
-        env: newHost.os,
-        ssh_port: newHost.ssh_port ? Number(newHost.ssh_port) : 22,
-        health: newHost.server_status,
-        agent: newHost.agent_status,
-      };
-
-      setHosts(prev => [...prev, mapped]);
-
+  
+      console.log("REGISTER SUCCESS:", newHost);
+  
       setIsDialogOpen(false);
-
-      toast.success('Host registered successfully', {
-        description: `${hostname} has been added to your infrastructure`,
-      });
-      handleInstallAgent(mapped);
-    } catch {
+  
+      await loadHosts();  // reload properly
+  
+      toast.success('Host registered successfully');
+  
+    } catch (error) {
+      console.error("REGISTER FAILED:", error);
       toast.error('Failed to register host');
     }
   };
-
   const handleConfirmDownloadInstaller = async () => {
     if (!selectedHost) return;
 
@@ -254,7 +247,7 @@ export function Hosts() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="os-type" className="text-slate-300">OS Type</Label>
-                <Select>
+                <Select onValueChange={(value) => setOsType(value)}>
                   <SelectTrigger className="bg-nebula-navy-dark border-nebula-navy-lighter text-white">
                     <SelectValue placeholder="Select OS" />
                   </SelectTrigger>
@@ -267,7 +260,7 @@ export function Hosts() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="environment" className="text-slate-300">Environment *</Label>
-                <Select>
+                <Select onValueChange={(value) => setEnvironment(value)}>
                   <SelectTrigger className="bg-nebula-navy-dark border-nebula-navy-lighter text-white">
                     <SelectValue placeholder="Select environment" />
                   </SelectTrigger>
@@ -388,9 +381,9 @@ export function Hosts() {
                                   disabled={isAgentActive(host.agent) || isAgentError(host.agent)}
                                 >
                                   {isAgentActive(host.agent) ? (
-                                    <CheckCircle className="size-4" />
+                                    <CheckCircle className="size-4 text-green-400" />
                                   ) : isAgentError(host.agent) ? (
-                                    <AlertTriangle className="size-4" />
+                                    <AlertTriangle className="size-4 text-red-400" />
                                   ) : (
                                     <Download className="size-4" />
                                   )}
@@ -416,7 +409,7 @@ export function Hosts() {
                                   {host.agent}
                                 </span>
                               </TooltipTrigger>
-                              {host.agent === 'NOT_INSTALLED' && (
+                              {host.agent === 'INACTIVE' && (
                                 <TooltipContent
                                   className="bg-nebula-navy-dark border-nebula-navy-lighter text-white"
                                   sideOffset={5}

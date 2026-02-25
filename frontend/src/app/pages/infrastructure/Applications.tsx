@@ -1,3 +1,4 @@
+import { hostService } from '../../services/hostService';
 import { useState, useEffect } from 'react';
 import { Box, Search, Plus, Trash2, Activity, CheckCircle, AlertCircle } from 'lucide-react';
 import { Card, CardContent } from '../../components/ui/card';
@@ -22,16 +23,35 @@ export function Applications() {
   const [deleteApp, setDeleteApp] = useState<Application | null>(null);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
-  // Mock servers data
-  const servers = [
-    { id: 'web-server-prod-01', name: 'web-server-prod-01' },
-    { id: 'api-server-prod-02', name: 'api-server-prod-02' },
-    { id: 'db-server-staging-01', name: 'db-server-staging-01' },
-    { id: 'cache-server-prod-01', name: 'cache-server-prod-01' },
-  ];
+  const [servers, setServers] = useState<any[]>([]);
 
   useEffect(() => {
-    loadApplications();
+    const loadData = async () => {
+      try {
+        setLoading(true);
+  
+        // Load applications
+        const appResponse = await applicationService.getAll();
+        setApplications(appResponse.data);
+  
+        // Load servers (hosts)
+        const hostResponse = await hostService.getAll();
+  
+        const mappedServers = hostResponse.map((h: any) => ({
+          id: h.server_id,
+          name: h.hostname,
+        }));
+  
+        setServers(mappedServers);
+  
+      } catch (error) {
+        console.error("Failed to load data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+  
+    loadData();
   }, []);
 
   const [formData, setFormData] = useState({
@@ -97,7 +117,7 @@ export function Applications() {
         name: formData.name,
         description: formData.description,
         version: formData.version || "v1.0.0",
-        server_id: selectedServer,
+        server_id: Number(selectedServer),  // convert to integer
         application_status: "ACTIVE",
       });
 
@@ -167,6 +187,10 @@ export function Applications() {
                 <Label htmlFor="app-name">Application Name *</Label>
                 <Input
                   id="app-name"
+                  value={formData.name}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
                   placeholder="e.g. user-service"
                   className="bg-nebula-navy-dark border-nebula-navy-lighter text-white placeholder:text-slate-500"
                 />
@@ -176,6 +200,10 @@ export function Applications() {
                 <Label htmlFor="version">Version</Label>
                 <Input
                   id="version"
+                  value={formData.version}
+                  onChange={(e) =>
+                    setFormData({ ...formData, version: e.target.value })
+                  }
                   placeholder="v1.0.0"
                   className="bg-nebula-navy-dark border-nebula-navy-lighter text-white placeholder:text-slate-500"
                 />
@@ -185,6 +213,10 @@ export function Applications() {
                 <Label htmlFor="description">Description</Label>
                 <Textarea
                   id="description"
+                  value={formData.description}
+                  onChange={(e) =>
+                    setFormData({ ...formData, description: e.target.value })
+                  }
                   placeholder="Short description of the application"
                   className="bg-nebula-navy-dark border-nebula-navy-lighter text-white placeholder:text-slate-500 min-h-[80px]"
                 />
@@ -200,31 +232,31 @@ export function Applications() {
                       aria-expanded={serverSearchOpen}
                       className="w-full justify-start bg-nebula-navy-dark border-nebula-navy-lighter text-white hover:bg-nebula-navy-dark hover:text-white"
                     >
-                      {selectedServer || "Search server..."}
+                      {
+                        selectedServer
+                          ? servers.find(s => s.id.toString() === selectedServer)?.name
+                          : "Search server..."
+                      }
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-full p-0 bg-nebula-navy-light border-nebula-navy-lighter" align="start">
                     <Command className="bg-nebula-navy-light">
-                      <CommandInput
-                        placeholder="Search server..."
-                        className="text-white"
-                      />
                       <CommandList>
                         <CommandEmpty className="text-slate-400 py-6 text-center text-sm">No server found.</CommandEmpty>
                         <CommandGroup>
-                          {servers.map((server) => (
-                            <CommandItem
-                              key={server.id}
-                              value={server.name}
-                              onSelect={(currentValue) => {
-                                setSelectedServer(currentValue === selectedServer ? "" : currentValue);
-                                setServerSearchOpen(false);
-                              }}
-                              className="text-white hover:bg-nebula-navy-dark cursor-pointer"
-                            >
-                              {server.name}
-                            </CommandItem>
-                          ))}
+                        {servers.map((server) => (
+                          <CommandItem
+                            key={server.id}
+                            value={server.id.toString()}
+                            onSelect={() => {
+                              setSelectedServer(server.id.toString());  // store numeric id as string
+                              setServerSearchOpen(false);
+                            }}
+                            className="text-white hover:bg-nebula-navy-dark cursor-pointer"
+                          >
+                            {server.name}
+                          </CommandItem>
+                        ))}
                         </CommandGroup>
                       </CommandList>
                     </Command>

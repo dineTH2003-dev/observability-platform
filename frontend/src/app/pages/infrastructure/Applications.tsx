@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Box, Search, Plus, Trash2, Activity, CheckCircle, AlertCircle } from 'lucide-react';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -8,12 +8,19 @@ import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
 import { Popover, PopoverTrigger, PopoverContent } from '../../components/ui/popover';
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from '../../components/ui/command';
+import { toast } from "sonner";
+import type { Application } from '../../types/application';
+import { applicationService } from '../../services/applicationService';
 
 export function Applications() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedServer, setSelectedServer] = useState('');
   const [serverSearchOpen, setServerSearchOpen] = useState(false);
+  const [applications, setApplications] = useState<Application[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [deleteApp, setDeleteApp] = useState<Application | null>(null);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
   // Mock servers data
   const servers = [
@@ -23,64 +30,23 @@ export function Applications() {
     { id: 'cache-server-prod-01', name: 'cache-server-prod-01' },
   ];
 
-  // Mock data
-  const applications = [
-    {
-      id: 1,
-      name: 'User Service',
-      description: 'Core user management API',
-      version: 'v2.1.0',
-      server: 'prod-web-01',
-      status: 'running',
-      created: '2024-01-15',
-      updated: '2024-02-01',
-    },
-    {
-      id: 2,
-      name: 'Payment Gateway',
-      description: 'Payment processing service',
-      version: 'v1.8.3',
-      server: 'prod-api-01',
-      status: 'running',
-      created: '2024-01-10',
-      updated: '2024-01-28',
-    },
-    {
-      id: 3,
-      name: 'Auth Service',
-      description: 'Authentication and authorization',
-      version: 'v3.0.1',
-      server: 'prod-web-01',
-      status: 'warning',
-      created: '2024-01-20',
-      updated: '2024-02-03',
-    },
-    {
-      id: 4,
-      name: 'Analytics Engine',
-      description: 'Real-time analytics processing',
-      version: 'v1.5.2',
-      server: 'prod-db-01',
-      status: 'running',
-      created: '2024-01-05',
-      updated: '2024-01-25',
-    },
-  ];
+  useEffect(() => {
+    loadApplications();
+  }, []);
 
-  const filteredApplications = applications.filter(app =>
-    app.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    app.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    app.version.includes(searchQuery) ||
-    app.server.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const [formData, setFormData] = useState({
+    name: '',
+    version: '',
+    description: '',
+  });
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'running':
+      case 'ACTIVE':
         return <CheckCircle className="size-4 text-green-400" />;
-      case 'warning':
+      case 'WARNING':
         return <AlertCircle className="size-4 text-yellow-400" />;
-      case 'stopped':
+      case 'DOWN':
         return <Activity className="size-4 text-red-400" />;
       default:
         return <Activity className="size-4 text-slate-400" />;
@@ -89,14 +55,62 @@ export function Applications() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'running':
+      case 'ACTIVE':
         return 'bg-green-500/10 text-green-400';
-      case 'warning':
+      case 'WARNING':
         return 'bg-yellow-500/10 text-yellow-400';
-      case 'stopped':
+      case 'DOWN':
         return 'bg-red-500/10 text-red-400';
       default:
         return 'bg-slate-500/10 text-slate-400';
+    }
+  };
+
+  const filteredApplications = applications.filter(app =>
+    app.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    app.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    app.version.includes(searchQuery) ||
+    app.server_id.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+
+  const loadApplications = async () => {
+    try {
+      setLoading(true);
+      const response = await applicationService.getAll();
+      setApplications(response.data);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+  const handleDelete = async () => {
+    if (!deleteApp) return;
+
+    try {
+      await applicationService.delete(deleteApp.application_id);
+
+      setApplications(prev =>
+        prev.filter(app => app.application_id !== deleteApp.application_id)
+      );
+
+      toast.success("Application deleted successfully", {
+        description: `${deleteApp.name} has been removed from monitoring`,
+      });
+
+    } catch (error) {
+      console.error("Delete failed", error);
+
+      toast.error("Delete failed", {
+        description: "Something went wrong while deleting the application.",
+      });
+
+    } finally {
+      setIsDeleteOpen(false);
+      setDeleteApp(null);
     }
   };
 
@@ -122,17 +136,17 @@ export function Applications() {
             <div className="space-y-4 py-4">
               <div className="space-y-2">
                 <Label htmlFor="app-name">Application Name *</Label>
-                <Input 
-                  id="app-name" 
+                <Input
+                  id="app-name"
                   placeholder="e.g. user-service"
                   className="bg-nebula-navy-dark border-nebula-navy-lighter text-white placeholder:text-slate-500"
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="version">Version</Label>
-                <Input 
-                  id="version" 
+                <Input
+                  id="version"
                   placeholder="v1.0.0"
                   className="bg-nebula-navy-dark border-nebula-navy-lighter text-white placeholder:text-slate-500"
                 />
@@ -140,8 +154,8 @@ export function Applications() {
 
               <div className="space-y-2">
                 <Label htmlFor="description">Description</Label>
-                <Textarea 
-                  id="description" 
+                <Textarea
+                  id="description"
                   placeholder="Short description of the application"
                   className="bg-nebula-navy-dark border-nebula-navy-lighter text-white placeholder:text-slate-500 min-h-[80px]"
                 />
@@ -162,8 +176,8 @@ export function Applications() {
                   </PopoverTrigger>
                   <PopoverContent className="w-full p-0 bg-nebula-navy-light border-nebula-navy-lighter" align="start">
                     <Command className="bg-nebula-navy-light">
-                      <CommandInput 
-                        placeholder="Search server..." 
+                      <CommandInput
+                        placeholder="Search server..."
                         className="text-white"
                       />
                       <CommandList>
@@ -190,14 +204,14 @@ export function Applications() {
               </div>
             </div>
             <DialogFooter className="gap-2">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => setIsDialogOpen(false)}
                 className="bg-transparent border-nebula-navy-lighter text-slate-300 hover:bg-nebula-navy-dark hover:text-white"
               >
                 Close
               </Button>
-              <Button 
+              <Button
                 onClick={() => setIsDialogOpen(false)}
                 className="bg-gradient-to-r from-purple-600 via-blue-500 to-blue-600 hover:from-purple-700 hover:via-blue-600 hover:to-blue-700 text-white"
               >
@@ -252,7 +266,7 @@ export function Applications() {
                     UPDATED
                   </th>
                   <th className="text-left px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                    
+
                   </th>
                 </tr>
               </thead>
@@ -266,7 +280,7 @@ export function Applications() {
                   </tr>
                 ) : (
                   filteredApplications.map((app) => (
-                    <tr key={app.id} className="hover:bg-nebula-navy-dark transition-colors">
+                    <tr key={app.application_id} className="hover:bg-nebula-navy-dark transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-lg bg-nebula-blue/10 flex items-center justify-center">
@@ -281,19 +295,27 @@ export function Applications() {
                           {app.version}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-slate-300">{app.server}</td>
+                      <td className="px-6 py-4 text-slate-300">{app.server_id}</td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
-                          {getStatusIcon(app.status)}
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(app.status)}`}>
-                            {app.status}
+                          {getStatusIcon(app.application_status)}
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(app.application_status)}`}>
+                            {app.application_status}
                           </span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-slate-300">{app.created}</td>
-                      <td className="px-6 py-4 text-slate-300">{app.updated}</td>
+                      <td className="px-6 py-4 text-slate-300">{app.created_at}</td>
+                      <td className="px-6 py-4 text-slate-300">{app.updated_at}</td>
                       <td className="px-6 py-4">
-                        <Button variant="ghost" size="icon" className="text-red-400 hover:text-red-300 hover:bg-red-500/10">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                          onClick={() => {
+                            setDeleteApp(app);
+                            setIsDeleteOpen(true);
+                          }}
+                        >
                           <Trash2 className="size-4" />
                         </Button>
                       </td>
@@ -305,6 +327,37 @@ export function Applications() {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <DialogContent className="bg-nebula-navy-light border-nebula-navy-lighter text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-red-400">
+              Delete Application
+            </DialogTitle>
+          </DialogHeader>
+
+          <p className="text-slate-300 text-sm">
+            Are you sure you want to delete this application? This action cannot be undone.
+          </p>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsDeleteOpen(false)}
+              className="bg-transparent border-nebula-navy-lighter text-slate-300 hover:bg-nebula-navy-dark hover:text-white"
+            >
+              Cancel
+            </Button>
+
+            <Button
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={handleDelete}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

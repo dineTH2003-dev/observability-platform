@@ -56,7 +56,7 @@ VALUES (
         'Auth Service',
         '1.2.3',
         'Responsible for authentication and JWT validation',
-        'DEGRADED',
+        'WARNING',
         '/opt/auth-service'
     ),
     (

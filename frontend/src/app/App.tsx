@@ -19,6 +19,7 @@ import { useAuth } from './hooks/useAuth';
 import { AuthProvider } from './context/AuthContext';
 import { Metrics } from './pages/monitoring/Metrics';
 import { Tickets } from './pages/tickets/Tickets';
+import { Toaster } from './components/ui/sonner';
 
 function AppContent() {
   const { isAuthenticated, login, signup, logout } = useAuth();
@@ -76,6 +77,7 @@ export default function App() {
   return (
     <AuthProvider>
       <AppContent />
+      <Toaster />
     </AuthProvider>
   );
 }

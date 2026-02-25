@@ -38,7 +38,7 @@ CREATE TABLE applications (
     version VARCHAR(50),
     description TEXT,
     application_status VARCHAR(50) CHECK (
-        application_status IN ('ACTIVE', 'DOWN', 'DEGRADED', 'MAINTENANCE')
+        application_status IN ('ACTIVE', 'DOWN', 'WARNING', 'MAINTENANCE')
     ) DEFAULT 'ACTIVE',
     deployment_path TEXT,
     created_at TIMESTAMP DEFAULT NOW(),

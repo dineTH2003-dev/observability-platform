@@ -96,7 +96,7 @@ export function NotificationDropdown({ notifications, onViewAll, onMarkAsRead }:
 </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
-        className="bg-nebula-navy-light border-nebula-navy-lighter w-96 p-0"
+        className="bg-nebula-navy-light border-nebula-navy-lighter w-80 p-0"
       >
         {/* Header */}
         <div className="px-4 py-3 border-b border-nebula-navy-lighter">

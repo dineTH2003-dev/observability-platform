@@ -64,9 +64,12 @@ function AppContent() {
       {currentPage === 'reports' && <Reports />}
       {currentPage === 'alert-settings' && <AlertSettings />}
       {currentPage === 'metrics' && <Metrics />}
+<<<<<<< HEAD
       {currentPage === 'notifications' && <NotificationsPage onNavigate={handleNavigate} />}
+=======
       {currentPage === 'tickets' && <Tickets />}
       
+>>>>>>> dev
     </MainLayout>
   );
 }

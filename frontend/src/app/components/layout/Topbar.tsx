@@ -1,8 +1,9 @@
+import { useState } from 'react';
 import { 
   Menu,
   LayoutGrid,
   Search,
-  Bell,
+  BellRing,
   Moon,
   User,
 } from 'lucide-react';
@@ -12,6 +13,7 @@ import {
   DropdownMenu,
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
+import { NotificationDropdown, Notification } from '../ui/NotificationDropdown';
 
 interface TopbarProps {
   currentPage: string;
@@ -20,7 +22,75 @@ interface TopbarProps {
   onToggleSidebar: () => void;
 }
 
-export function Topbar({ currentPage, onToggleSidebar }: TopbarProps) {
+export function Topbar({ currentPage, onNavigate, onToggleSidebar }: TopbarProps) {
+  const [notifications, setNotifications] = useState<Notification[]>([
+    {
+      id: '1',
+      type: 'anomaly_detected',
+      title: 'Critical Anomaly Detected',
+      message: 'High CPU usage detected on prod-db-01. Current usage: 95%. Immediate attention required.',
+      timestamp: '2 minutes ago',
+      read: false,
+      severity: 'critical',
+      from: 'System',
+      to: 'Admin'
+    },
+    {
+      id: '2',
+      type: 'anomaly_assigned',
+      title: 'Anomaly Assigned to You',
+      message: 'Admin Sarah Chen has assigned you to investigate memory leak issue in API Gateway service.',
+      timestamp: '15 minutes ago',
+      read: false,
+      severity: 'high',
+      from: 'Sarah Chen (Admin)',
+      to: 'You'
+    },
+    {
+      id: '3',
+      type: 'anomaly_acknowledged',
+      title: 'Developer Acknowledged Anomaly',
+      message: 'Mike Johnson acknowledged the database connection pool exhaustion anomaly and is investigating.',
+      timestamp: '1 hour ago',
+      read: false,
+      severity: 'medium',
+      from: 'Mike Johnson (Developer)',
+      to: 'Admin'
+    },
+    {
+      id: '4',
+      type: 'anomaly_resolved',
+      title: 'Anomaly Resolved',
+      message: 'Alex Kumar successfully resolved the cache invalidation issue. Root cause: Redis configuration mismatch.',
+      timestamp: '2 hours ago',
+      read: true,
+      severity: 'medium',
+      from: 'Alex Kumar (Developer)',
+      to: 'Admin'
+    },
+    {
+      id: '5',
+      type: 'alert_rule',
+      title: 'Alert Rule Triggered: High Error Rate',
+      message: 'Error rate exceeded threshold (>5%) for Payment Gateway. Current rate: 8.3%. Alert rule: "Payment Service Health"',
+      timestamp: '3 hours ago',
+      read: true,
+      severity: 'high',
+      from: 'Alert System',
+      to: 'Admin'
+    },
+  ]);
+
+  const handleMarkAsRead = (id: string) => {
+    setNotifications(notifications.map(n => 
+      n.id === id ? { ...n, read: true } : n
+    ));
+  };
+
+  const handleViewAll = () => {
+    onNavigate('notifications');
+  };
+
   return (
     <header className="h-20 bg-nebula-navy-dark border-b border-nebula-navy-lighter px-6 flex items-center justify-between">
       <div className="flex items-center gap-4">
@@ -53,14 +123,11 @@ export function Topbar({ currentPage, onToggleSidebar }: TopbarProps) {
         </div>
 
         {/* Notifications */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-slate-400 hover:text-white hover:bg-nebula-navy-lighter relative"
-        >
-          <Bell className="size-5" />
-          <span className="absolute top-2 right-2 w-2 h-2 bg-nebula-pink rounded-full"></span>
-        </Button>
+        <NotificationDropdown
+          notifications={notifications}
+          onMarkAsRead={handleMarkAsRead}
+          onViewAll={handleViewAll}
+        />
 
         {/* Theme toggle */}
         <Button

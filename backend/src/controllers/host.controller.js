@@ -46,3 +46,17 @@ exports.remove = asyncHandler(async (req, res) => {
     message: "Server deleted successfully",
   });
 });
+
+exports.downloadInstaller = asyncHandler(async (req, res) => {
+  const serverId = req.params.id;
+
+  const script = await ServerService.generateInstaller(serverId);
+
+  res.setHeader("Content-Type", "application/x-sh");
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename="install-oneagent-${serverId}.sh"`
+  );
+
+  res.send(script);
+});

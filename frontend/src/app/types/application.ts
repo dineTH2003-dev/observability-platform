@@ -3,7 +3,7 @@ export interface Application {
   name: string;
   description: string;
   version: string;
-  server_id: string;
+  server_id: number;
   application_status: 'ACTIVE' | 'WARNING' | 'STOPPED';
   created_at: string;
   updated_at: string;

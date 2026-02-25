@@ -29,5 +29,6 @@ app.use("/api", routes);
 // error handling
 app.use(notFound);
 app.use(errorHandler);
+app.set("trust proxy", true);
 
 module.exports = app;

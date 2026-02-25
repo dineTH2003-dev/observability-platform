@@ -33,6 +33,7 @@ export const hostService = {
     username: string;
     os: string;
     ssh_port?: number;
+    environment: string;
   }): Promise<Host> {
     const response = await api.post<ApiResponse<Host>>('/hosts', data);
     return response.data;
@@ -57,14 +58,9 @@ export const hostService = {
   // Download Installer Script
   // =========================
   async downloadInstaller(id: number): Promise<Blob> {
-    const response = await fetch(
-      `${import.meta.env.VITE_API_BASE_URL}/hosts/${id}/installer`
+    return await api.get<Blob>(
+      `/hosts/${id}/download-installer`,
+      { responseType: "blob" }
     );
-
-    if (!response.ok) {
-      throw new Error('Failed to download installer');
-    }
-
-    return response.blob();
-  },
+  }
 };

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Server, Power, Activity, AlertCircle, Search, MoreVertical, Plus, CheckCircle, XCircle, Clock, Download, Copy, Terminal, Upload, Trash2, AlertTriangle } from 'lucide-react';
+import { Server, Search, Plus, CheckCircle, Download, Copy, Trash2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -15,7 +15,6 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -39,6 +38,7 @@ interface Host {
   health: string;
   agent: string;
   ssh_port?: number;
+  username?: string;
 }
 
 export function Hosts() {
@@ -64,6 +64,7 @@ export function Hosts() {
         ip: h.ip_address,
         env: h.environment,
         ssh_port: h.ssh_port ? Number(h.ssh_port) : 22,
+        username: h.username,
         health: h.server_status,
         agent: h.agent_status,
       }));
@@ -157,24 +158,24 @@ export function Hosts() {
       const ip = (document.getElementById('ip-address') as HTMLInputElement)?.value;
       const username = (document.getElementById('ssh-username') as HTMLInputElement)?.value;
       const ssh_port = (document.getElementById('ssh-port') as HTMLInputElement)?.value;
-  
+
       const newHost = await hostService.register({
         hostname,
         ip_address: ip,
         username,
-        os: osType || 'linux', 
-        environment: environment,  
+        os: osType || 'linux',
+        environment: environment,
         ssh_port: ssh_port ? parseInt(ssh_port) : 22,
       });
-  
+
       console.log("REGISTER SUCCESS:", newHost);
-  
+
       setIsDialogOpen(false);
-  
+
       await loadHosts();  // reload properly
-  
+
       toast.success('Host registered successfully');
-  
+
     } catch (error) {
       console.error("REGISTER FAILED:", error);
       toast.error('Failed to register host');
@@ -247,7 +248,7 @@ export function Hosts() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="os-type" className="text-slate-300">OS Type</Label>
-                <Select onValueChange={(value) => setOsType(value)}>
+                <Select onValueChange={(value: string) => setOsType(value)}>
                   <SelectTrigger className="bg-nebula-navy-dark border-nebula-navy-lighter text-white">
                     <SelectValue placeholder="Select OS" />
                   </SelectTrigger>
@@ -260,7 +261,7 @@ export function Hosts() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="environment" className="text-slate-300">Environment *</Label>
-                <Select onValueChange={(value) => setEnvironment(value)}>
+                <Select onValueChange={(value: string) => setEnvironment(value)}>
                   <SelectTrigger className="bg-nebula-navy-dark border-nebula-navy-lighter text-white">
                     <SelectValue placeholder="Select environment" />
                   </SelectTrigger>
@@ -423,6 +424,7 @@ export function Hosts() {
                               <TooltipTrigger asChild>
                                 <button
                                   onClick={() => handleDeleteHost(host.id)}
+                                  aria-label="Delete host"
                                   className="text-red-400 hover:text-red-300 transition-colors ml-auto"
                                 >
                                   <Trash2 className="size-4" />
@@ -461,7 +463,7 @@ export function Hosts() {
             <div className="bg-nebula-navy-dark rounded-lg p-4 space-y-2 font-mono text-sm">
               <div className="flex justify-between">
                 <span className="text-slate-400">Server ID:</span>
-                <span className="text-white">5</span>
+                <span className="text-white">{selectedHost?.id}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">Hostname:</span>
@@ -473,7 +475,7 @@ export function Hosts() {
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">SSH User:</span>
-                <span className="text-white">Ubuntu</span>
+                <span className="text-white">{selectedHost?.username}</span>
               </div>
             </div>
 
@@ -484,13 +486,19 @@ export function Hosts() {
             <div className="bg-nebula-navy-dark rounded-lg p-4 space-y-2 font-mono text-sm">
               <div className="flex items-center justify-between">
                 <code className="text-green-400">chmod +x oneagent-install-{selectedHost?.name}.sh</code>
-                <button className="text-slate-400 hover:text-white">
+                <button
+                  aria-label="Copy command"
+                  className="text-slate-400 hover:text-white"
+                >
                   <Copy className="size-4" />
                 </button>
               </div>
               <div className="flex items-center justify-between">
                 <code className="text-green-400">sudo ./oneagent-install-{selectedHost?.name}.sh</code>
-                <button className="text-slate-400 hover:text-white">
+                <button
+                  aria-label="Copy command"
+                  className="text-slate-400 hover:text-white"
+                >
                   <Copy className="size-4" />
                 </button>
               </div>

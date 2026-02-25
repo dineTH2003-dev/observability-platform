@@ -3,6 +3,7 @@ export interface Host {
   hostname: string;
   ip_address: string;
   os: string;
+  environment: string;
   server_status: string;
   agent_status: string;
   username: string;

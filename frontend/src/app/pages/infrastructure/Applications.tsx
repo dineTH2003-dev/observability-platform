@@ -8,7 +8,7 @@ import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, Dialog
 import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
 import { Popover, PopoverTrigger, PopoverContent } from '../../components/ui/popover';
-import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from '../../components/ui/command';
+import { Command, CommandList, CommandEmpty, CommandGroup, CommandItem } from '../../components/ui/command';
 import { toast } from "sonner";
 import type { Application } from '../../types/application';
 import { applicationService } from '../../services/applicationService';
@@ -29,28 +29,28 @@ export function Applications() {
     const loadData = async () => {
       try {
         setLoading(true);
-  
+
         // Load applications
         const appResponse = await applicationService.getAll();
         setApplications(appResponse.data);
-  
+
         // Load servers (hosts)
         const hostResponse = await hostService.getAll();
-  
+
         const mappedServers = hostResponse.map((h: any) => ({
           id: h.server_id,
           name: h.hostname,
         }));
-  
+
         setServers(mappedServers);
-  
+
       } catch (error) {
         console.error("Failed to load data:", error);
       } finally {
         setLoading(false);
       }
     };
-  
+
     loadData();
   }, []);
 
@@ -90,7 +90,10 @@ export function Applications() {
     app.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     app.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
     app.version.includes(searchQuery) ||
-    app.server_id.toLowerCase().includes(searchQuery.toLowerCase())
+    app.server_id
+      .toString()
+      .toLowerCase()
+      .includes(searchQuery.toLowerCase())
   );
 
 
@@ -244,19 +247,19 @@ export function Applications() {
                       <CommandList>
                         <CommandEmpty className="text-slate-400 py-6 text-center text-sm">No server found.</CommandEmpty>
                         <CommandGroup>
-                        {servers.map((server) => (
-                          <CommandItem
-                            key={server.id}
-                            value={server.id.toString()}
-                            onSelect={() => {
-                              setSelectedServer(server.id.toString());  // store numeric id as string
-                              setServerSearchOpen(false);
-                            }}
-                            className="text-white hover:bg-nebula-navy-dark cursor-pointer"
-                          >
-                            {server.name}
-                          </CommandItem>
-                        ))}
+                          {servers.map((server) => (
+                            <CommandItem
+                              key={server.id}
+                              value={server.id.toString()}
+                              onSelect={() => {
+                                setSelectedServer(server.id.toString());  // store numeric id as string
+                                setServerSearchOpen(false);
+                              }}
+                              className="text-white hover:bg-nebula-navy-dark cursor-pointer"
+                            >
+                              {server.name}
+                            </CommandItem>
+                          ))}
                         </CommandGroup>
                       </CommandList>
                     </Command>

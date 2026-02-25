@@ -319,21 +319,21 @@ export function NotificationsPage({ onNavigate }: NotificationsPageProps = {}) {
         <CardContent className="p-4">
           <div className="flex flex-col md:flex-row gap-4">
             {/* Search */}
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
-              <Input
-                placeholder="Search notifications..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-nebula-navy-dark border-nebula-navy-lighter text-white"
-              />
-            </div>
+          <div className="relative w-[300px]">
+         <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
+          <Input
+          placeholder="Search notifications..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-10 bg-nebula-navy-dark border-nebula-navy-lighter text-white"
+  />
+</div>
 
             {/* Status Filter */}
             <Select value={filter} onValueChange={(value: any) => setFilter(value)}>
-              <SelectTrigger className="w-full md:w-40 bg-nebula-navy-dark border-nebula-navy-lighter text-white">
-                <Filter className="size-4 mr-2" />
-                <SelectValue />
+              <SelectTrigger className="w-[200px] px-3 bg-nebula-navy-dark border-nebula-navy-lighter text-white">
+              <Filter className="size-4 mr-2 shrink-0" />
+              <SelectValue className="truncate" />
               </SelectTrigger>
               <SelectContent className="bg-nebula-navy-light border-nebula-navy-lighter text-white">
                 <SelectItem value="all">All</SelectItem>

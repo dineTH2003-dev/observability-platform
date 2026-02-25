@@ -16,8 +16,8 @@ VALUES (
         '192.168.1.10',
         'Ubuntu 22.04',
         'production',
+        'HEALTHY',
         'ACTIVE',
-        'RUNNING',
         'ubuntu',
         NOW()
     ),
@@ -26,8 +26,8 @@ VALUES (
         '192.168.1.20',
         'Ubuntu 22.04',
         'development',
-        'ACTIVE',
-        'RUNNING',
+        'WARNING',
+        'INACTIVE',
         'ubuntu',
         NOW()
     );

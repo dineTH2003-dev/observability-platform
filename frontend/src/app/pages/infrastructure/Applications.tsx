@@ -86,6 +86,35 @@ export function Applications() {
     }
   };
 
+  const handleCreate = async () => {
+    if (!formData.name || !selectedServer) {
+      alert("Application name and server are required.");
+      return;
+    }
+
+    try {
+      await applicationService.create({
+        name: formData.name,
+        description: formData.description,
+        version: formData.version || "v1.0.0",
+        server_id: selectedServer,
+        application_status: "ACTIVE",
+      });
+
+      // Reset form
+      setFormData({
+        name: '',
+        version: '',
+        description: '',
+      });
+      setSelectedServer('');
+
+      setIsDialogOpen(false);
+      loadApplications();
+    } catch (error) {
+      console.error("Create failed", error);
+    }
+  };
 
   const handleDelete = async () => {
     if (!deleteApp) return;
@@ -212,7 +241,8 @@ export function Applications() {
                 Close
               </Button>
               <Button
-                onClick={() => setIsDialogOpen(false)}
+                onClick={handleCreate}
+                disabled={!formData.name || !selectedServer}
                 className="bg-gradient-to-r from-purple-600 via-blue-500 to-blue-600 hover:from-purple-700 hover:via-blue-600 hover:to-blue-700 text-white"
               >
                 Save

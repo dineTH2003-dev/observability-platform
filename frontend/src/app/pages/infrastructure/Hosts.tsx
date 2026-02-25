@@ -1,10 +1,17 @@
 import { useState } from 'react';
-import { Server, Search, Plus, Trash2, Download, Copy, Upload } from 'lucide-react';
+import { Server, Power, Activity, AlertCircle, Search, MoreVertical, Plus, CheckCircle, XCircle, Clock, Download, Copy, Terminal, Upload, Trash2, AlertTriangle } from 'lucide-react';
+import { toast } from 'sonner';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '../../components/ui/tooltip';
 import {
   Dialog,
   DialogContent,
@@ -41,11 +48,51 @@ export function Hosts() {
   const [hosts, setHosts] = useState<Host[]>([
     { 
       id: 1, 
-      name: 'App1', 
+      name: 'web-server-prod-01', 
       ip: '10.10.10.1', 
-      env: 'os',
+      env: 'Production',
       health: 'Unknown', 
-      agent: 'Unknown' 
+      agent: 'Inactive' 
+    },
+    { 
+      id: 2, 
+      name: 'api-server-prod-02', 
+      ip: '10.10.10.12', 
+      env: 'Production',
+      health: 'Healthy', 
+      agent: 'Active' 
+    },
+    { 
+      id: 3, 
+      name: 'db-server-staging-01', 
+      ip: '10.10.20.5', 
+      env: 'Staging',
+      health: 'Warning', 
+      agent: 'Active' 
+    },
+    { 
+      id: 4, 
+      name: 'cache-server-prod-01', 
+      ip: '10.10.10.25', 
+      env: 'Production',
+      health: 'Critical', 
+      agent: 'Error' 
+    },
+    { 
+      id: 5, 
+      name: 'worker-dev-03', 
+      ip: '192.168.1.45', 
+      env: 'Development',
+      health: 'Healthy', 
+      agent: 'Active' 
+    },
+    { 
+      id: 6, 
+      name: 'app-server-staging-02', 
+      ip: '10.10.20.18', 
+      env: 'Staging',
+      health: 'Unknown', 
+      agent: 'Inactive' 
     },
   ]);
 
@@ -62,7 +109,72 @@ export function Hosts() {
   };
 
   const handleDeleteHost = (hostId: number) => {
+    const host = hosts.find(h => h.id === hostId);
     setHosts(hosts.filter(host => host.id !== hostId));
+    toast.success('Host deleted successfully', {
+      description: `${host?.name} has been removed from monitoring`,
+    });
+  };
+
+  const getHealthBadgeStyle = (health: string) => {
+    switch (health.toLowerCase()) {
+      case 'healthy':
+        return 'bg-green-500/10 text-green-400 border-green-500/20';
+      case 'warning':
+        return 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20';
+      case 'critical':
+        return 'bg-red-500/10 text-red-400 border-red-500/20';
+      default:
+        return 'bg-slate-500/10 text-slate-400 border-slate-500/20';
+    }
+  };
+
+  const getAgentBadgeStyle = (agent: string) => {
+    switch (agent) {
+      case 'Active':
+        return 'bg-green-500/10 text-green-400 border-green-500/20';
+      case 'Error':
+        return 'bg-red-500/10 text-red-400 border-red-500/20';
+      case 'Inactive':
+        return 'bg-slate-500/10 text-slate-400 border-slate-500/20';
+      default:
+        return 'bg-slate-500/10 text-slate-400 border-slate-500/20';
+    }
+  };
+
+  const getAgentTooltip = (agent: string) => {
+    if (agent === 'Inactive') {
+      return 'Installation Pending';
+    }
+    return agent;
+  };
+
+  const isAgentActive = (agent: string) => {
+    return agent === 'Active';
+  };
+
+  const isAgentError = (agent: string) => {
+    return agent === 'Error';
+  };
+
+  const handleDownloadAgent = (host: Host) => {
+    if (isAgentActive(host.agent) || isAgentError(host.agent)) {
+      // Agent already installed or error, do nothing
+      return;
+    }
+    handleInstallAgent(host);
+  };
+
+  const handleRegisterHost = () => {
+    const hostNameInput = document.getElementById('host-name') as HTMLInputElement;
+    const hostName = hostNameInput?.value || 'New Host';
+    
+    setIsDialogOpen(false);
+    toast.success('Host registered successfully', {
+      description: `${hostName} has been added to your infrastructure`,
+    });
+    // After registration, show install dialog
+    handleInstallAgent(hosts[0]);
   };
 
   return (
@@ -83,37 +195,34 @@ export function Hosts() {
           <DialogContent className="bg-nebula-navy-light border-nebula-navy-lighter text-white max-w-md">
             <DialogHeader>
               <DialogTitle>Register New Host</DialogTitle>
-              <DialogDescription className="text-slate-400">
-                Add a new host to your infrastructure monitoring
-              </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="host-name">Host Name *</Label>
+                <Label htmlFor="host-name" className="text-slate-300">Host Name *</Label>
                 <Input 
                   id="host-name" 
-                  placeholder="e.g., prod-web-02"
-                  className="bg-nebula-navy-dark border-nebula-navy-lighter text-white"
+                  placeholder=""
+                  className="bg-nebula-navy-dark border-nebula-navy-lighter text-white placeholder:text-slate-600"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="ip-address">IP Address *</Label>
+                <Label htmlFor="ip-address" className="text-slate-300">IP Address *</Label>
                 <Input 
                   id="ip-address" 
-                  placeholder="192.168.1.100"
-                  className="bg-nebula-navy-dark border-nebula-navy-lighter text-white"
+                  placeholder=""
+                  className="bg-nebula-navy-dark border-nebula-navy-lighter text-white placeholder:text-slate-600"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="ssh-username">SSH Username *</Label>
+                <Label htmlFor="ssh-username" className="text-slate-300">SSH Username *</Label>
                 <Input 
                   id="ssh-username" 
-                  placeholder="ubuntu"
-                  className="bg-nebula-navy-dark border-nebula-navy-lighter text-white"
+                  placeholder=""
+                  className="bg-nebula-navy-dark border-nebula-navy-lighter text-white placeholder:text-slate-600"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="os-type">OS Type</Label>
+                <Label htmlFor="os-type" className="text-slate-300">OS Type</Label>
                 <Select>
                   <SelectTrigger className="bg-nebula-navy-dark border-nebula-navy-lighter text-white">
                     <SelectValue placeholder="Select OS" />
@@ -126,7 +235,7 @@ export function Hosts() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="environment">Environment *</Label>
+                <Label htmlFor="environment" className="text-slate-300">Environment *</Label>
                 <Select>
                   <SelectTrigger className="bg-nebula-navy-dark border-nebula-navy-lighter text-white">
                     <SelectValue placeholder="Select environment" />
@@ -139,40 +248,20 @@ export function Hosts() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="description" className="text-slate-300">Description</Label>
                 <Textarea 
                   id="description" 
-                  placeholder="Optional description of this host"
-                  className="bg-nebula-navy-dark border-nebula-navy-lighter text-white placeholder:text-slate-500 min-h-[80px]"
+                  placeholder=""
+                  className="bg-nebula-navy-dark border-nebula-navy-lighter text-white placeholder:text-slate-600 min-h-[80px]"
                 />
               </div>
-
               <div className="space-y-2">
-                <Label htmlFor="pem-file" className="text-slate-300">PEM File *</Label>
-                <div className="relative">
-                  <Input 
-                    id="pem-file" 
-                    type="file"
-                    accept=".pem"
-                    className="hidden"
-                  />
-                  <label 
-                    htmlFor="pem-file"
-                    className="flex items-center justify-center gap-2 w-full px-4 py-2.5 bg-nebula-navy-dark border border-dashed border-nebula-navy-lighter rounded-lg text-slate-400 hover:text-white hover:border-nebula-purple/50 cursor-pointer transition-colors"
-                  >
-                    <Upload className="size-4" />
-                    <span className="text-sm">Select PEM File</span>
-                  </label>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="ssh-port">SSH Port</Label>
+                <Label htmlFor="ssh-port" className="text-slate-300">SSH Port</Label>
                 <Input 
                   id="ssh-port" 
                   placeholder="22"
                   defaultValue="22"
-                  className="bg-nebula-navy-dark border-nebula-navy-lighter text-white"
+                  className="bg-nebula-navy-dark border-nebula-navy-lighter text-white placeholder:text-slate-600"
                 />
               </div>
             </div>
@@ -180,19 +269,15 @@ export function Hosts() {
               <Button 
                 variant="outline" 
                 onClick={() => setIsDialogOpen(false)}
-                className="bg-transparent border-nebula-navy-lighter text-slate-300 hover:bg-nebula-navy-dark hover:text-white"
+                className="flex-1 bg-transparent border-nebula-navy-lighter text-slate-300 hover:bg-nebula-navy-dark hover:text-white"
               >
                 Cancel
               </Button>
               <Button 
-                onClick={() => {
-                  setIsDialogOpen(false);
-                  // After registration, show install dialog
-                  handleInstallAgent(hosts[0]);
-                }}
-                className="bg-gradient-to-r from-purple-600 via-blue-500 to-blue-600 hover:from-purple-700 hover:via-blue-600 hover:to-blue-700 text-white"
+                onClick={handleRegisterHost}
+                className="flex-1 bg-nebula-purple hover:bg-nebula-purple-dark text-white"
               >
-                Register
+                Register Host
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -217,80 +302,126 @@ export function Hosts() {
       {/* Hosts Table */}
       <Card className="bg-nebula-navy-light border-nebula-navy-lighter">
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-nebula-navy-dark border-b border-nebula-navy-lighter">
-                <tr>
-                  <th className="text-left px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                    HOST
-                  </th>
-                  <th className="text-left px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                    IP
-                  </th>
-                  <th className="text-left px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                    ENV
-                  </th>
-                  <th className="text-left px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                    HEALTH
-                  </th>
-                  <th className="text-left px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                    AGENT
-                  </th>
-                  <th className="text-left px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                    ACTIONS
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-nebula-navy-lighter">
-                {filteredHosts.length === 0 ? (
+          <TooltipProvider>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-nebula-navy-dark border-b border-nebula-navy-lighter">
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center">
-                      <Server className="size-12 text-slate-600 mx-auto mb-3" />
-                      <p className="text-slate-400">No hosts found.</p>
-                    </td>
+                    <th className="text-left px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                      HOST
+                    </th>
+                    <th className="text-left px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                      IP
+                    </th>
+                    <th className="text-left px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                      ENV
+                    </th>
+                    <th className="text-left px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                      HEALTH
+                    </th>
+                    <th className="text-left px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                      AGENT
+                    </th>
                   </tr>
-                ) : (
-                  filteredHosts.map((host) => (
-                    <tr key={host.id} className="hover:bg-nebula-navy-dark transition-colors">
-                      <td className="px-6 py-4 text-white font-medium">{host.name}</td>
-                      <td className="px-6 py-4 text-slate-300">{host.ip}</td>
-                      <td className="px-6 py-4 text-slate-300">{host.env}</td>
-                      <td className="px-6 py-4">
-                        <span className="px-3 py-1 rounded-full text-xs font-medium bg-slate-500/10 text-slate-400 border border-slate-500/20">
-                          {host.health}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="px-3 py-1 rounded-full text-xs font-medium bg-slate-500/10 text-slate-400 border border-slate-500/20">
-                          {host.agent}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <Button 
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleInstallAgent(host)}
-                            className="border-nebula-purple text-nebula-purple hover:bg-nebula-purple/10"
-                          >
-                            Install Agent
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDeleteHost(host.id)}
-                            className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                          >
-                            <Trash2 className="size-4" />
-                          </Button>
-                        </div>
+                </thead>
+                <tbody className="divide-y divide-nebula-navy-lighter">
+                  {filteredHosts.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-12 text-center">
+                        <Server className="size-12 text-slate-600 mx-auto mb-3" />
+                        <p className="text-slate-400">No hosts found.</p>
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  ) : (
+                    filteredHosts.map((host) => (
+                      <tr key={host.id} className="hover:bg-nebula-navy-dark transition-colors">
+                        <td className="px-6 py-4 text-white font-medium">{host.name}</td>
+                        <td className="px-6 py-4 text-slate-300">{host.ip}</td>
+                        <td className="px-6 py-4 text-slate-300">{host.env}</td>
+                        <td className="px-6 py-4">
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getHealthBadgeStyle(host.health)}`}>
+                            {host.health}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  onClick={() => handleDownloadAgent(host)}
+                                  className={`transition-all ${
+                                    isAgentActive(host.agent) || isAgentError(host.agent)
+                                      ? 'cursor-default'
+                                      : 'hover:text-nebula-purple cursor-pointer'
+                                  } ${
+                                    isAgentError(host.agent) ? 'text-red-400' : 'text-slate-400'
+                                  }`}
+                                  disabled={isAgentActive(host.agent) || isAgentError(host.agent)}
+                                >
+                                  {isAgentActive(host.agent) ? (
+                                    <CheckCircle className="size-4" />
+                                  ) : isAgentError(host.agent) ? (
+                                    <AlertTriangle className="size-4" />
+                                  ) : (
+                                    <Download className="size-4" />
+                                  )}
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent 
+                                className="bg-nebula-navy-dark border-nebula-navy-lighter text-white"
+                                sideOffset={5}
+                              >
+                                <p>
+                                  {isAgentActive(host.agent) 
+                                    ? 'Agent Installed' 
+                                    : isAgentError(host.agent)
+                                    ? 'Agent Installation Failed'
+                                    : 'Install Agent'}
+                                </p>
+                              </TooltipContent>
+                            </Tooltip>
+
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getAgentBadgeStyle(host.agent)}`}>
+                                  {host.agent}
+                                </span>
+                              </TooltipTrigger>
+                              {host.agent === 'Inactive' && (
+                                <TooltipContent 
+                                  className="bg-nebula-navy-dark border-nebula-navy-lighter text-white"
+                                  sideOffset={5}
+                                >
+                                  <p>{getAgentTooltip(host.agent)}</p>
+                                </TooltipContent>
+                              )}
+                            </Tooltip>
+
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  onClick={() => handleDeleteHost(host.id)}
+                                  className="text-red-400 hover:text-red-300 transition-colors ml-auto"
+                                >
+                                  <Trash2 className="size-4" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent 
+                                className="bg-nebula-navy-dark border-nebula-navy-lighter text-white"
+                                sideOffset={5}
+                              >
+                                <p>Delete Host</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </TooltipProvider>
         </CardContent>
       </Card>
 

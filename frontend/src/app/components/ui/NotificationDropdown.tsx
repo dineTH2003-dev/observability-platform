@@ -63,19 +63,37 @@ export function NotificationDropdown({ notifications, onViewAll, onMarkAsRead }:
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="text-slate-400 hover:text-white hover:bg-nebula-navy-lighter relative"
-        >
-          <Bell className="size-5" />
-          {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 bg-red-500 rounded-full flex items-center justify-center text-[10px] font-bold text-white border-2 border-nebula-navy-dark">
-              {unreadCount > 99 ? '99+' : unreadCount}
-            </span>
-          )}
-        </Button>
-      </DropdownMenuTrigger>
+  <div className="relative inline-block h-10 w-10"> {/* taller square container */}
+    <Button
+      variant="ghost"
+      size="icon"
+      className="absolute bottom-0 left-1/2 transform -translate-x-1/2 text-slate-400 hover:text-white hover:bg-nebula-navy-lighter"
+    >
+      <Bell className="w-6 h-6 text-white" />
+    </Button>
+
+    {unreadCount > 0 && (
+      <span
+        className="
+          absolute
+          top-0
+          right-0
+          px-2
+          py-0.5
+          bg-red-500
+          text-white
+          text-xs
+          font-semibold
+          rounded-full
+          flex justify-center items-center
+          z-20
+        "
+      >
+        {unreadCount > 99 ? '99+' : unreadCount}
+      </span>
+    )}
+  </div>
+</DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
         className="bg-nebula-navy-light border-nebula-navy-lighter w-96 p-0"

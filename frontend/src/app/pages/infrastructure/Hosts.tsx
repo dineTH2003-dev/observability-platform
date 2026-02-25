@@ -28,6 +28,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select';
+import { hostService } from '../../services/hostService';
+import { useEffect } from 'react';
 
 interface Host {
   id: number;
@@ -36,6 +38,7 @@ interface Host {
   env: string;
   health: string;
   agent: string;
+  ssh_port?: number;
 }
 
 export function Hosts() {
@@ -44,57 +47,30 @@ export function Hosts() {
   const [isInstallDialogOpen, setIsInstallDialogOpen] = useState(false);
   const [selectedHost, setSelectedHost] = useState<Host | null>(null);
 
-  // Mock data - use state so we can delete items
-  const [hosts, setHosts] = useState<Host[]>([
-    { 
-      id: 1, 
-      name: 'web-server-prod-01', 
-      ip: '10.10.10.1', 
-      env: 'Production',
-      health: 'Unknown', 
-      agent: 'Inactive' 
-    },
-    { 
-      id: 2, 
-      name: 'api-server-prod-02', 
-      ip: '10.10.10.12', 
-      env: 'Production',
-      health: 'Healthy', 
-      agent: 'Active' 
-    },
-    { 
-      id: 3, 
-      name: 'db-server-staging-01', 
-      ip: '10.10.20.5', 
-      env: 'Staging',
-      health: 'Warning', 
-      agent: 'Active' 
-    },
-    { 
-      id: 4, 
-      name: 'cache-server-prod-01', 
-      ip: '10.10.10.25', 
-      env: 'Production',
-      health: 'Critical', 
-      agent: 'Error' 
-    },
-    { 
-      id: 5, 
-      name: 'worker-dev-03', 
-      ip: '192.168.1.45', 
-      env: 'Development',
-      health: 'Healthy', 
-      agent: 'Active' 
-    },
-    { 
-      id: 6, 
-      name: 'app-server-staging-02', 
-      ip: '10.10.20.18', 
-      env: 'Staging',
-      health: 'Unknown', 
-      agent: 'Inactive' 
-    },
-  ]);
+  const [hosts, setHosts] = useState<Host[]>([]);
+  useEffect(() => {
+    loadHosts();
+  }, []);
+
+  const loadHosts = async () => {
+    try {
+      const response = await hostService.getAll();
+
+      const mapped = response.map((h: any) => ({
+        id: h.server_id,
+        name: h.hostname,
+        ip: h.ip_address,
+        env: h.os,
+        ssh_port: h.ssh_port ? Number(h.ssh_port) : 22,
+        health: h.server_status,
+        agent: h.agent_status,
+      }));
+
+      setHosts(mapped);
+    } catch {
+      toast.error('Failed to load hosts');
+    }
+  };
 
   const filteredHosts = hosts.filter(host =>
     host.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -108,21 +84,13 @@ export function Hosts() {
     setIsInstallDialogOpen(true);
   };
 
-  const handleDeleteHost = (hostId: number) => {
-    const host = hosts.find(h => h.id === hostId);
-    setHosts(hosts.filter(host => host.id !== hostId));
-    toast.success('Host deleted successfully', {
-      description: `${host?.name} has been removed from monitoring`,
-    });
-  };
-
   const getHealthBadgeStyle = (health: string) => {
-    switch (health.toLowerCase()) {
-      case 'healthy':
+    switch (health?.toUpperCase()) {
+      case 'HEALTHY':
         return 'bg-green-500/10 text-green-400 border-green-500/20';
-      case 'warning':
+      case 'WARNING':
         return 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20';
-      case 'critical':
+      case 'CRITICAL':
         return 'bg-red-500/10 text-red-400 border-red-500/20';
       default:
         return 'bg-slate-500/10 text-slate-400 border-slate-500/20';
@@ -131,11 +99,11 @@ export function Hosts() {
 
   const getAgentBadgeStyle = (agent: string) => {
     switch (agent) {
-      case 'Active':
+      case 'ACTIVE':
         return 'bg-green-500/10 text-green-400 border-green-500/20';
-      case 'Error':
+      case 'ERROR':
         return 'bg-red-500/10 text-red-400 border-red-500/20';
-      case 'Inactive':
+      case 'NOT_INSTALLED':
         return 'bg-slate-500/10 text-slate-400 border-slate-500/20';
       default:
         return 'bg-slate-500/10 text-slate-400 border-slate-500/20';
@@ -143,18 +111,18 @@ export function Hosts() {
   };
 
   const getAgentTooltip = (agent: string) => {
-    if (agent === 'Inactive') {
+    if (agent === 'NOT_INSTALLED') {
       return 'Installation Pending';
     }
     return agent;
   };
 
   const isAgentActive = (agent: string) => {
-    return agent === 'Active';
+    return agent === 'ACTIVE';
   };
 
   const isAgentError = (agent: string) => {
-    return agent === 'Error';
+    return agent === 'ERROR';
   };
 
   const handleDownloadAgent = (host: Host) => {
@@ -165,16 +133,79 @@ export function Hosts() {
     handleInstallAgent(host);
   };
 
-  const handleRegisterHost = () => {
-    const hostNameInput = document.getElementById('host-name') as HTMLInputElement;
-    const hostName = hostNameInput?.value || 'New Host';
-    
-    setIsDialogOpen(false);
-    toast.success('Host registered successfully', {
-      description: `${hostName} has been added to your infrastructure`,
-    });
-    // After registration, show install dialog
-    handleInstallAgent(hosts[0]);
+
+  const handleDeleteHost = async (hostId: number) => {
+    try {
+      await hostService.delete(hostId);
+
+      const host = hosts.find(h => h.id === hostId);
+      setHosts(hosts.filter(host => host.id !== hostId));
+
+      toast.success('Host deleted successfully', {
+        description: `${host?.name} has been removed from monitoring`,
+      });
+    } catch {
+      toast.error('Failed to delete host');
+    }
+  };
+
+  const handleRegisterHost = async () => {
+    const hostname = (document.getElementById('host-name') as HTMLInputElement)?.value;
+    const ip = (document.getElementById('ip-address') as HTMLInputElement)?.value;
+    const username = (document.getElementById('ssh-username') as HTMLInputElement)?.value;
+    const ssh_port = (document.getElementById('ssh-port') as HTMLInputElement)?.value;
+
+    try {
+      const newHost = await hostService.register({
+        hostname,
+        ip_address: ip,
+        username,
+        os: 'linux',
+        ssh_port: ssh_port ? parseInt(ssh_port) : 22,
+      });
+
+      const mapped: Host = {
+        id: newHost.server_id,
+        name: newHost.hostname,
+        ip: newHost.ip_address,
+        env: newHost.os,
+        ssh_port: newHost.ssh_port ? Number(newHost.ssh_port) : 22,
+        health: newHost.server_status,
+        agent: newHost.agent_status,
+      };
+
+      setHosts(prev => [...prev, mapped]);
+
+      setIsDialogOpen(false);
+
+      toast.success('Host registered successfully', {
+        description: `${hostname} has been added to your infrastructure`,
+      });
+      handleInstallAgent(mapped);
+    } catch {
+      toast.error('Failed to register host');
+    }
+  };
+
+  const handleConfirmDownloadInstaller = async () => {
+    if (!selectedHost) return;
+
+    try {
+      const blob = await hostService.downloadInstaller(selectedHost.id);
+
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `oneagent-install-${selectedHost.name}.sh`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      toast.success('Installer downloaded successfully');
+      setIsInstallDialogOpen(false);
+    } catch {
+      toast.error('Failed to download installer');
+    }
   };
 
   return (
@@ -199,24 +230,24 @@ export function Hosts() {
             <div className="space-y-4 py-4">
               <div className="space-y-2">
                 <Label htmlFor="host-name" className="text-slate-300">Host Name *</Label>
-                <Input 
-                  id="host-name" 
+                <Input
+                  id="host-name"
                   placeholder=""
                   className="bg-nebula-navy-dark border-nebula-navy-lighter text-white placeholder:text-slate-600"
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="ip-address" className="text-slate-300">IP Address *</Label>
-                <Input 
-                  id="ip-address" 
+                <Input
+                  id="ip-address"
                   placeholder=""
                   className="bg-nebula-navy-dark border-nebula-navy-lighter text-white placeholder:text-slate-600"
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="ssh-username" className="text-slate-300">SSH Username *</Label>
-                <Input 
-                  id="ssh-username" 
+                <Input
+                  id="ssh-username"
                   placeholder=""
                   className="bg-nebula-navy-dark border-nebula-navy-lighter text-white placeholder:text-slate-600"
                 />
@@ -249,16 +280,16 @@ export function Hosts() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="description" className="text-slate-300">Description</Label>
-                <Textarea 
-                  id="description" 
+                <Textarea
+                  id="description"
                   placeholder=""
                   className="bg-nebula-navy-dark border-nebula-navy-lighter text-white placeholder:text-slate-600 min-h-[80px]"
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="ssh-port" className="text-slate-300">SSH Port</Label>
-                <Input 
-                  id="ssh-port" 
+                <Input
+                  id="ssh-port"
                   placeholder="22"
                   defaultValue="22"
                   className="bg-nebula-navy-dark border-nebula-navy-lighter text-white placeholder:text-slate-600"
@@ -266,14 +297,14 @@ export function Hosts() {
               </div>
             </div>
             <DialogFooter className="gap-2">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => setIsDialogOpen(false)}
                 className="flex-1 bg-transparent border-nebula-navy-lighter text-slate-300 hover:bg-nebula-navy-dark hover:text-white"
               >
                 Cancel
               </Button>
-              <Button 
+              <Button
                 onClick={handleRegisterHost}
                 className="flex-1 bg-nebula-purple hover:bg-nebula-purple-dark text-white"
               >
@@ -349,13 +380,11 @@ export function Hosts() {
                               <TooltipTrigger asChild>
                                 <button
                                   onClick={() => handleDownloadAgent(host)}
-                                  className={`transition-all ${
-                                    isAgentActive(host.agent) || isAgentError(host.agent)
-                                      ? 'cursor-default'
-                                      : 'hover:text-nebula-purple cursor-pointer'
-                                  } ${
-                                    isAgentError(host.agent) ? 'text-red-400' : 'text-slate-400'
-                                  }`}
+                                  className={`transition-all ${isAgentActive(host.agent) || isAgentError(host.agent)
+                                    ? 'cursor-default'
+                                    : 'hover:text-nebula-purple cursor-pointer'
+                                    } ${isAgentError(host.agent) ? 'text-red-400' : 'text-slate-400'
+                                    }`}
                                   disabled={isAgentActive(host.agent) || isAgentError(host.agent)}
                                 >
                                   {isAgentActive(host.agent) ? (
@@ -367,16 +396,16 @@ export function Hosts() {
                                   )}
                                 </button>
                               </TooltipTrigger>
-                              <TooltipContent 
+                              <TooltipContent
                                 className="bg-nebula-navy-dark border-nebula-navy-lighter text-white"
                                 sideOffset={5}
                               >
                                 <p>
-                                  {isAgentActive(host.agent) 
-                                    ? 'Agent Installed' 
+                                  {isAgentActive(host.agent)
+                                    ? 'Agent Installed'
                                     : isAgentError(host.agent)
-                                    ? 'Agent Installation Failed'
-                                    : 'Install Agent'}
+                                      ? 'Agent Installation Failed'
+                                      : 'Install Agent'}
                                 </p>
                               </TooltipContent>
                             </Tooltip>
@@ -387,8 +416,8 @@ export function Hosts() {
                                   {host.agent}
                                 </span>
                               </TooltipTrigger>
-                              {host.agent === 'Inactive' && (
-                                <TooltipContent 
+                              {host.agent === 'NOT_INSTALLED' && (
+                                <TooltipContent
                                   className="bg-nebula-navy-dark border-nebula-navy-lighter text-white"
                                   sideOffset={5}
                                 >
@@ -406,7 +435,7 @@ export function Hosts() {
                                   <Trash2 className="size-4" />
                                 </button>
                               </TooltipTrigger>
-                              <TooltipContent 
+                              <TooltipContent
                                 className="bg-nebula-navy-dark border-nebula-navy-lighter text-white"
                                 sideOffset={5}
                               >
@@ -435,7 +464,7 @@ export function Hosts() {
             <p className="text-slate-400 text-sm">
               A custom OneAgent installer will be generated for:
             </p>
-            
+
             <div className="bg-nebula-navy-dark rounded-lg p-4 space-y-2 font-mono text-sm">
               <div className="flex justify-between">
                 <span className="text-slate-400">Server ID:</span>
@@ -474,7 +503,8 @@ export function Hosts() {
               </div>
             </div>
 
-            <Button 
+            <Button
+              onClick={handleConfirmDownloadInstaller}
               className="w-full bg-gradient-to-r from-nebula-purple to-nebula-blue hover:from-nebula-purple-dark hover:to-nebula-blue text-white"
             >
               <Download className="size-4 mr-2" />
@@ -482,7 +512,7 @@ export function Hosts() {
             </Button>
           </div>
           <DialogFooter>
-            <Button 
+            <Button
               variant="ghost"
               onClick={() => setIsInstallDialogOpen(false)}
               className="text-slate-400 hover:text-white"

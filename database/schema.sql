@@ -12,6 +12,7 @@ CREATE TABLE servers (
     server_status VARCHAR(50),
     agent_status VARCHAR(50),
     username VARCHAR(100),
+    ssh_port INT DEFAULT 22,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW(),
     last_discovered_at TIMESTAMP
@@ -38,7 +39,7 @@ CREATE TABLE applications (
     version VARCHAR(50),
     description TEXT,
     application_status VARCHAR(50) CHECK (
-        application_status IN ('ACTIVE', 'DOWN', 'DEGRADED', 'MAINTENANCE')
+        application_status IN ('ACTIVE', 'DOWN', 'WARNING', 'MAINTENANCE')
     ) DEFAULT 'ACTIVE',
     deployment_path TEXT,
     created_at TIMESTAMP DEFAULT NOW(),

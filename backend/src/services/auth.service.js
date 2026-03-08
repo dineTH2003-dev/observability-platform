@@ -30,14 +30,14 @@ async function loginUser({ email, password }) {
 
   const accessToken = jwt.sign(
     { userId: user.id, role: user.role },
-    env.JWT_ACCESS_SECRET,
-    { expiresIn: '15m' }
+    env.jwt.secret,
+    { expiresIn: env.jwt.expiresIn }
   );
 
   const refreshToken = jwt.sign(
     { userId: user.id },
-    env.JWT_REFRESH_SECRET,
-    { expiresIn: '7d' }
+    env.jwt.refreshSecret,
+    { expiresIn: env.jwt.refreshExpiresIn }
   );
 
   return { accessToken, refreshToken };
@@ -54,7 +54,7 @@ async function generateResetToken(email) {
 
   const token = jwt.sign(
     { userId: user.id },
-    env.JWT_ACCESS_SECRET,
+    env.jwt.secret,
     { expiresIn: '24h' }
   );
 

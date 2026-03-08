@@ -1,7 +1,7 @@
-import jwt from 'jsonwebtoken';
-import { env } from '../config/env.js';
+const jwt = require('jsonwebtoken');
+const env = require('../config/env');
 
-export function authenticate(req, res, next) {
+function authenticate(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader) {
     return res.status(401).json({ message: 'No token provided' });
@@ -10,7 +10,7 @@ export function authenticate(req, res, next) {
   const token = authHeader.split(' ')[1];
 
   try {
-    const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET);
+    const decoded = jwt.verify(token, env.jwt.secret);
     req.user = decoded;
     next();
   } catch {
@@ -18,7 +18,7 @@ export function authenticate(req, res, next) {
   }
 }
 
-export function authorize(roles = []) {
+function authorize(roles = []) {
   return (req, res, next) => {
     if (!roles.includes(req.user.role)) {
       return res.status(403).json({ message: 'Forbidden' });
@@ -26,3 +26,8 @@ export function authorize(roles = []) {
     next();
   };
 }
+
+module.exports = {
+  authenticate,
+  authorize,
+};

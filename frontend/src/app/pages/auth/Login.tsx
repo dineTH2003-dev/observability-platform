@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Mail, Lock, Check } from 'lucide-react';
+import { loginUser } from '../../../api/authApi';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
@@ -17,9 +18,16 @@ export function Login({ onLogin, onSwitchToSignup, onSwitchToForgotPassword }: L
   const [password, setPassword] = useState('');
   const [keepSignedIn, setKeepSignedIn] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onLogin();
+
+    try {
+      const res = await loginUser({ email, password });
+      localStorage.setItem('token', res.data.accessToken);
+      onLogin();
+    } catch (error: any) {
+      alert('Invalid email or password');
+    }
   };
 
   return (

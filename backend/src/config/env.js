@@ -23,7 +23,14 @@ const env = {
 
   jwt: {
     secret: requireEnv("JWT_SECRET"),
+    refreshSecret: requireEnv("JWT_REFRESH_SECRET"),
+    expiresIn: process.env.JWT_EXPIRES_IN || "15m",
+    refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
   },
+  JWT_ACCESS_SECRET: requireEnv("JWT_SECRET"),
+  JWT_REFRESH_SECRET: requireEnv("JWT_REFRESH_SECRET"),
+  JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || "15m",
+  JWT_REFRESH_EXPIRES_IN: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
 };
 
 module.exports = env;

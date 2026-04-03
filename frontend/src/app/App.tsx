@@ -11,7 +11,7 @@ import { Logs } from './pages/monitoring/Logs';
 import { Anomalies } from './pages/anomalies/Anomalies';
 import { Reports } from './pages/reports/Reports';
 import { AlertSettings } from './pages/settings/alertSettings';
-import {Login } from './pages/auth/Login';
+import { Login } from './pages/auth/Login';
 import { Signup } from './pages/auth/Signup';
 import { ForgotPassword } from './pages/auth/ForgotPassword';
 import { AuthLayout } from './layouts/AuthLayout';
@@ -31,10 +31,10 @@ function AppContent() {
     return (
       <AuthLayout>
         {authView === 'login' && (
-          <Login 
-            onLogin={login} 
-            onSwitchToSignup={() => setAuthView('signup')} 
-            onSwitchToForgotPassword={() => setAuthView('forgot-password')} 
+          <Login
+            onLogin={login}
+            onSwitchToSignup={() => setAuthView('signup')}
+            onSwitchToForgotPassword={() => setAuthView('forgot-password')}
           />
         )}
         {authView === 'forgot-password' && (
@@ -44,9 +44,9 @@ function AppContent() {
           <Signup onSignup={signup} onSwitchToLogin={() => setAuthView('login')} />
         )}
       </AuthLayout>
-      
+
     );
-  }  
+  }
 
 
   return (
@@ -56,22 +56,17 @@ function AppContent() {
       {currentPage === 'applications' && <Applications />}
       {currentPage === 'services' && <Services onNavigate={handleNavigate} />}
       {currentPage === 'service-metrics' && (<ServiceMetrics serviceId={selectedServiceId} onNavigate={handleNavigate} />)}
-      
       {currentPage === 'logs' && <Logs />}
-     
-      
       {currentPage === 'anomalies' && <Anomalies selectedAnomalyId={selectedAnomalyId} />}
-      
       {currentPage === 'reports' && <Reports />}
       {currentPage === 'alert-settings' && <AlertSettings />}
       {currentPage === 'metrics' && <Metrics />}
       {currentPage === 'notifications' && <NotificationsPage onNavigate={handleNavigate} />}
       {currentPage === 'tickets' && <Tickets />}
-      
+
     </MainLayout>
   );
 }
-    
 
 export default function App() {
   return (

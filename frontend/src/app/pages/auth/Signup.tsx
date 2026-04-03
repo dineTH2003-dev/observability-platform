@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { signupUser } from '../../../api/authApi';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
@@ -16,9 +17,22 @@ export function Signup({ onSignup, onSwitchToLogin }: SignupProps) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [agreeToTerms, setAgreeToTerms] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSignup();
+
+    if (password !== confirmPassword) {
+      alert('Passwords do not match');
+      return;
+    }
+
+    try {
+      await signupUser({ email, password });
+
+      alert('Signup successful!');
+      onSignup();
+    } catch (error: any) {
+      alert(error.response?.data?.message || 'Signup failed');
+    }
   };
 
   return (

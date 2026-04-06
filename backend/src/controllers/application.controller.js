@@ -33,7 +33,7 @@ exports.getById = asyncHandler(async (req, res) => {
 exports.update = asyncHandler(async (req, res) => {
   const updated = await ApplicationService.updateApplication(
     req.params.id,
-    req.body
+    req.body,
   );
 
   res.json({

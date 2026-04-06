@@ -1,4 +1,3 @@
-// src/services/host.service.js
 const ServerModel = require("../models/host.model");
 const ApiError = require("../utils/apiError");
 
@@ -66,9 +65,6 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 # 2. Install system dependencies
-echo "[INFO] Updating package list..."
-apt-get update -qq
-
 echo "[INFO] Installing python3 and pip..."
 apt-get install -y python3 python3-pip curl > /dev/null
 

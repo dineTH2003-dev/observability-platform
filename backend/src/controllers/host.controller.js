@@ -1,7 +1,6 @@
 const asyncHandler = require("../middlewares/asyncHandler");
 const ServerService = require("../services/host.service");
 
-
 exports.create = asyncHandler(async (req, res) => {
   const server = await ServerService.createServer(req.body);
 
@@ -55,7 +54,7 @@ exports.downloadInstaller = asyncHandler(async (req, res) => {
   res.setHeader("Content-Type", "application/x-sh");
   res.setHeader(
     "Content-Disposition",
-    `attachment; filename="install-oneagent-${serverId}.sh"`
+    `attachment; filename="install-oneagent-${serverId}.sh"`,
   );
 
   res.send(script);

@@ -2,6 +2,7 @@
 utils.py - OneAgent shared utilities
 Config loading and API client used by agent.py and discovery.py.
 """
+
 import configparser, logging, sys
 from pathlib import Path
 import requests
@@ -35,9 +36,9 @@ def load_config():
 
 class ApiClient:
     def __init__(self, backend, server_id, timeout=10):
-        self.backend   = backend.rstrip("/")
+        self.backend = backend.rstrip("/")
         self.server_id = server_id
-        self.timeout   = timeout
+        self.timeout = timeout
         self._s = requests.Session()
         self._s.headers.update({"Content-Type": "application/json"})
 
@@ -61,14 +62,22 @@ class ApiClient:
         return self._post("/api/agent/heartbeat", {"server_id": self.server_id})
 
     def send_metrics(self, cpu, memory, disk, threads):
-        return self._post("/api/agent/metrics", {
-            "server_id": self.server_id,
-            "cpu_usage": cpu, "memory_usage": memory,
-            "disk_usage": disk, "thread_count": threads,
-        })
+        return self._post(
+            "/api/agent/metrics",
+            {
+                "server_id": self.server_id,
+                "cpu_usage": cpu,
+                "memory_usage": memory,
+                "disk_usage": disk,
+                "thread_count": threads,
+            },
+        )
 
     def send_services(self, services):
-        return self._post("/api/agent/services", {
-            "server_id": self.server_id,
-            "services":  services,
-        })
+        return self._post(
+            "/api/agent/services",
+            {
+                "server_id": self.server_id,
+                "services": services,
+            },
+        )

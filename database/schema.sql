@@ -78,6 +78,20 @@ CREATE TABLE service_metrics (
 );
 
 -- ============================================================
+--  LOGGING
+-- ============================================================
+-- log_configs
+CREATE TABLE log_configs (
+    log_config_id SERIAL PRIMARY KEY,
+    service_id INT NOT NULL REFERENCES services(service_id) ON DELETE CASCADE,
+    log_path TEXT NOT NULL,
+    is_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (service_id) -- one config per service; enables upsert
+);
+
+-- ============================================================
 --  INDEXES
 -- ============================================================
 -- servers

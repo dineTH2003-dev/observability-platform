@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Mail, Lock, Check } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import { loginUser } from '../../../api/authApi';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -16,6 +16,7 @@ interface LoginProps {
 export function Login({ onLogin, onSwitchToSignup, onSwitchToForgotPassword }: LoginProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [keepSignedIn, setKeepSignedIn] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -62,15 +63,26 @@ export function Login({ onLogin, onSwitchToSignup, onSwitchToForgotPassword }: L
               <Label htmlFor="password" className="text-white text-sm mb-2 block">
                 Password*
               </Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="admin123"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="bg-nebula-navy-light border-nebula-navy-lighter text-white placeholder:text-slate-500 h-12"
-                required
-              />
+
+              <div className="relative w-full">
+                <Input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="admin123"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full h-12 pr-12 bg-nebula-navy-light border-nebula-navy-lighter text-white placeholder:text-slate-500"
+                  required
+                />
+
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 z-10 text-slate-400 hover:text-white"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </div>
 
             <div className="flex items-center justify-between pt-2">
@@ -78,7 +90,7 @@ export function Login({ onLogin, onSwitchToSignup, onSwitchToForgotPassword }: L
                 <Checkbox
                   id="keep-signed-in"
                   checked={keepSignedIn}
-                  onCheckedChange={(checked) => setKeepSignedIn(checked as boolean)}
+                  onCheckedChange={(checked: boolean | 'indeterminate') => setKeepSignedIn(Boolean(checked))}
                   className="border-nebula-navy-lighter data-[state=checked]:bg-nebula-purple data-[state=checked]:border-nebula-purple"
                 />
                 <label

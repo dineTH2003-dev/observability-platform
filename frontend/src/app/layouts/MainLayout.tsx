@@ -13,7 +13,7 @@ export function MainLayout({ children, currentPage, onNavigate, onLogout }: Main
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
-    <div className="min-h-screen bg-nebula-navy-bg flex">
+    <div className="h-screen overflow-hidden bg-nebula-navy-bg flex">
       <Sidebar 
         currentPage={currentPage} 
         onNavigate={onNavigate} 

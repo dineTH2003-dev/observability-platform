@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { AlertTriangle, Search, Clock, User, CheckCircle, XCircle, Eye, UserPlus, Activity, Lightbulb, TrendingUp } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { AlertTriangle, Search, Clock, User, CheckCircle, Eye, UserPlus, Activity, Lightbulb, TrendingUp } from 'lucide-react';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -19,138 +19,91 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select';
+import * as incidentApi from '../../../api/incidentApi';
 
-interface Incident {
-  id: string;
+// Shape returned by the backend API
+interface ApiIncident {
+  incident_id: string;
+  incident_number: number;
   title: string;
   severity: 'critical' | 'high' | 'medium' | 'low';
   status: 'open' | 'acknowledged' | 'resolved';
-  assignedTo: string;
-  detectedAt: string;
-  duration: string;
-  entity: string;
-  anomalies: string[];
-  hasRecommendation: boolean;
-  recommendation?: {
-    cause: string;
-    action: string;
-    impact: string;
-    confidence: string;
+  assigned_to: string | null;
+  assigned_email: string | null;
+  created_at: string;
+  updated_at: string;
+  acknowledged_at: string | null;
+  resolved_at: string | null;
+  anomalies?: Array<{ title: string; anomaly_type: string; detected_at: string }>;
+  timeline?: Array<{ occurred_at: string; message: string; event_type: string }>;
+}
+
+interface Engineer {
+  id: string;
+  email: string;
+  role: string;
+}
+
+// Map API response to the shape the existing UI expects
+function mapIncident(raw: ApiIncident): any {
+  return {
+    id: `INC-${raw.incident_number}`,
+    incident_id: raw.incident_id,
+    title: raw.title,
+    severity: raw.severity,
+    status: raw.status,
+    assignedTo: raw.assigned_email ?? 'Unassigned',
+    detectedAt: new Date(raw.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+    duration: raw.resolved_at
+      ? `${Math.round((new Date(raw.resolved_at).getTime() - new Date(raw.created_at).getTime()) / 60000)}m`
+      : `${Math.round((Date.now() - new Date(raw.created_at).getTime()) / 60000)}m`,
+    entity: (raw.anomalies?.[0]?.anomaly_type ?? 'System') + ' anomaly',
+    anomalies: raw.anomalies?.map((a) => `${a.anomaly_type} anomaly`) ?? [],
+    hasRecommendation: false,
+    timeline: raw.timeline?.map((t) => ({
+      time: new Date(t.occurred_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+      event: t.message,
+    })) ?? [],
   };
-  timeline: Array<{
-    time: string;
-    event: string;
-  }>;
 }
 
 export function Incidents() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
+  const [selectedIncident, setSelectedIncident] = useState<any | null>(null);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [selectedEngineer, setSelectedEngineer] = useState('');
+  const [engineers, setEngineers] = useState<Engineer[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const engineers = [
-    { id: 'eng-1', name: 'Alex Martinez', role: 'DevOps Engineer' },
-    { id: 'eng-2', name: 'Sarah Chen', role: 'Senior SRE' },
-    { id: 'eng-3', name: 'Mike Johnson', role: 'Platform Engineer' },
-    { id: 'eng-4', name: 'Emily Davis', role: 'Infrastructure Engineer' },
-  ];
+  // Load incidents and engineers from the real API on mount
+  const [incidents, setIncidents] = useState<any[]>([]);
 
-  const [incidents, setIncidents] = useState<Incident[]>([
-    {
-      id: 'INC-342',
-      title: 'High CPU utilization on prod-db-01',
-      severity: 'critical',
-      status: 'open',
-      assignedTo: 'Unassigned',
-      detectedAt: '10:07',
-      duration: '2h 10m',
-      entity: 'prod-db-01 / User Service',
-      anomalies: ['CPU anomaly (2h)', 'Memory anomaly (1h)'],
-      hasRecommendation: true,
-      recommendation: {
-        cause: 'CPU saturation due to traffic spike',
-        action: 'Scale service horizontally',
-        impact: '↓ CPU by ~40%',
-        confidence: 'High',
-      },
-      timeline: [
-        { time: '10:07', event: 'Incident created' },
-        { time: '10:08', event: 'Alert sent to Admin + DevOps' },
-      ],
-    },
-    {
-      id: 'INC-341',
-      title: 'Memory leak detected in API Gateway',
-      severity: 'high',
-      status: 'acknowledged',
-      assignedTo: 'Alex Martinez',
-      detectedAt: '09:45',
-      duration: '2h 32m',
-      entity: 'API Gateway / gateway',
-      anomalies: ['Memory anomaly (2h 30m)'],
-      hasRecommendation: true,
-      recommendation: {
-        cause: 'Memory not being properly released in connection pool',
-        action: 'Restart API Gateway service and review connection management',
-        impact: '↓ Memory usage by ~60%',
-        confidence: 'High',
-      },
-      timeline: [
-        { time: '09:45', event: 'Incident created' },
-        { time: '09:46', event: 'Alert sent to Admin + DevOps' },
-        { time: '09:50', event: 'Assigned to Alex Martinez' },
-        { time: '10:05', event: 'Acknowledged by Alex' },
-      ],
-    },
-    {
-      id: 'INC-340',
-      title: 'Database connection pool exhausted',
-      severity: 'critical',
-      status: 'resolved',
-      assignedTo: 'Sarah Chen',
-      detectedAt: '08:15',
-      duration: '45m',
-      entity: 'Payment Service / payment-db',
-      anomalies: ['Connection pool anomaly (40m)'],
-      hasRecommendation: true,
-      recommendation: {
-        cause: 'Insufficient connection pool size for current load',
-        action: 'Increase max connections from 50 to 100',
-        impact: '↑ Capacity by 100%',
-        confidence: 'High',
-      },
-      timeline: [
-        { time: '08:15', event: 'Incident created' },
-        { time: '08:16', event: 'Alert sent to Admin' },
-        { time: '08:18', event: 'Assigned to Sarah Chen' },
-        { time: '08:20', event: 'Acknowledged by Sarah' },
-        { time: '09:00', event: 'Resolved by Sarah' },
-      ],
-    },
-    {
-      id: 'INC-339',
-      title: 'Elevated error rate in authentication',
-      severity: 'high',
-      status: 'open',
-      assignedTo: 'Unassigned',
-      detectedAt: '11:30',
-      duration: '47m',
-      entity: 'Auth Service / auth-api',
-      anomalies: ['Error rate anomaly (45m)'],
-      hasRecommendation: false,
-      timeline: [
-        { time: '11:30', event: 'Incident created' },
-        { time: '11:31', event: 'Alert sent to Admin + DevOps' },
-      ],
-    },
-  ]);
+  const loadData = async () => {
+    try {
+      const [rawIncidents, rawEngineers] = await Promise.all([
+        incidentApi.fetchIncidents(),
+        incidentApi.fetchEngineers(),
+      ]);
+      setIncidents(rawIncidents.map(mapIncident));
+      setEngineers(rawEngineers);
+    } catch (err) {
+      console.error('Failed to load incidents:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+
 
   const filteredIncidents = incidents.filter(incident =>
-    incident.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    incident.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    incident.entity.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    incident.assignedTo.toLowerCase().includes(searchQuery.toLowerCase())
+    (incident.title?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+    (incident.id?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+    (incident.entity?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+    (incident.assignedTo?.toLowerCase() || '').includes(searchQuery.toLowerCase())
   );
 
   const getSeverityColor = (severity: string) => {
@@ -181,68 +134,45 @@ export function Incidents() {
     }
   };
 
-  const handleAssign = () => {
+  const handleAssign = async () => {
     if (selectedIncident && selectedEngineer) {
-      const engineer = engineers.find(e => e.id === selectedEngineer);
-      if (engineer) {
-        setIncidents(incidents.map(inc =>
-          inc.id === selectedIncident.id
-            ? {
-                ...inc,
-                assignedTo: engineer.name,
-                timeline: [
-                  ...inc.timeline,
-                  { time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), event: `Assigned to ${engineer.name}` },
-                ],
-              }
-            : inc
-        ));
+      try {
+        await incidentApi.assignEngineer(selectedIncident.incident_id, selectedEngineer);
         setIsAssignDialogOpen(false);
         setSelectedEngineer('');
-        // Update selected incident if details are open
-        if (selectedIncident) {
-          const updatedIncident = incidents.find(inc => inc.id === selectedIncident.id);
-          if (updatedIncident) {
-            setSelectedIncident({ ...updatedIncident, assignedTo: engineer.name });
-          }
-        }
+        await loadData();
+        // Update selected incident details
+        const updated = await incidentApi.fetchIncidentById(selectedIncident.incident_id);
+        setSelectedIncident(mapIncident(updated));
+      } catch (err) {
+        console.error('Failed to assign engineer', err);
+        alert('Failed to assign engineer. Make sure you have admin rights.');
       }
     }
   };
 
-  const handleAcknowledge = (incident: Incident) => {
-    setIncidents(incidents.map(inc =>
-      inc.id === incident.id
-        ? {
-            ...inc,
-            status: 'acknowledged',
-            timeline: [
-              ...inc.timeline,
-              { time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), event: `Acknowledged by ${inc.assignedTo}` },
-            ],
-          }
-        : inc
-    ));
-    if (selectedIncident?.id === incident.id) {
-      setSelectedIncident({ ...incident, status: 'acknowledged' });
+  const handleAcknowledge = async (incident: any) => {
+    try {
+      await incidentApi.acknowledgeIncident(incident.incident_id);
+      await loadData();
+      if (selectedIncident?.id === incident.id) {
+        const updated = await incidentApi.fetchIncidentById(incident.incident_id);
+        setSelectedIncident(mapIncident(updated));
+      }
+    } catch (err) {
+      console.error('Failed to acknowledge incident', err);
     }
   };
 
-  const handleResolve = (incident: Incident) => {
-    setIncidents(incidents.map(inc =>
-      inc.id === incident.id
-        ? {
-            ...inc,
-            status: 'resolved',
-            timeline: [
-              ...inc.timeline,
-              { time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }), event: `Resolved by ${inc.assignedTo}` },
-            ],
-          }
-        : inc
-    ));
-    if (selectedIncident?.id === incident.id) {
-      setSelectedIncident(null);
+  const handleResolve = async (incident: any) => {
+    try {
+      await incidentApi.resolveIncident(incident.incident_id);
+      await loadData();
+      if (selectedIncident?.id === incident.id) {
+        setSelectedIncident(null);
+      }
+    } catch (err) {
+      console.error('Failed to resolve incident', err);
     }
   };
 
@@ -351,7 +281,14 @@ export function Incidents() {
                     </Button>
                     <Button
                       variant="outline"
-                      onClick={() => setSelectedIncident(incident)}
+                      onClick={async () => {
+                        try {
+                          const fullIncident = await incidentApi.fetchIncidentById(incident.incident_id);
+                          setSelectedIncident(mapIncident(fullIncident));
+                        } catch (err) {
+                          console.error('Failed to fetch details', err);
+                        }
+                      }}
                       className="bg-transparent border-nebula-navy-lighter text-white hover:bg-nebula-navy-lighter"
                     >
                       <Eye className="size-4 mr-2" />
@@ -583,7 +520,7 @@ export function Incidents() {
                     {engineers.map((eng) => (
                       <SelectItem key={eng.id} value={eng.id}>
                         <div className="flex flex-col">
-                          <span className="font-medium">{eng.name}</span>
+                          <span className="font-medium">{eng.email}</span>
                           <span className="text-xs text-slate-400">{eng.role}</span>
                         </div>
                       </SelectItem>

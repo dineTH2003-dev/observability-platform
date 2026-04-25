@@ -34,7 +34,7 @@ export function Reports() {
 
     try {
       const response = await fetch(
-        "http://localhost:3001/api/report/preview",
+        "http://localhost:9000/api/reports/preview",
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -70,7 +70,7 @@ export function Reports() {
     setError('');
     try {
       const response = await fetch(
-        "http://localhost:3001/reports/export/pdf",
+        "http://localhost:9000/api/reports/export/pdf",
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -202,7 +202,30 @@ export function Reports() {
           <Card className="bg-nebula-navy-light border-nebula-navy-lighter">
             <CardContent className="p-6 text-white">
               {reportData && reportData.length > 0 ? (
-                <pre className="text-sm">{JSON.stringify(reportData, null, 2)}</pre>
+               <div className="overflow-x-auto mt-4">
+  <table className="min-w-full border border-nebula-navy-lighter text-sm">
+    <thead className="bg-nebula-navy-dark text-slate-300">
+      <tr>
+        {reportData && Object.keys(reportData[0]).map((key) => (
+          <th key={key} className="px-4 py-2 border">
+            {key}
+          </th>
+        ))}
+      </tr>
+    </thead>
+    <tbody>
+      {reportData.map((row: any, index: number) => (
+        <tr key={index} className="text-white border-t">
+          {Object.values(row).map((value: any, i: number) => (
+            <td key={i} className="px-4 py-2 border">
+              {value}
+            </td>
+          ))}
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>
               ) : (
                 <p className="text-red-400">No records for the selected range</p>
               )}

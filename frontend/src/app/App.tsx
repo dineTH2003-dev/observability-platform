@@ -21,6 +21,8 @@ import { Metrics } from './pages/monitoring/Metrics';
 import { Tickets } from './pages/tickets/Tickets';
 import { Toaster } from './components/ui/sonner';
 import { ResetPassword } from './pages/auth/ResetPassword';
+import { Incidents } from './pages/incidents/Incidents';
+
 
 function AppContent() {
   const { isAuthenticated, login, signup, logout } = useAuth();
@@ -73,6 +75,7 @@ function AppContent() {
       {currentPage === 'logs' && <Logs />}
       {currentPage === 'anomalies' && <Anomalies selectedAnomalyId={selectedAnomalyId} />}
       {currentPage === 'reports' && <Reports />}
+      {currentPage === 'incidents' && <Incidents />}
       {currentPage === 'alert-settings' && <AlertSettings />}
       {currentPage === 'metrics' && <Metrics />}
       {currentPage === 'notifications' && <NotificationsPage onNavigate={handleNavigate} />}

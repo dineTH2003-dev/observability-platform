@@ -3,6 +3,26 @@ CREATE TYPE agent_status_enum AS ENUM ('ACTIVE', 'INACTIVE', 'ERROR');
 CREATE TYPE application_status_enum AS ENUM ('ACTIVE', 'WARNING', 'DOWN');
 CREATE TYPE service_status_enum AS ENUM ('RUNNING', 'STOPPED', 'ERROR', 'UNKNOWN');
 
+--Authentication
+
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+CREATE TABLE IF NOT EXISTS users (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  email VARCHAR(50) UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  role VARCHAR(20) DEFAULT 'engineer',
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS password_resets (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  token TEXT NOT NULL,
+  expires_at TIMESTAMP NOT NULL
+);
+
 -- ============================================================
 --  INFRASTRUCTURE
 -- ============================================================
@@ -115,4 +135,83 @@ CREATE INDEX idx_services_status ON services(status);
 
 -- filter by RUNNING/STOPPED
 -- service_metrics
-CREATE INDEX idx_service_metrics_service_ts ON service_metrics(service_id, recorded_at DESC);
+CREATE INDEX idx_service_metrics_service_ts ON service_metrics(service_id, recorded_at DESC);-- ============================================================
+--  INCIDENT MANAGEMENT TABLES
+--  Run: sudo -u postgres psql -d observability_db -f database/incident_schema.sql
+--  Safe to run: does NOT modify any existing tables
+-- ============================================================
+
+-- ENUMs for anomalies
+CREATE TYPE anomaly_severity_enum AS ENUM ('low', 'medium', 'high', 'critical');
+CREATE TYPE anomaly_status_enum   AS ENUM ('detected', 'assigned', 'acknowledged', 'resolved');
+
+-- ENUMs for incidents
+CREATE TYPE incident_status_enum   AS ENUM ('open', 'acknowledged', 'resolved');
+CREATE TYPE incident_severity_enum AS ENUM ('low', 'medium', 'high', 'critical');
+
+-- ============================================================
+--  1. anomalies
+-- ============================================================
+CREATE TABLE IF NOT EXISTS anomalies (
+  anomaly_id     UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  server_id      INT  REFERENCES servers(server_id)           ON DELETE SET NULL,
+  service_id     INT  REFERENCES services(service_id)         ON DELETE SET NULL,
+  application_id INT  REFERENCES applications(application_id) ON DELETE SET NULL,
+  anomaly_type   VARCHAR(50)          NOT NULL,   -- 'CPU', 'MEMORY', 'DISK', 'ERROR_RATE' …
+  severity       anomaly_severity_enum NOT NULL DEFAULT 'medium',
+  title          VARCHAR(255)         NOT NULL,
+  description    TEXT,
+  metric_value   NUMERIC(10, 4),                  -- e.g. 95.4  (the actual reading)
+  threshold      NUMERIC(10, 4),                  -- e.g. 90.0  (the limit crossed)
+  status         anomaly_status_enum  NOT NULL DEFAULT 'detected',
+  incident_id    UUID,                            -- FK added after incidents table created
+  detected_at    TIMESTAMPTZ          NOT NULL DEFAULT NOW(),
+  resolved_at    TIMESTAMPTZ
+);
+
+-- ============================================================
+--  2. incidents
+-- ============================================================
+CREATE TABLE IF NOT EXISTS incidents (
+  incident_id     UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  incident_number SERIAL UNIQUE,          -- human-readable counter: 1, 2, 3 → shown as INC-1
+  title           VARCHAR(255)          NOT NULL,
+  description     TEXT,
+  severity        incident_severity_enum NOT NULL DEFAULT 'medium',
+  status          incident_status_enum   NOT NULL DEFAULT 'open',
+  assigned_to     UUID REFERENCES users(id) ON DELETE SET NULL,
+  acknowledged_at TIMESTAMPTZ,
+  resolved_at     TIMESTAMPTZ,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ============================================================
+--  3. Link anomalies → incidents (FK back-reference)
+-- ============================================================
+ALTER TABLE anomalies
+  ADD CONSTRAINT fk_anomaly_incident
+  FOREIGN KEY (incident_id) REFERENCES incidents(incident_id) ON DELETE SET NULL;
+
+-- ============================================================
+--  4. incident_timeline  (append-only audit log)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS incident_timeline (
+  timeline_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  incident_id UUID NOT NULL REFERENCES incidents(incident_id) ON DELETE CASCADE,
+  actor_id    UUID REFERENCES users(id) ON DELETE SET NULL,  -- NULL = system / auto action
+  event_type  VARCHAR(50) NOT NULL,
+  -- 'created' | 'assigned' | 'acknowledged' | 'resolved' | 'comment'
+  message     TEXT        NOT NULL,
+  occurred_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ============================================================
+--  5. Indexes for fast queries
+-- ============================================================
+CREATE INDEX idx_anomalies_status      ON anomalies(status);
+CREATE INDEX idx_anomalies_incident    ON anomalies(incident_id);
+CREATE INDEX idx_anomalies_server      ON anomalies(server_id);
+CREATE INDEX idx_incidents_status      ON incidents(status);
+CREATE INDEX idx_incidents_assigned    ON incidents(assigned_to);
+CREATE INDEX idx_timeline_incident_ts  ON incident_timeline(incident_id, occurred_at ASC);

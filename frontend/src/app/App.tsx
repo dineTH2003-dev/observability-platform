@@ -20,33 +20,49 @@ import { AuthProvider } from './context/AuthContext';
 import { Metrics } from './pages/monitoring/Metrics';
 import { Tickets } from './pages/tickets/Tickets';
 import { Toaster } from './components/ui/sonner';
+import { ResetPassword } from './pages/auth/ResetPassword';
+import { Incidents } from './pages/incidents/Incidents';
+
 
 function AppContent() {
   const { isAuthenticated, login, signup, logout } = useAuth();
-  const [authView, setAuthView] = useState<'login' | 'signup' | 'forgot-password'>('login');
+  const [authView, setAuthView] = useState<'login' | 'signup' | 'forgot-password' | 'reset-password'>('login');
   const { currentPage, selectedAnomalyId, selectedServiceId, handleNavigate } = useNavigation();
 
   // Authentication Views
+
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get("token");
+
   if (!isAuthenticated) {
+
+  // If token exists → show reset page
+  if (token) {
     return (
       <AuthLayout>
-        {authView === 'login' && (
-          <Login
-            onLogin={login}
-            onSwitchToSignup={() => setAuthView('signup')}
-            onSwitchToForgotPassword={() => setAuthView('forgot-password')}
-          />
-        )}
-        {authView === 'forgot-password' && (
-          <ForgotPassword onBackToLogin={() => setAuthView('login')} />
-        )}
-        {authView === 'signup' && (
-          <Signup onSignup={signup} onSwitchToLogin={() => setAuthView('login')} />
-        )}
+        <ResetPassword onBackToLogin={() => setAuthView('login')} />
       </AuthLayout>
-
     );
   }
+
+  return (
+    <AuthLayout>
+      {authView === 'login' && (
+        <Login 
+          onLogin={login} 
+          onSwitchToSignup={() => setAuthView('signup')} 
+          onSwitchToForgotPassword={() => setAuthView('forgot-password')} 
+        />
+      )}
+      {authView === 'forgot-password' && (
+        <ForgotPassword onBackToLogin={() => setAuthView('login')} />
+      )}
+      {authView === 'signup' && (
+        <Signup onSignup={signup} onSwitchToLogin={() => setAuthView('login')} />
+      )}
+    </AuthLayout>
+  );
+}
 
 
   return (
@@ -59,6 +75,7 @@ function AppContent() {
       {currentPage === 'logs' && <Logs />}
       {currentPage === 'anomalies' && <Anomalies selectedAnomalyId={selectedAnomalyId} />}
       {currentPage === 'reports' && <Reports />}
+      {currentPage === 'incidents' && <Incidents />}
       {currentPage === 'alert-settings' && <AlertSettings />}
       {currentPage === 'metrics' && <Metrics />}
       {currentPage === 'notifications' && <NotificationsPage onNavigate={handleNavigate} />}

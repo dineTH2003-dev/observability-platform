@@ -24,7 +24,13 @@ export function Login({ onLogin, onSwitchToSignup, onSwitchToForgotPassword }: L
 
     try {
       const res = await loginUser({ email, password });
-      localStorage.setItem('token', res.data.accessToken);
+      
+      if (keepSignedIn) {
+        localStorage.setItem('token', res.data.accessToken);
+      } else {
+        sessionStorage.setItem('token', res.data.accessToken);
+      }
+      
       onLogin();
     } catch (error: any) {
       alert('Invalid email or password');

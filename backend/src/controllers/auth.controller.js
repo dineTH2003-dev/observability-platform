@@ -1,5 +1,7 @@
 const { signupUser, loginUser, generateResetToken } = require('../services/auth.service');
 const { sendResetEmail } = require('../utils/email.util');
+const bcrypt = require('bcrypt');
+const db = require('../config/db');
 
 async function signup(req, res) {
   try {
@@ -9,12 +11,6 @@ async function signup(req, res) {
     res.status(400).json({ message: err.message });
   }
 }
-
-module.exports = {
-  signup,
-  login,
-  forgotPassword,
-};
 
 async function login(req, res) {
   try {
@@ -36,3 +32,46 @@ async function forgotPassword(req, res) {
     res.status(400).json({ message: err.message });
   }
 }
+
+async function resetPassword(req, res) {
+  try {
+    const { token, newPassword } = req.body;
+
+    const result = await db.query(
+      `SELECT * FROM password_resets WHERE token = $1`,
+      [token]
+    );
+
+    const reset = result.rows[0];
+    if (!reset) throw new Error('Invalid token');
+
+    if (new Date() > reset.expires_at) {
+      throw new Error('Token expired');
+    }
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+
+    await db.query(
+      `UPDATE users SET password_hash = $1 WHERE id = $2`,
+      [hashed, reset.user_id]
+    );
+
+    // delete token after use
+    await db.query(
+      `DELETE FROM password_resets WHERE user_id = $1`,
+      [reset.user_id]
+    );
+
+    res.json({ message: "Password reset successful" });
+
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+}
+
+module.exports = {
+  signup,
+  login,
+  forgotPassword,
+  resetPassword,
+};

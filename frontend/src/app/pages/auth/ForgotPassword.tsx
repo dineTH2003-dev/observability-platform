@@ -4,6 +4,7 @@ import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import logoImage from '../../../assets/logo.png';
+import axios from 'axios';
 
 interface ForgotPasswordProps {
   onBackToLogin: () => void;
@@ -13,9 +14,20 @@ export function ForgotPassword({ onBackToLogin }: ForgotPasswordProps) {
   const [email, setEmail] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitted(true);
+
+    try {
+      await axios.post("http://localhost:9000/api/auth/forgot-password", {
+        email,
+      });
+
+      setIsSubmitted(true);
+
+    } catch (error: any) {
+      console.error("Error sending reset email:", error);
+      alert(error.response?.data?.message || "Failed to send reset email");
+    }
   };
 
   return (

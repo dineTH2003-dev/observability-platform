@@ -14,16 +14,27 @@ const transporter = nodemailer.createTransport({
 async function sendResetEmail(email, token) {
   const resetLink = `${env.FRONTEND_URL}/reset-password?token=${token}`;
 
-  await transporter.sendMail({
-    from: `"CloudSight" <${env.EMAIL_USER}>`,
-    to: email,
-    subject: 'Password Reset',
-    html: `
-      <p>You requested a password reset.</p>
-      <p><a href="${resetLink}">Reset Password</a></p>
-      <p>This link expires in 24 hours.</p>
-    `,
-  });
+  console.log("Sending email to:", email);
+  console.log("Reset link:", resetLink);
+
+  try {
+    await transporter.sendMail({
+      from: `"CloudSight" <${env.EMAIL_USER}>`,
+      to: email,
+      subject: 'Password Reset',
+      html: `
+        <p>You requested a password reset.</p>
+        <p><a href="${resetLink}">Reset Password</a></p>
+        <p>This link expires in 24 hours.</p>
+      `,
+    });
+
+    console.log("Email sent successfully");
+
+  } catch (err) {
+    console.error("Email sending failed:", err);
+    throw err;
+  }
 }
 
 module.exports = {

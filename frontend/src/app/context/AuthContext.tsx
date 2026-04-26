@@ -10,7 +10,10 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // Initialize state by checking if a token exists in either storage
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(
+    !!(localStorage.getItem('token') || sessionStorage.getItem('token'))
+  );
 
   const login = () => {
     setIsAuthenticated(true);
@@ -21,6 +24,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
+    localStorage.removeItem('token');
+    sessionStorage.removeItem('token');
     setIsAuthenticated(false);
   };
 

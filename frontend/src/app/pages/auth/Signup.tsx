@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 import { signupUser } from '../../../api/authApi';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -15,6 +16,8 @@ export function Signup({ onSignup, onSwitchToLogin }: SignupProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [agreeToTerms, setAgreeToTerms] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -64,40 +67,58 @@ export function Signup({ onSignup, onSwitchToLogin }: SignupProps) {
             </div>
 
             <div>
-              <Label htmlFor="password" className="text-white text-sm mb-2 block">
+              <Label className="text-white text-sm mb-2 block">
                 Password*
               </Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Create a strong password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="bg-nebula-navy-light border-nebula-navy-lighter text-white placeholder:text-slate-500 h-12"
-                required
-              />
+
+              <div className="relative w-full">
+                <Input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Create a strong password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full h-12 pr-12 bg-nebula-navy-light border-nebula-navy-lighter text-white placeholder:text-slate-500"
+                />
+
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 z-10 text-slate-400 hover:text-white"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </div>
 
             <div>
-              <Label htmlFor="confirmPassword" className="text-white text-sm mb-2 block">
+              <Label className="text-white text-sm mb-2 block">
                 Confirm Password*
               </Label>
-              <Input
-                id="confirmPassword"
-                type="password"
-                placeholder="Re-enter your password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="bg-nebula-navy-light border-nebula-navy-lighter text-white placeholder:text-slate-500 h-12"
-                required
-              />
+
+              <div className="relative w-full">
+                <Input
+                  type={showConfirmPassword ? "text" : "password"}
+                  placeholder="Re-enter your password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full h-12 pr-12 bg-nebula-navy-light border-nebula-navy-lighter text-white placeholder:text-slate-500"
+                />
+
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword((prev) => !prev)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 z-10 text-slate-400 hover:text-white"
+                >
+                  {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </div>
 
             <div className="flex items-center space-x-2 pt-2">
               <Checkbox
                 id="terms"
                 checked={agreeToTerms}
-                onCheckedChange={(checked) => setAgreeToTerms(checked as boolean)}
+                onCheckedChange={(checked: boolean | 'indeterminate') => setAgreeToTerms(Boolean(checked))}
                 className="border-nebula-navy-lighter data-[state=checked]:bg-cyan-500 data-[state=checked]:border-cyan-500"
               />
               <label

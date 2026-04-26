@@ -8,7 +8,7 @@ import { Checkbox } from '../../components/ui/checkbox';
 import logoImage from '../../../assets/logo.png';
 
 interface LoginProps {
-  onLogin: () => void;
+  onLogin: (token: string) => void;
   onSwitchToSignup: () => void;
   onSwitchToForgotPassword: () => void;
 }
@@ -23,17 +23,29 @@ export function Login({ onLogin, onSwitchToSignup, onSwitchToForgotPassword }: L
     e.preventDefault();
 
     try {
-      const res = await loginUser({ email, password });
-      
-      if (keepSignedIn) {
-        localStorage.setItem('token', res.data.accessToken);
-      } else {
-        sessionStorage.setItem('token', res.data.accessToken);
+      const res = await fetch("http://localhost:9000/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.message || "Login failed");
+        return;
       }
-      
-      onLogin();
-    } catch (error: any) {
-      alert('Invalid email or password');
+
+      onLogin(data.accessToken);
+
+    } catch (err) {
+      console.error(err);
+      alert("Something went wrong");
     }
   };
 

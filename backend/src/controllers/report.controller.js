@@ -101,12 +101,6 @@ if (rows.length > 0) {
 
 // ===== TABLE END =====
 
-    const chart = await generateChart(reportType, rows);
-    if (chart) {
-      doc.addPage();
-      doc.image(chart, { fit: [500, 300] });
-    }
-
     doc.end();
   } catch (err) {
     res.status(500).json({ error: err.message });

@@ -12,6 +12,9 @@ import { Input } from '../ui/input';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
 } from '../ui/dropdown-menu';
 import { NotificationDropdown, Notification } from '../ui/NotificationDropdown';
 
@@ -22,7 +25,7 @@ interface TopbarProps {
   onToggleSidebar: () => void;
 }
 
-export function Topbar({ currentPage, onNavigate, onToggleSidebar }: TopbarProps) {
+export function Topbar({ currentPage, onNavigate, onLogout, onToggleSidebar }: TopbarProps) {
   const [notifications, setNotifications] = useState<Notification[]>([
     {
       id: '1',
@@ -138,7 +141,6 @@ export function Topbar({ currentPage, onNavigate, onToggleSidebar }: TopbarProps
           <Moon className="size-5" />
         </Button>
 
-        {/* User Menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -150,6 +152,28 @@ export function Topbar({ currentPage, onNavigate, onToggleSidebar }: TopbarProps
               </div>
             </Button>
           </DropdownMenuTrigger>
+
+          <DropdownMenuContent className="bg-nebula-navy-dark border-nebula-navy-lighter w-40">
+
+            {/* Profile */}
+            <DropdownMenuItem
+              onClick={() => onNavigate('profile')}
+              className="text-white hover:bg-nebula-navy-lighter cursor-pointer"
+            >
+              Profile
+            </DropdownMenuItem>
+
+            <DropdownMenuSeparator className="bg-nebula-navy-lighter" />
+
+            {/* Logout */}
+            <DropdownMenuItem
+              onClick={onLogout}
+              className="text-red-400 hover:bg-nebula-navy-lighter cursor-pointer"
+            >
+              Logout
+            </DropdownMenuItem>
+
+          </DropdownMenuContent>
         </DropdownMenu>
       </div>
     </header>

@@ -296,7 +296,7 @@ export function AlertSettings() {
                       <SelectContent className="bg-nebula-navy-light border-nebula-navy-lighter text-white">
                         <SelectItem value="admin">Admin</SelectItem>
                         <SelectItem value="devops">DevOps Group</SelectItem>
-                        <SelectItem value="admin-devops">Admin + DevOps Group</SelectItem>
+                        <SelectItem value={["admin", "devops"]}>Admin + DevOps Group</SelectItem>
                         <SelectItem value="all">All Engineers</SelectItem>
                       </SelectContent>
                     </Select>

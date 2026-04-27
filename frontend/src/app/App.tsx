@@ -68,6 +68,7 @@ function AppContent() {
   return (
     <MainLayout currentPage={currentPage} onNavigate={handleNavigate} onLogout={logout}>
       {currentPage === 'dashboard' && <Dashboard onNavigate={handleNavigate} />}
+      {currentPage === 'profile' && (<div className="text-white text-xl">Profile Page</div>)}
       {currentPage === 'hosts' && <Hosts />}
       {currentPage === 'applications' && <Applications />}
       {currentPage === 'services' && <Services onNavigate={handleNavigate} />}

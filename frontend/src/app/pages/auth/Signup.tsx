@@ -29,7 +29,10 @@ export function Signup({ onSignup, onSwitchToLogin }: SignupProps) {
     }
 
     try {
-      await signupUser({ email, password });
+      const res = await signupUser({ email, password });
+      
+      // Save token to session storage (cleared on tab close)
+      sessionStorage.setItem('token', res.data.accessToken);
 
       alert('Signup successful!');
       onSignup();

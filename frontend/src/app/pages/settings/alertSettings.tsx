@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Bell, Plus, Edit2, Trash2, Mail, TestTube2, AlertCircle, Users, Settings as SettingsIcon } from 'lucide-react';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -43,45 +43,21 @@ export function AlertSettings() {
   const [emailChannelEnabled, setEmailChannelEnabled] = useState(true);
   const [emailAddress, setEmailAddress] = useState('admin@company.com');
 
-  const [alertRules, setAlertRules] = useState<AlertRule[]>([
-    {
-      id: 'rule-1',
-      name: 'Critical System Health',
-      condition: 'system_health_critical',
-      severity: 'critical',
-      duration: '1',
-      enabled: true,
-      recipients: ['admin@company.com'],
-      scope: 'global',
-      cooldown: '30',
-      sendOnce: false,
-    },
-    {
-      id: 'rule-2',
-      name: 'High-Severity Anomaly Detected',
-      condition: 'anomaly_high_severity',
-      severity: 'high',
-      duration: '2',
-      enabled: true,
-      recipients: ['devops@company.com'],
-      scope: 'global',
-      cooldown: '15',
-      sendOnce: true,
-    },
-    {
-      id: 'rule-3',
-      name: 'Service Unavailable',
-      condition: 'service_unavailable',
-      severity: 'critical',
-      threshold: '5',
-      duration: '5',
-      enabled: false,
-      recipients: ['oncall@company.com'],
-      scope: 'application',
-      cooldown: '60',
-      sendOnce: false,
-    },
-  ]);
+    const [alertEvents, setAlertEvents] = useState({
+    incidentCreated: true,
+    incidentAssigned: true,
+    incidentAcknowledged: false,
+    incidentResolved: true,
+    agentDisconnected: true,
+  });
+
+  const [recipients, setRecipients] = useState({
+    incidentCreated: "admin-devops",
+    incidentAssigned: "assigned",
+    incidentResolved: "admin",
+  });
+
+  const [alertRules, setAlertRules] = useState<AlertRule[]>([]);
 
   const [newRule, setNewRule] = useState<Partial<AlertRule>>({
     name: '',
@@ -95,35 +71,122 @@ export function AlertSettings() {
     sendOnce: false,
   });
 
-  const handleToggleRule = (ruleId: string) => {
+  const handleToggleRule = async (ruleId: string) => {
+  try {
+    const rule = alertRules.find(r => r.id === ruleId);
+    if (!rule) return;
+
+    const res = await fetch(`http://localhost:9000/api/alerts/${ruleId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled: !rule.enabled }),
+    });
+
+    const updatedRule = await res.json();
+
     setAlertRules(rules =>
-      rules.map(rule =>
-        rule.id === ruleId ? { ...rule, enabled: !rule.enabled } : rule
-      )
+      rules.map(r => (r.id === ruleId ? updatedRule : r))
     );
-  };
+  } catch (err) {
+    console.error('Toggle failed', err);
+  }
+};
 
-  const handleDeleteRule = (ruleId: string) => {
+ const handleDeleteRule = async (ruleId: string) => {
+  try {
+    await fetch(`http://localhost:9000/api/alerts/${ruleId}`, {
+      method: 'DELETE',
+    });
+
     setAlertRules(rules => rules.filter(rule => rule.id !== ruleId));
-  };
+  } catch (err) {
+    console.error('Delete failed', err);
+  }
+};
 
-  const handleCreateRule = () => {
-    const rule: AlertRule = {
-      id: `rule-${Date.now()}`,
-      name: newRule.name || 'New Alert Rule',
-      condition: newRule.condition || 'custom_condition',
-      severity: newRule.severity || 'medium',
-      duration: newRule.duration || '5',
-      enabled: newRule.enabled ?? true,
-      recipients: newRule.recipients || [],
-      scope: newRule.scope || 'global',
-      cooldown: newRule.cooldown || '30',
-      sendOnce: newRule.sendOnce ?? false,
-      threshold: newRule.threshold,
+const isValidEmail = (email: string) =>
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+  const handleCreateRule = async () => {
+    // REQUIRED FIELDS
+if (!newRule.name?.trim()) {
+  alert("Alert name is required");
+  return;
+}
+
+if (!newRule.condition) {
+  alert("Please select a trigger condition");
+  return;
+}
+
+// DURATION CHECK
+if (!newRule.duration || Number(newRule.duration) <= 0) {
+  alert("Duration must be greater than 0");
+  return;
+}
+
+// THRESHOLD VALIDATION (0–100)
+if (newRule.threshold) {
+  const t = Number(newRule.threshold);
+  if (t < 0 || t > 100) {
+    alert("Threshold must be between 0 and 100");
+    return;
+  }
+}
+
+// RECIPIENT CHECK
+if (!newRule.recipients || newRule.recipients.length === 0) {
+  alert("At least one recipient is required");
+  return;
+}
+
+// EMAIL VALIDATION
+const invalidEmail = newRule.recipients.some(e => !isValidEmail(e));
+if (invalidEmail) {
+  alert("Enter valid email addresses only");
+  return;
+}
+
+  try {
+    const res = await fetch('http://localhost:9000/api/alerts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: newRule.name,
+        condition: newRule.condition,
+        severity: newRule.severity,
+        duration: newRule.duration,
+        enabled: newRule.enabled ?? true,
+        recipients: newRule.recipients || [],
+        scope: newRule.scope,
+        cooldown: newRule.cooldown,
+        sendOnce: newRule.sendOnce ?? false,
+        threshold: newRule.threshold || null,
+      }),
+    });
+
+    const createdRule = await res.json();
+    console.log('Created rule response:', createdRule); // debug
+
+    // ✅ prevent crash if backend response is incomplete
+    const safeRule = {
+      id: createdRule.id || `temp-${Date.now()}`,
+      name: createdRule.name || newRule.name || 'New Rule',
+      condition: createdRule.condition || '',
+      severity: createdRule.severity || 'medium',
+      duration: createdRule.duration || '5',
+      enabled: createdRule.enabled ?? true,
+      recipients: createdRule.recipients || [],
+      scope: createdRule.scope || 'global',
+      cooldown: createdRule.cooldown || '30',
+      sendOnce: createdRule.sendOnce ?? false,
+      threshold: createdRule.threshold,
     };
 
-    setAlertRules([...alertRules, rule]);
+    setAlertRules(prev => [...prev, safeRule]);
+
     setIsCreateDialogOpen(false);
+
     setNewRule({
       name: '',
       condition: '',
@@ -135,7 +198,53 @@ export function AlertSettings() {
       cooldown: '30',
       sendOnce: false,
     });
-  };
+
+  } catch (err) {
+    console.error('Create failed', err);
+  }
+};
+  const handleSaveSettings = async () => {
+    
+    // AT LEAST ONE EVENT
+    const atLeastOneEvent = Object.values(alertEvents).some(v => v);
+    if (!atLeastOneEvent) {
+      alert("Select at least one alert event");
+      return;
+    }
+    
+    // RECIPIENTS CHECK
+  const invalidRecipient = Object.values(recipients).some(v => !v);
+  if (invalidRecipient) {
+    alert("All recipient fields must be selected");
+    return;
+  }
+  
+  // EMAIL REQUIRED IF ENABLED
+  if (emailChannelEnabled && !emailAddress.trim()) {
+    alert("Email address is required");
+    return;
+}
+  try {
+    const res = await fetch('http://localhost:9000/api/alert-settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        alertEvents,
+        recipients,
+        emailChannelEnabled,
+        emailAddress,
+      }),
+    });
+
+    const data = await res.json();
+    console.log('Saved settings:', data);
+
+    alert('Settings saved successfully!');
+  } catch (err) {
+    console.error('Save failed', err);
+    alert('Failed to save settings');
+  }
+};
 
   const handleTestNotification = () => {
     // Mock test notification
@@ -156,6 +265,37 @@ export function AlertSettings() {
         return 'bg-slate-500/10 text-slate-400 border-slate-500/20';
     }
   };
+
+  const fetchSettings = async () => {
+  try {
+    const res = await fetch('http://localhost:9000/api/alert-settings');
+    const data = await res.json();
+
+    if (data) {
+      setAlertEvents(data.alertEvents || {});
+      setRecipients(data.recipients || {});
+      setEmailChannelEnabled(data.emailChannelEnabled ?? true);
+      setEmailAddress(data.emailAddress || '');
+    }
+  } catch (err) {
+    console.error('Failed to load settings', err);
+  }
+};
+
+const fetchAlertRules = async () => {
+  try {
+    const res = await fetch('http://localhost:9000/api/alerts');
+    const data = await res.json();
+    setAlertRules(Array.isArray(data) ? data : data.data || []);
+  } catch (err) {
+    console.error('Failed to fetch alert rules', err);
+  }
+};
+
+useEffect(() => {
+  fetchSettings();
+  fetchAlertRules();
+}, []);
 
   const conditionOptions = [
     { value: 'system_health_critical', label: 'System Health = Critical' },
@@ -231,7 +371,11 @@ export function AlertSettings() {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between p-3 bg-nebula-navy-dark rounded-lg">
                     <div className="flex items-center gap-3">
-                      <Checkbox id="incident-created" defaultChecked />
+                      <Checkbox 
+                      id="incident-created" 
+                      checked={alertEvents.incidentCreated} 
+                      onCheckedChange={(checked) => 
+                        setAlertEvents(prev => ({ ...prev, incidentCreated: !!checked }))}/>
                       <label htmlFor="incident-created" className="text-white text-sm cursor-pointer">
                         Incident Created (Critical / High)
                       </label>
@@ -239,7 +383,11 @@ export function AlertSettings() {
                   </div>
                   <div className="flex items-center justify-between p-3 bg-nebula-navy-dark rounded-lg">
                     <div className="flex items-center gap-3">
-                      <Checkbox id="incident-assigned" defaultChecked />
+                      <Checkbox 
+                      id="incident-assigned"
+                      checked={alertEvents.incidentAssigned}
+                      onCheckedChange={(checked) =>
+                        setAlertEvents(prev => ({ ...prev, incidentAssigned: !!checked }))} />
                       <label htmlFor="incident-assigned" className="text-white text-sm cursor-pointer">
                         Incident Assigned
                       </label>
@@ -247,7 +395,11 @@ export function AlertSettings() {
                   </div>
                   <div className="flex items-center justify-between p-3 bg-nebula-navy-dark rounded-lg">
                     <div className="flex items-center gap-3">
-                      <Checkbox id="incident-acknowledged" />
+                      <Checkbox 
+                      id="incident-acknowledged" 
+                      checked={alertEvents.incidentAcknowledged}
+                      onCheckedChange={(checked) =>
+                        setAlertEvents(prev => ({ ...prev, incidentAcknowledged: !!checked }))} />
                       <label htmlFor="incident-acknowledged" className="text-white text-sm cursor-pointer">
                         Incident Acknowledged
                       </label>
@@ -255,7 +407,11 @@ export function AlertSettings() {
                   </div>
                   <div className="flex items-center justify-between p-3 bg-nebula-navy-dark rounded-lg">
                     <div className="flex items-center gap-3">
-                      <Checkbox id="incident-resolved" defaultChecked />
+                      <Checkbox 
+                      id="incident-resolved"
+                      checked={alertEvents.incidentResolved}
+                      onCheckedChange={(checked) =>
+                        setAlertEvents(prev => ({ ...prev, incidentResolved: !!checked })) } />
                       <label htmlFor="incident-resolved" className="text-white text-sm cursor-pointer">
                         Incident Resolved
                       </label>
@@ -263,7 +419,11 @@ export function AlertSettings() {
                   </div>
                   <div className="flex items-center justify-between p-3 bg-nebula-navy-dark rounded-lg">
                     <div className="flex items-center gap-3">
-                      <Checkbox id="agent-disconnected" defaultChecked />
+                      <Checkbox
+                      id="agent-disconnected"
+                      checked={alertEvents.agentDisconnected}
+                      onCheckedChange={(checked) =>
+                        setAlertEvents(prev => ({ ...prev, agentDisconnected: !!checked }))} />
                       <label htmlFor="agent-disconnected" className="text-white text-sm cursor-pointer">
                         Agent Disconnected
                       </label>
@@ -289,7 +449,10 @@ export function AlertSettings() {
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label className="text-white">Incident Created</Label>
-                    <Select defaultValue="admin-devops">
+                    <Select
+                    value={recipients.incidentCreated}
+                    onValueChange={(value) =>
+                      setRecipients(prev => ({ ...prev, incidentCreated: value }))}>
                       <SelectTrigger className="bg-nebula-navy-dark border-nebula-navy-lighter text-white">
                         <SelectValue />
                       </SelectTrigger>
@@ -304,7 +467,10 @@ export function AlertSettings() {
 
                   <div className="space-y-2">
                     <Label className="text-white">Incident Assigned</Label>
-                    <Select defaultValue="assigned">
+                    <Select
+                    value={recipients.incidentAssigned}
+                    onValueChange={(value) =>
+                      setRecipients(prev => ({ ...prev, incidentAssigned: value }))}>
                       <SelectTrigger className="bg-nebula-navy-dark border-nebula-navy-lighter text-white">
                         <SelectValue />
                       </SelectTrigger>
@@ -318,7 +484,10 @@ export function AlertSettings() {
 
                   <div className="space-y-2">
                     <Label className="text-white">Incident Resolved</Label>
-                    <Select defaultValue="admin">
+                    <Select
+                    value={recipients.incidentResolved}
+                    onValueChange={(value) =>
+                      setRecipients(prev => ({ ...prev, incidentResolved: value }))}>
                       <SelectTrigger className="bg-nebula-navy-dark border-nebula-navy-lighter text-white">
                         <SelectValue />
                       </SelectTrigger>
@@ -386,7 +555,9 @@ export function AlertSettings() {
                           <div className="flex items-center gap-2">
                             <Mail className="size-3 text-slate-500" />
                             <span className="text-xs text-slate-400">
-                              {rule.recipients.join(', ') || 'No recipients'}
+                              {Array.isArray(rule.recipients)
+                              ? rule.recipients.join(', ')
+                              : 'No recipients'}
                             </span>
                           </div>
                         </div>
@@ -423,8 +594,9 @@ export function AlertSettings() {
 
       {/* Save Button */}
       <div className="flex justify-end">
-        <Button className="bg-gradient-to-r from-nebula-purple to-nebula-blue hover:from-nebula-purple-dark hover:to-nebula-blue text-white">
-          Save Alert Settings
+        <Button
+        onClick={handleSaveSettings}
+        className="bg-gradient-to-r from-nebula-purple to-nebula-blue hover:from-nebula-purple-dark hover:to-nebula-blue text-white">Save Alert Settings
         </Button>
       </div>
 
@@ -444,7 +616,12 @@ export function AlertSettings() {
               <Label>Alert Name *</Label>
               <Input
                 value={newRule.name}
-                onChange={(e) => setNewRule({ ...newRule, name: e.target.value })}
+                onChange={(e) =>
+                  setNewRule({
+                    ...newRule,
+                    name: e.target.value,
+                  })}
+                
                 placeholder="e.g., High CPU Usage Alert"
                 className="bg-nebula-navy-dark border-nebula-navy-lighter text-white"
               />
@@ -592,6 +769,12 @@ export function AlertSettings() {
             </Button>
             <Button
               onClick={handleCreateRule}
+              disabled={
+                !newRule.name ||
+                !newRule.condition ||
+                !newRule.duration ||
+                !newRule.recipients?.length
+              }
               className="bg-gradient-to-r from-nebula-purple to-nebula-blue hover:from-nebula-purple-dark hover:to-nebula-blue text-white"
             >
               Create Alert Rule

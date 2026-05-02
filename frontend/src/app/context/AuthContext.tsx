@@ -2,7 +2,7 @@ import { createContext, useContext, useState, ReactNode } from 'react';
 
 interface AuthContextType {
   isAuthenticated: boolean;
-  login: () => void;
+  login: (token: string) => void;
   signup: () => void;
   logout: () => void;
 }
@@ -10,9 +10,13 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // Initialize state by checking if a token exists in either storage
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(
+    !!localStorage.getItem("accessToken")
+  );
 
-  const login = () => {
+  const login = (token: string) => {
+    localStorage.setItem("accessToken", token);
     setIsAuthenticated(true);
   };
 
@@ -21,7 +25,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
+    console.log("LOGOUT CLICKED");
+
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+    localStorage.removeItem("user");
+
     setIsAuthenticated(false);
+
+    window.location.href = "/";
   };
 
   return (

@@ -17,7 +17,6 @@ const env = {
     database: requireEnv("DB_NAME"),
     password: requireEnv("DB_PASSWORD"),
     port: Number(process.env.DB_PORT || 5432),
-    // optional:
     ssl: process.env.DB_SSL === "true",
   },
 
@@ -31,6 +30,13 @@ const env = {
   JWT_REFRESH_SECRET: requireEnv("JWT_REFRESH_SECRET"),
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || "15m",
   JWT_REFRESH_EXPIRES_IN: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
+
+  FRONTEND_URL: requireEnv("FRONTEND_URL"),
+
+  EMAIL_HOST: requireEnv("EMAIL_HOST"),
+  EMAIL_PORT: Number(requireEnv("EMAIL_PORT")),
+  EMAIL_USER: requireEnv("EMAIL_USER"),
+  EMAIL_PASS: requireEnv("EMAIL_PASS"),
 };
 
 module.exports = env;

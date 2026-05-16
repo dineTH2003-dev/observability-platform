@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect,useState } from 'react';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -13,10 +13,10 @@ import {
 } from '../../components/ui/select';
 import { 
   TicketIcon, Plus, Search, Filter, MessageSquare, CheckCircle, 
-  XCircle, Clock, AlertCircle, Settings, Users, Key, FileText 
+  XCircle, Clock, AlertCircle, Settings, Key, FileText 
 } from 'lucide-react';
 
-type TicketPurpose = 'alert-config' | 'service-management' | 'access-request' | 'incident-followup' | 'general-inquiry' | null;
+type TicketPurpose = 'Alert Configuration Request' | 'Service / Application Management' | 'Access / Permission Request' | 'Incident Follow-up' | 'General Inquiry' | null;
 type TicketStatus = 'open' | 'in-review' | 'approved' | 'rejected' | 'resolved';
 type TicketPriority = 'low' | 'medium' | 'high';
 
@@ -43,64 +43,38 @@ export function Tickets() {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
-  const tickets: Ticket[] = [
-    {
-      id: 'TKT-1042',
-      title: 'Enable alerts for User Service',
-      purpose: 'Alert Configuration',
-      status: 'open',
-      priority: 'high',
-      requester: 'Alex Kumar',
-      role: 'Developer',
-      context: 'App: User Service',
-      created: '2h ago',
-      updated: '2h ago',
-      description: 'Need to enable health monitoring alerts for the User Service in production environment.',
-      requestedChange: 'Enable Incident + Health + Anomaly alerts',
-      reason: 'Recently experienced downtime without proper alerting'
-    },
-    {
-      id: 'TKT-1041',
-      title: 'Add new Payment Processing service',
-      purpose: 'Service Management',
-      status: 'in-review',
-      priority: 'medium',
-      requester: 'Sarah Chen',
-      role: 'Developer',
-      context: 'App: Payment Gateway',
-      created: '5h ago',
-      updated: '1h ago',
-      description: 'Request to add new microservice for payment processing under Payment Gateway application.',
-      requestedChange: 'Add service: payment-processor-v2',
-      reason: 'New feature deployment requiring separate service monitoring'
-    },
-  ];
+  const [tickets, setTickets] = useState<Ticket[]>([]);
 
-  const filteredTickets = tickets.filter(ticket => {
-    const matchesStatus = filterStatus === 'all' || ticket.status === filterStatus;
-    const matchesSearch = 
-      ticket.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ticket.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ticket.purpose.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesStatus && matchesSearch;
-  });
+  const fetchTickets = async () => {
+    try {
+      const res = await fetch(
+        `http://localhost:9000/api/tickets?search=${searchQuery}&status=${filterStatus}`
+      );
+      const data = await res.json();
 
-  const getStatusColor = (status: TicketStatus) => {
-    switch (status) {
-      case 'open':
-        return 'bg-blue-500/10 text-blue-400 border-blue-500/30';
-      case 'in-review':
-        return 'bg-purple-500/10 text-purple-400 border-purple-500/30';
-      case 'approved':
-        return 'bg-green-500/10 text-green-400 border-green-500/30';
-      case 'rejected':
-        return 'bg-red-500/10 text-red-400 border-red-500/30';
-      case 'resolved':
-        return 'bg-slate-500/10 text-slate-400 border-slate-500/30';
-      default:
-        return 'bg-slate-500/10 text-slate-400 border-slate-500/30';
+      const mappedData: Ticket[] = data.map((t: any) => ({
+        id: t.ticket_id,
+        title: t.title,
+        purpose: t.purpose,
+        status: t.status?.toLowerCase().replace(" ", "-") || "open",
+        priority: t.priority?.toLowerCase() || "medium",
+        requester: "You",
+        role: "Engineer",
+        context: t.context,
+        created: new Date(t.created_at).toLocaleString(),
+        updated: new Date(t.created_at).toLocaleString(),
+        description: t.title,
+      }));
+
+      setTickets(mappedData);
+    } catch (err) {
+      console.error(err);
     }
   };
+
+  useEffect(() => {
+    fetchTickets();
+  }, [searchQuery, filterStatus]);
 
   const getPriorityColor = (priority: TicketPriority) => {
     switch (priority) {
@@ -192,7 +166,7 @@ export function Tickets() {
                 </tr>
               </thead>
               <tbody>
-                {filteredTickets.map((ticket) => (
+                {tickets.map((ticket) => (
                   <tr 
                     key={ticket.id} 
                     className="border-b border-nebula-navy-lighter/50 hover:bg-nebula-navy-dark/50 cursor-pointer"
@@ -226,7 +200,7 @@ export function Tickets() {
                         size="sm"
                         variant="outline"
                         className="border-nebula-purple text-nebula-purple hover:bg-nebula-purple/10"
-                        onClick={(e) => {
+                        onClick={(e: React.MouseEvent) => {
                           e.stopPropagation();
                           setSelectedTicket(ticket);
                         }}
@@ -240,7 +214,7 @@ export function Tickets() {
             </table>
           </div>
 
-          {filteredTickets.length === 0 && (
+          {tickets.length === 0 && (
             <div className="text-center py-12">
               <TicketIcon className="size-12 text-slate-600 mx-auto mb-3" />
               <p className="text-slate-400">No tickets found</p>
@@ -251,7 +225,10 @@ export function Tickets() {
 
       {/* Create Ticket Modal */}
       {showCreateModal && (
-        <CreateTicketModal onClose={() => setShowCreateModal(false)} />
+        <CreateTicketModal 
+          onClose={() => setShowCreateModal(false)}
+          onCreated={fetchTickets}
+        />
       )}
 
       {/* Ticket Details Modal */}
@@ -263,9 +240,37 @@ export function Tickets() {
 }
 
 // Create Ticket Modal Component
-function CreateTicketModal({ onClose }: { onClose: () => void }) {
+function CreateTicketModal({ onClose, onCreated }: any) {
+  const [title, setTitle] = useState('');
+  const [context, setContext] = useState('');
+  const [description, setDescription] = useState('');
   const [ticketPurpose, setTicketPurpose] = useState<TicketPurpose>(null);
   const [priority, setPriority] = useState<TicketPriority>('medium');
+  const [appAlertConfig, setAppAlertConfig] = useState('');
+  const [envAlertConfig, setEnvAlertConfig] = useState('');
+  const [alertType, setAlertType] = useState('');
+  const [reasonRequest, setReasonRequest] = useState('');
+  const handleSubmit = async () => {
+    try {
+      await fetch("http://localhost:9000/api/tickets", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          title,
+          purpose: ticketPurpose,
+          context,
+          priority,
+        }),
+      });
+
+      onCreated();   // refresh table
+      onClose();     // close modal
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -290,31 +295,31 @@ function CreateTicketModal({ onClose }: { onClose: () => void }) {
                   <SelectValue placeholder="Select ticket purpose" />
                 </SelectTrigger>
                 <SelectContent className="bg-nebula-navy-light border-nebula-navy-lighter text-white">
-                  <SelectItem value="alert-config">
+                  <SelectItem value="Alert Configuration Request">
                     <div className="flex items-center gap-2">
                       <Settings className="size-4" />
                       Alert Configuration Request
                     </div>
                   </SelectItem>
-                  <SelectItem value="service-management">
+                  <SelectItem value="Service / Application Management">
                     <div className="flex items-center gap-2">
                       <FileText className="size-4" />
                       Service / Application Management
                     </div>
                   </SelectItem>
-                  <SelectItem value="access-request">
+                  <SelectItem value="Access / Permission Request">
                     <div className="flex items-center gap-2">
                       <Key className="size-4" />
                       Access / Permission Request
                     </div>
                   </SelectItem>
-                  <SelectItem value="incident-followup">
+                  <SelectItem value="Incident Follow-up">
                     <div className="flex items-center gap-2">
                       <AlertCircle className="size-4" />
                       Incident Follow-up
                     </div>
                   </SelectItem>
-                  <SelectItem value="general-inquiry">
+                  <SelectItem value="General Inquiry">
                     <div className="flex items-center gap-2">
                       <MessageSquare className="size-4" />
                       General Inquiry
@@ -324,25 +329,69 @@ function CreateTicketModal({ onClose }: { onClose: () => void }) {
               </Select>
             </div>
 
+            {/* Section 1.5: Title */}
+            {ticketPurpose && (
+              <div>
+                <Label className="text-white mb-2 block">Title *</Label>
+                <Input
+                  value={title}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)}
+                  placeholder="Enter ticket title"
+                  className="bg-nebula-navy-dark border-nebula-navy-lighter text-white placeholder:text-slate-500"
+                />
+              </div>
+            )}
+
             {/* Section 2: Dynamic Context Fields */}
-            {ticketPurpose === 'alert-config' && (
-              <AlertConfigurationForm />
+            {ticketPurpose === 'Alert Configuration Request' && (
+              <AlertConfigurationForm 
+                description={description}
+                setDescription={setDescription}
+                reasonRequest={reasonRequest}
+                setReasonRequest={setReasonRequest}
+                appAlertConfig={appAlertConfig}
+                setAppAlertConfig={setAppAlertConfig}
+                envAlertConfig={envAlertConfig}
+                setEnvAlertConfig={setEnvAlertConfig}
+                alertType={alertType}
+                setAlertType={setAlertType}
+              />
             )}
 
-            {ticketPurpose === 'service-management' && (
-              <ServiceManagementForm />
+            {ticketPurpose === 'Service / Application Management' && (
+              <ServiceManagementForm 
+                context={context}
+                setContext={setContext}
+                description={description}
+                setDescription={setDescription}
+                reasonRequest={reasonRequest}
+                setReasonRequest={setReasonRequest}
+              />
             )}
 
-            {ticketPurpose === 'access-request' && (
-              <AccessRequestForm />
+            {ticketPurpose === 'Access / Permission Request' && (
+              <AccessRequestForm 
+                description={description}
+                setDescription={setDescription}
+                reasonRequest={reasonRequest}
+                setReasonRequest={setReasonRequest}
+              />
             )}
 
-            {ticketPurpose === 'incident-followup' && (
-              <IncidentFollowupForm />
+            {ticketPurpose === 'Incident Follow-up' && (
+              <IncidentFollowupForm 
+                description={description}
+                setDescription={setDescription}
+                reasonRequest={reasonRequest}
+                setReasonRequest={setReasonRequest}
+              />
             )}
 
-            {ticketPurpose === 'general-inquiry' && (
-              <GeneralInquiryForm />
+            {ticketPurpose === 'General Inquiry' && (
+              <GeneralInquiryForm 
+                description={description}
+                setDescription={setDescription}
+              />
             )}
 
             {/* Section 3: Priority */}
@@ -367,7 +416,7 @@ function CreateTicketModal({ onClose }: { onClose: () => void }) {
                   <Button variant="outline" onClick={onClose} className="border-nebula-navy-lighter text-white">
                     Cancel
                   </Button>
-                  <Button className="bg-gradient-to-r from-nebula-purple to-nebula-blue hover:from-nebula-purple/90 hover:to-nebula-blue/90 text-white">
+                  <Button onClick={handleSubmit} className="bg-gradient-to-r from-nebula-purple to-nebula-blue hover:from-nebula-purple/90 hover:to-nebula-blue/90 text-white">
                     Submit Ticket
                   </Button>
                 </div>
@@ -381,14 +430,14 @@ function CreateTicketModal({ onClose }: { onClose: () => void }) {
 }
 
 // Alert Configuration Form
-function AlertConfigurationForm() {
+function AlertConfigurationForm({ description, setDescription, reasonRequest, setReasonRequest, appAlertConfig, setAppAlertConfig, envAlertConfig, setEnvAlertConfig, alertType, setAlertType }: any) {
   return (
     <div className="space-y-4 p-4 bg-nebula-navy-dark rounded-lg border border-nebula-navy-lighter">
       <h3 className="text-sm font-semibold text-white">Alert Configuration Details</h3>
       
       <div>
         <Label className="text-slate-300 mb-2 block text-sm">Application *</Label>
-        <Select>
+        <Select value={appAlertConfig} onValueChange={setAppAlertConfig}>
           <SelectTrigger className="bg-nebula-navy border-nebula-navy-lighter text-white">
             <SelectValue placeholder="Select application" />
           </SelectTrigger>
@@ -403,7 +452,7 @@ function AlertConfigurationForm() {
 
       <div>
         <Label className="text-slate-300 mb-2 block text-sm">Environment *</Label>
-        <Select>
+        <Select value={envAlertConfig} onValueChange={setEnvAlertConfig}>
           <SelectTrigger className="bg-nebula-navy border-nebula-navy-lighter text-white">
             <SelectValue placeholder="Select environment" />
           </SelectTrigger>
@@ -417,7 +466,7 @@ function AlertConfigurationForm() {
 
       <div>
         <Label className="text-slate-300 mb-2 block text-sm">Alert Type *</Label>
-        <Select>
+        <Select value={alertType} onValueChange={setAlertType}>
           <SelectTrigger className="bg-nebula-navy border-nebula-navy-lighter text-white">
             <SelectValue placeholder="Select alert type" />
           </SelectTrigger>
@@ -433,7 +482,9 @@ function AlertConfigurationForm() {
       <div>
         <Label className="text-slate-300 mb-2 block text-sm">Description *</Label>
         <Textarea
-          placeholder="Describe your alert configuration request..."
+          value={description}
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDescription(e.target.value)}
+          placeholder="Describe your request..."
           className="bg-nebula-navy border-nebula-navy-lighter text-white placeholder:text-slate-500 min-h-24"
         />
       </div>
@@ -441,6 +492,8 @@ function AlertConfigurationForm() {
       <div>
         <Label className="text-slate-300 mb-2 block text-sm">Reason for Request *</Label>
         <Textarea
+          value={reasonRequest}
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setReasonRequest(e.target.value)}
           placeholder="Why is this configuration needed?"
           className="bg-nebula-navy border-nebula-navy-lighter text-white placeholder:text-slate-500"
         />
@@ -450,14 +503,17 @@ function AlertConfigurationForm() {
 }
 
 // Service Management Form
-function ServiceManagementForm() {
+function ServiceManagementForm({ context, setContext, description, setDescription, reasonRequest, setReasonRequest }: any) {
+  const [appService, setAppService] = useState('');
+  const [host, setHost] = useState('');
+
   return (
     <div className="space-y-4 p-4 bg-nebula-navy-dark rounded-lg border border-nebula-navy-lighter">
       <h3 className="text-sm font-semibold text-white">Service Management Details</h3>
       
       <div>
         <Label className="text-slate-300 mb-2 block text-sm">Application *</Label>
-        <Select>
+        <Select value={appService} onValueChange={setAppService}>
           <SelectTrigger className="bg-nebula-navy border-nebula-navy-lighter text-white">
             <SelectValue placeholder="Select application" />
           </SelectTrigger>
@@ -472,14 +528,16 @@ function ServiceManagementForm() {
       <div>
         <Label className="text-slate-300 mb-2 block text-sm">Service Name *</Label>
         <Input
-          placeholder="e.g., payment-processor-v2"
+          value={context}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setContext(e.target.value)}
+          placeholder="Enter ticket title"
           className="bg-nebula-navy border-nebula-navy-lighter text-white placeholder:text-slate-500"
         />
       </div>
 
       <div>
         <Label className="text-slate-300 mb-2 block text-sm">Host (Optional)</Label>
-        <Select>
+        <Select value={host} onValueChange={setHost}>
           <SelectTrigger className="bg-nebula-navy border-nebula-navy-lighter text-white">
             <SelectValue placeholder="Select host" />
           </SelectTrigger>
@@ -494,6 +552,8 @@ function ServiceManagementForm() {
       <div>
         <Label className="text-slate-300 mb-2 block text-sm">Description *</Label>
         <Textarea
+          value={description}
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDescription(e.target.value)}
           placeholder="Describe the service management request (add, remove, modify)..."
           className="bg-nebula-navy border-nebula-navy-lighter text-white placeholder:text-slate-500 min-h-24"
         />
@@ -502,6 +562,8 @@ function ServiceManagementForm() {
       <div>
         <Label className="text-slate-300 mb-2 block text-sm">Reason *</Label>
         <Textarea
+          value={reasonRequest}
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setReasonRequest(e.target.value)}
           placeholder="Why is this service change needed?"
           className="bg-nebula-navy border-nebula-navy-lighter text-white placeholder:text-slate-500"
         />
@@ -511,14 +573,18 @@ function ServiceManagementForm() {
 }
 
 // Access Request Form
-function AccessRequestForm() {
+function AccessRequestForm({ description, setDescription, reasonRequest, setReasonRequest }: any) {
+  const [resourceType, setResourceType] = useState('');
+  const [appService, setAppService] = useState('');
+  const [accessLevel, setAccessLevel] = useState('');
+
   return (
     <div className="space-y-4 p-4 bg-nebula-navy-dark rounded-lg border border-nebula-navy-lighter">
       <h3 className="text-sm font-semibold text-white">Access Request Details</h3>
       
       <div>
         <Label className="text-slate-300 mb-2 block text-sm">Resource Type *</Label>
-        <Select>
+        <Select value={resourceType} onValueChange={setResourceType}>
           <SelectTrigger className="bg-nebula-navy border-nebula-navy-lighter text-white">
             <SelectValue placeholder="Select resource type" />
           </SelectTrigger>
@@ -533,7 +599,7 @@ function AccessRequestForm() {
 
       <div>
         <Label className="text-slate-300 mb-2 block text-sm">Application / Service *</Label>
-        <Select>
+        <Select value={appService} onValueChange={setAppService}>
           <SelectTrigger className="bg-nebula-navy border-nebula-navy-lighter text-white">
             <SelectValue placeholder="Select application or service" />
           </SelectTrigger>
@@ -547,7 +613,7 @@ function AccessRequestForm() {
 
       <div>
         <Label className="text-slate-300 mb-2 block text-sm">Access Level *</Label>
-        <Select>
+        <Select value={accessLevel} onValueChange={setAccessLevel}>
           <SelectTrigger className="bg-nebula-navy border-nebula-navy-lighter text-white">
             <SelectValue placeholder="Select access level" />
           </SelectTrigger>
@@ -562,6 +628,8 @@ function AccessRequestForm() {
       <div>
         <Label className="text-slate-300 mb-2 block text-sm">Description *</Label>
         <Textarea
+          value={description}
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDescription(e.target.value)}
           placeholder="Describe what access you need and why..."
           className="bg-nebula-navy border-nebula-navy-lighter text-white placeholder:text-slate-500 min-h-24"
         />
@@ -570,6 +638,8 @@ function AccessRequestForm() {
       <div>
         <Label className="text-slate-300 mb-2 block text-sm">Business Justification *</Label>
         <Textarea
+          value={reasonRequest}
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setReasonRequest(e.target.value)}
           placeholder="Explain the business need for this access..."
           className="bg-nebula-navy border-nebula-navy-lighter text-white placeholder:text-slate-500"
         />
@@ -579,14 +649,17 @@ function AccessRequestForm() {
 }
 
 // Incident Follow-up Form
-function IncidentFollowupForm() {
+function IncidentFollowupForm({ description, setDescription, reasonRequest, setReasonRequest }: any) {
+  const [incident, setIncident] = useState('');
+  const [actionType, setActionType] = useState('');
+
   return (
     <div className="space-y-4 p-4 bg-nebula-navy-dark rounded-lg border border-nebula-navy-lighter">
       <h3 className="text-sm font-semibold text-white">Incident Follow-up Details</h3>
       
       <div>
         <Label className="text-slate-300 mb-2 block text-sm">Link Incident *</Label>
-        <Select>
+        <Select value={incident} onValueChange={setIncident}>
           <SelectTrigger className="bg-nebula-navy border-nebula-navy-lighter text-white">
             <SelectValue placeholder="Select incident" />
           </SelectTrigger>
@@ -600,7 +673,7 @@ function IncidentFollowupForm() {
 
       <div>
         <Label className="text-slate-300 mb-2 block text-sm">Follow-up Action *</Label>
-        <Select>
+        <Select value={actionType} onValueChange={setActionType}>
           <SelectTrigger className="bg-nebula-navy border-nebula-navy-lighter text-white">
             <SelectValue placeholder="Select action type" />
           </SelectTrigger>
@@ -616,6 +689,8 @@ function IncidentFollowupForm() {
       <div>
         <Label className="text-slate-300 mb-2 block text-sm">Description *</Label>
         <Textarea
+          value={description}
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDescription(e.target.value)}
           placeholder="Describe the follow-up actions needed..."
           className="bg-nebula-navy border-nebula-navy-lighter text-white placeholder:text-slate-500 min-h-24"
         />
@@ -624,6 +699,8 @@ function IncidentFollowupForm() {
       <div>
         <Label className="text-slate-300 mb-2 block text-sm">Expected Outcome *</Label>
         <Textarea
+          value={reasonRequest}
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setReasonRequest(e.target.value)}
           placeholder="What outcome do you expect from this follow-up?"
           className="bg-nebula-navy border-nebula-navy-lighter text-white placeholder:text-slate-500"
         />
@@ -633,14 +710,16 @@ function IncidentFollowupForm() {
 }
 
 // General Inquiry Form
-function GeneralInquiryForm() {
+function GeneralInquiryForm({ description, setDescription }: any) {
+  const [inquiryCategory, setInquiryCategory] = useState('');
+
   return (
     <div className="space-y-4 p-4 bg-nebula-navy-dark rounded-lg border border-nebula-navy-lighter">
       <h3 className="text-sm font-semibold text-white">General Inquiry Details</h3>
       
       <div>
         <Label className="text-slate-300 mb-2 block text-sm">Inquiry Category *</Label>
-        <Select>
+        <Select value={inquiryCategory} onValueChange={setInquiryCategory}>
           <SelectTrigger className="bg-nebula-navy border-nebula-navy-lighter text-white">
             <SelectValue placeholder="Select category" />
           </SelectTrigger>
@@ -656,6 +735,8 @@ function GeneralInquiryForm() {
       <div>
         <Label className="text-slate-300 mb-2 block text-sm">Question / Inquiry *</Label>
         <Textarea
+          value={description}
+          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDescription(e.target.value)}
           placeholder="What would you like to know?"
           className="bg-nebula-navy border-nebula-navy-lighter text-white placeholder:text-slate-500 min-h-32"
         />

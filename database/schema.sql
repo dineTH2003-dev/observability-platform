@@ -23,6 +23,30 @@ CREATE TABLE IF NOT EXISTS password_resets (
   expires_at TIMESTAMP NOT NULL
 );
 
+--Ticket Management
+
+CREATE TYPE ticket_priority AS ENUM ('low', 'medium', 'high');
+CREATE TYPE ticket_status AS ENUM ('Open', 'In Progress', 'Closed');
+CREATE TYPE ticket_purpose AS ENUM (
+  'Alert Configuration Request',
+  'Service / Application Management',
+  'Access / Permission Request',
+  'Incident Follow-up',
+  'General Inquiry'
+);
+
+CREATE TABLE tickets (
+  id SERIAL PRIMARY KEY,
+  ticket_id VARCHAR(20) UNIQUE NOT NULL,
+  title TEXT NOT NULL,
+  purpose ticket_purpose NOT NULL,
+  context VARCHAR(100),
+  priority ticket_priority DEFAULT 'medium',
+  status ticket_status DEFAULT 'Open',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- ============================================================
 --  INFRASTRUCTURE
 -- ============================================================

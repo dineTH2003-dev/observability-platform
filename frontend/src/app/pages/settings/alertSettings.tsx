@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Bell, Plus, Edit2, Trash2, Mail, TestTube2, AlertCircle, Users, Settings as SettingsIcon } from 'lucide-react';
 import { Card, CardContent } from '../../components/ui/card';
-import { fetchAlertRules, createAlertRule, updateAlertRule, deleteAlertRule, fetchAlertSettings, saveAlertSettings } from '../../../api/alertApi';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
@@ -74,167 +73,180 @@ export function AlertSettings() {
     sendOnce: false,
   });
 
- c
+  const handleToggleRule = async (ruleId: string) => {
+    try {
+      const rule = alertRules.find(r => r.id === ruleId);
+      if (!rule) return;
 
-    setAlertRules(rules =>
-      rules.map(r => (r.id === ruleId ? updatedRule : r))
-    );
-  } catch (err) {
-    console.error('Toggle failed', err);
-  }
-};
+      const res = await fetch(`${API_BASE}/alerts/${ruleId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: !rule.enabled }),
+      });
 
- const handleDeleteRule = async (ruleId: string) => {
-  try {
-    await deleteAlertRule(ruleId);
-  } catch (error) {
-    console.error('Failed to delete alert rule:', error);
-  }
-};
+      const updatedRule = await res.json();
 
-    setAlertRules(rules => rules.filter(rule => rule.id !== ruleId));
-  } catch (err) {
-    console.error('Delete failed', err);
-  }
-};
+      setAlertRules(rules =>
+        rules.map(r => (r.id === ruleId ? updatedRule : r))
+      );
+    } catch (err) {
+      console.error('Toggle failed', err);
+    }
+  };
 
-const isValidEmail = (email: string) =>
-  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const handleDeleteRule = async (ruleId: string) => {
+    try {
+      await fetch(`${API_BASE}/alerts/${ruleId}`, {
+        method: 'DELETE',
+      });
+
+      setAlertRules(rules => rules.filter(rule => rule.id !== ruleId));
+    } catch (err) {
+      console.error('Delete failed', err);
+    }
+  };
+
+  const isValidEmail = (email: string) =>
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
   const handleCreateRule = async () => {
     // REQUIRED FIELDS
-if (!newRule.name?.trim()) {
-  alert("Alert name is required");
-  return;
-}
+    if (!newRule.name?.trim()) {
+      alert("Alert name is required");
+      return;
+    }
 
-if (!newRule.condition) {
-  alert("Please select a trigger condition");
-  return;
-}
+    if (!newRule.condition) {
+      alert("Please select a trigger condition");
+      return;
+    }
 
-// DURATION CHECK
-if (!newRule.duration || Number(newRule.duration) <= 0) {
-  alert("Duration must be greater than 0");
-  return;
-}
+    // DURATION CHECK
+    if (!newRule.duration || Number(newRule.duration) <= 0) {
+      alert("Duration must be greater than 0");
+      return;
+    }
 
-// THRESHOLD VALIDATION (0–100)
-if (newRule.threshold) {
-  const t = Number(newRule.threshold);
-  if (t < 0 || t > 100) {
-    alert("Threshold must be between 0 and 100");
-    return;
-  }
-}
+    // THRESHOLD VALIDATION (0–100)
+    if (newRule.threshold) {
+      const t = Number(newRule.threshold);
+      if (t < 0 || t > 100) {
+        alert("Threshold must be between 0 and 100");
+        return;
+      }
+    }
 
-// RECIPIENT CHECK
-if (!newRule.recipients || newRule.recipients.length === 0) {
-  alert("At least one recipient is required");
-  return;
-}
+    // RECIPIENT CHECK
+    if (!newRule.recipients || newRule.recipients.length === 0) {
+      alert("At least one recipient is required");
+      return;
+    }
 
-// EMAIL VALIDATION
-const invalidEmail = newRule.recipients.some(e => !isValidEmail(e));
-if (invalidEmail) {
-  alert("Enter valid email addresses only");
-  return;
-}
+    // EMAIL VALIDATION
+    const invalidEmail = newRule.recipients.some(e => !isValidEmail(e));
+    if (invalidEmail) {
+      alert("Enter valid email addresses only");
+      return;
+    }
 
- try {
-  const createdRule = await createAlertRule({
-    name: newRule.name,
-    condition: newRule.condition,
-    severity: newRule.severity,
-    duration: newRule.duration,
-    enabled: newRule.enabled ?? true,
-    recipients: newRule.recipients || [],
-    scope: newRule.scope,
-    cooldown: newRule.cooldown,
-    sendOnce: newRule.sendOnce ?? false,
-    threshold: newRule.threshold || null,
-  });
-} catch (error) {
-  console.error('Failed to create alert rule:', error);
-}
+    try {
+      const res = await fetch(`${API_BASE}/alerts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newRule.name,
+          condition: newRule.condition,
+          severity: newRule.severity,
+          duration: newRule.duration,
+          enabled: newRule.enabled ?? true,
+          recipients: newRule.recipients || [],
+          scope: newRule.scope,
+          cooldown: newRule.cooldown,
+          sendOnce: newRule.sendOnce ?? false,
+          threshold: newRule.threshold || null,
+        }),
+      });
 
-    console.log('Created rule response:', createdRule); // debug
+      const createdRule = await res.json();
+      console.log('Created rule response:', createdRule); // debug
 
-    // ✅ prevent crash if backend response is incomplete
-    const safeRule = {
-      id: createdRule.id || `temp-${Date.now()}`,
-      name: createdRule.name || newRule.name || 'New Rule',
-      condition: createdRule.condition || '',
-      severity: createdRule.severity || 'medium',
-      duration: createdRule.duration || '5',
-      enabled: createdRule.enabled ?? true,
-      recipients: createdRule.recipients || [],
-      scope: createdRule.scope || 'global',
-      cooldown: createdRule.cooldown || '30',
-      sendOnce: createdRule.sendOnce ?? false,
-      threshold: createdRule.threshold,
-    };
+      // ✅ prevent crash if backend response is incomplete
+      const safeRule = {
+        id: createdRule.id || `temp-${Date.now()}`,
+        name: createdRule.name || newRule.name || 'New Rule',
+        condition: createdRule.condition || '',
+        severity: createdRule.severity || 'medium',
+        duration: createdRule.duration || '5',
+        enabled: createdRule.enabled ?? true,
+        recipients: createdRule.recipients || [],
+        scope: createdRule.scope || 'global',
+        cooldown: createdRule.cooldown || '30',
+        sendOnce: createdRule.sendOnce ?? false,
+        threshold: createdRule.threshold,
+      };
 
-    setAlertRules(prev => [...prev, safeRule]);
+      setAlertRules(prev => [...prev, safeRule]);
 
-    setIsCreateDialogOpen(false);
+      setIsCreateDialogOpen(false);
 
-    setNewRule({
-      name: '',
-      condition: '',
-      severity: 'medium',
-      duration: '5',
-      enabled: true,
-      recipients: [],
-      scope: 'global',
-      cooldown: '30',
-      sendOnce: false,
-    });
+      setNewRule({
+        name: '',
+        condition: '',
+        severity: 'medium',
+        duration: '5',
+        enabled: true,
+        recipients: [],
+        scope: 'global',
+        cooldown: '30',
+        sendOnce: false,
+      });
 
-  } catch (err) {
-    console.error('Create failed', err);
-  }
-};
+    } catch (err) {
+      console.error('Create failed', err);
+    }
+  };
   const handleSaveSettings = async () => {
-    
     // AT LEAST ONE EVENT
     const atLeastOneEvent = Object.values(alertEvents).some(v => v);
     if (!atLeastOneEvent) {
       alert("Select at least one alert event");
       return;
     }
-    
+
     // RECIPIENTS CHECK
-  const invalidRecipient = Object.values(recipients).some(v => !v);
-  if (invalidRecipient) {
-    alert("All recipient fields must be selected");
-    return;
-  }
-  
-  // EMAIL REQUIRED IF ENABLED
-  if (emailChannelEnabled && !emailAddress.trim()) {
-    alert("Email address is required");
-    return;
-}
- try {
-  const data = await saveAlertSettings({
-    alertEvents,
-    recipients,
-    emailChannelEnabled,
-    emailAddress,
-  });
-} catch (error) {
-  console.error('Failed to save alert settings:', error);
-}
+    const invalidRecipient = Object.values(recipients).some(v => !v);
+    if (invalidRecipient) {
+      alert("All recipient fields must be selected");
+      return;
+    }
 
-    console.log('Saved settings:', data);
+    // EMAIL REQUIRED IF ENABLED
+    if (emailChannelEnabled && !emailAddress.trim()) {
+      alert("Email address is required");
+      return;
+    }
 
-    alert('Settings saved successfully!');
-  } catch (err) {
-    console.error('Save failed', err);
-    alert('Failed to save settings');
-  }
-};
+    try {
+      const res = await fetch(`${API_BASE}/alert-settings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          alertEvents,
+          recipients,
+          emailChannelEnabled,
+          emailAddress,
+        }),
+      });
+
+      const data = await res.json();
+      console.log('Saved settings:', data);
+
+      alert('Settings saved successfully!');
+    } catch (err) {
+      console.error('Save failed', err);
+      alert('Failed to save settings');
+    }
+  };
 
   const handleTestNotification = () => {
     // Mock test notification
@@ -257,38 +269,35 @@ if (invalidEmail) {
   };
 
   const fetchSettings = async () => {
-  try {
-  const data = await fetchAlertSettings();
-} catch (error) {
-  console.error('Failed to fetch alert settings:', error);
-}
-    if (data) {
-      setAlertEvents(data.alertEvents || {});
-      setRecipients(data.recipients || {});
-      setEmailChannelEnabled(data.emailChannelEnabled ?? true);
-      setEmailAddress(data.emailAddress || '');
+    try {
+      const res = await fetch(`${API_BASE}/alert-settings`);
+      const data = await res.json();
+
+      if (data) {
+        setAlertEvents(data.alertEvents || {});
+        setRecipients(data.recipients || {});
+        setEmailChannelEnabled(data.emailChannelEnabled ?? true);
+        setEmailAddress(data.emailAddress || '');
+      }
+    } catch (err) {
+      console.error('Failed to load settings', err);
     }
-  } catch (err) {
-    console.error('Failed to load settings', err);
-  }
-};
+  };
 
-const loadAlertRules = async () => {
- try {
-  const data = await fetchAlertRules();
-  setAlertRules(Array.isArray(data) ? data : (data as any).data || []);
-} catch (error) {
-  console.error('Failed to fetch alert rules:', error);
-}
-  } catch (err) {
-    console.error('Failed to fetch alert rules', err);
-  }
-};
+  const fetchAlertRules = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/alerts`);
+      const data = await res.json();
+      setAlertRules(Array.isArray(data) ? data : data.data || []);
+    } catch (err) {
+      console.error('Failed to fetch alert rules', err);
+    }
+  };
 
-useEffect(() => {
-  fetchSettings();
-  loadAlertRules();
-}, []);
+  useEffect(() => {
+    fetchSettings();
+    fetchAlertRules();
+  }, []);
 
   const conditionOptions = [
     { value: 'system_health_critical', label: 'System Health = Critical' },

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Bell, Plus, Edit2, Trash2, Mail, TestTube2, AlertCircle, Users, Settings as SettingsIcon } from 'lucide-react';
 import { Card, CardContent } from '../../components/ui/card';
+import { fetchAlertRules, createAlertRule, updateAlertRule, deleteAlertRule, fetchAlertSettings, saveAlertSettings } from '../../../api/alertApi';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
@@ -73,18 +74,7 @@ export function AlertSettings() {
     sendOnce: false,
   });
 
-  const handleToggleRule = async (ruleId: string) => {
-  try {
-    const rule = alertRules.find(r => r.id === ruleId);
-    if (!rule) return;
-
-    const res = await fetch(`${API_BASE}/alerts/${ruleId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ enabled: !rule.enabled }),
-    });
-
-    const updatedRule = await res.json();
+ c
 
     setAlertRules(rules =>
       rules.map(r => (r.id === ruleId ? updatedRule : r))
@@ -96,9 +86,11 @@ export function AlertSettings() {
 
  const handleDeleteRule = async (ruleId: string) => {
   try {
-    await fetch(`${API_BASE}/alerts/${ruleId}`, {
-      method: 'DELETE',
-    });
+    await deleteAlertRule(ruleId);
+  } catch (error) {
+    console.error('Failed to delete alert rule:', error);
+  }
+};
 
     setAlertRules(rules => rules.filter(rule => rule.id !== ruleId));
   } catch (err) {
@@ -149,25 +141,23 @@ if (invalidEmail) {
   return;
 }
 
-  try {
-    const res = await fetch(`${API_BASE}/alerts`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: newRule.name,
-        condition: newRule.condition,
-        severity: newRule.severity,
-        duration: newRule.duration,
-        enabled: newRule.enabled ?? true,
-        recipients: newRule.recipients || [],
-        scope: newRule.scope,
-        cooldown: newRule.cooldown,
-        sendOnce: newRule.sendOnce ?? false,
-        threshold: newRule.threshold || null,
-      }),
-    });
+ try {
+  const createdRule = await createAlertRule({
+    name: newRule.name,
+    condition: newRule.condition,
+    severity: newRule.severity,
+    duration: newRule.duration,
+    enabled: newRule.enabled ?? true,
+    recipients: newRule.recipients || [],
+    scope: newRule.scope,
+    cooldown: newRule.cooldown,
+    sendOnce: newRule.sendOnce ?? false,
+    threshold: newRule.threshold || null,
+  });
+} catch (error) {
+  console.error('Failed to create alert rule:', error);
+}
 
-    const createdRule = await res.json();
     console.log('Created rule response:', createdRule); // debug
 
     // ✅ prevent crash if backend response is incomplete
@@ -226,19 +216,17 @@ if (invalidEmail) {
     alert("Email address is required");
     return;
 }
-  try {
-    const res = await fetch(`${API_BASE}/alert-settings`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        alertEvents,
-        recipients,
-        emailChannelEnabled,
-        emailAddress,
-      }),
-    });
+ try {
+  const data = await saveAlertSettings({
+    alertEvents,
+    recipients,
+    emailChannelEnabled,
+    emailAddress,
+  });
+} catch (error) {
+  console.error('Failed to save alert settings:', error);
+}
 
-    const data = await res.json();
     console.log('Saved settings:', data);
 
     alert('Settings saved successfully!');
@@ -270,9 +258,10 @@ if (invalidEmail) {
 
   const fetchSettings = async () => {
   try {
-    const res = await fetch(`${API_BASE}/alert-settings`);
-    const data = await res.json();
-
+  const data = await fetchAlertSettings();
+} catch (error) {
+  console.error('Failed to fetch alert settings:', error);
+}
     if (data) {
       setAlertEvents(data.alertEvents || {});
       setRecipients(data.recipients || {});
@@ -284,11 +273,13 @@ if (invalidEmail) {
   }
 };
 
-const fetchAlertRules = async () => {
-  try {
-    const res = await fetch(`${API_BASE}/alerts`);
-    const data = await res.json();
-    setAlertRules(Array.isArray(data) ? data : data.data || []);
+const loadAlertRules = async () => {
+ try {
+  const data = await fetchAlertRules();
+  setAlertRules(Array.isArray(data) ? data : (data as any).data || []);
+} catch (error) {
+  console.error('Failed to fetch alert rules:', error);
+}
   } catch (err) {
     console.error('Failed to fetch alert rules', err);
   }
@@ -296,7 +287,7 @@ const fetchAlertRules = async () => {
 
 useEffect(() => {
   fetchSettings();
-  fetchAlertRules();
+  loadAlertRules();
 }, []);
 
   const conditionOptions = [

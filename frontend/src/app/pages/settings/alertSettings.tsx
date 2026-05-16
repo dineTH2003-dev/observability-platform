@@ -43,6 +43,8 @@ export function AlertSettings() {
   const [emailChannelEnabled, setEmailChannelEnabled] = useState(true);
   const [emailAddress, setEmailAddress] = useState('admin@company.com');
 
+  const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '/api';
+
     const [alertEvents, setAlertEvents] = useState({
     incidentCreated: true,
     incidentAssigned: true,
@@ -76,7 +78,7 @@ export function AlertSettings() {
     const rule = alertRules.find(r => r.id === ruleId);
     if (!rule) return;
 
-    const res = await fetch(`http://localhost:9000/api/alerts/${ruleId}`, {
+    const res = await fetch(`${API_BASE}/alerts/${ruleId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ enabled: !rule.enabled }),
@@ -94,7 +96,7 @@ export function AlertSettings() {
 
  const handleDeleteRule = async (ruleId: string) => {
   try {
-    await fetch(`http://localhost:9000/api/alerts/${ruleId}`, {
+    await fetch(`${API_BASE}/alerts/${ruleId}`, {
       method: 'DELETE',
     });
 
@@ -148,7 +150,7 @@ if (invalidEmail) {
 }
 
   try {
-    const res = await fetch('http://localhost:9000/api/alerts', {
+    const res = await fetch(`${API_BASE}/alerts`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -225,7 +227,7 @@ if (invalidEmail) {
     return;
 }
   try {
-    const res = await fetch('http://localhost:9000/api/alert-settings', {
+    const res = await fetch(`${API_BASE}/alert-settings`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -268,7 +270,7 @@ if (invalidEmail) {
 
   const fetchSettings = async () => {
   try {
-    const res = await fetch('http://localhost:9000/api/alert-settings');
+    const res = await fetch(`${API_BASE}/alert-settings`);
     const data = await res.json();
 
     if (data) {
@@ -284,7 +286,7 @@ if (invalidEmail) {
 
 const fetchAlertRules = async () => {
   try {
-    const res = await fetch('http://localhost:9000/api/alerts');
+    const res = await fetch(`${API_BASE}/alerts`);
     const data = await res.json();
     setAlertRules(Array.isArray(data) ? data : data.data || []);
   } catch (err) {
@@ -589,6 +591,91 @@ useEffect(() => {
 
         {/* Right Column - Notification Channels & Settings */}
         <div className="space-y-6">
+          {/* Email Notification Settings */}
+          <Card className="bg-nebula-navy-light border-nebula-navy-lighter">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-lg bg-nebula-green/10 flex items-center justify-center">
+                  <Mail className="size-5 text-nebula-green" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-white">Email Notifications</h3>
+                  <p className="text-sm text-slate-400">Configure email delivery settings</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <Label className="text-white">Enable Email Channel</Label>
+                    <p className="text-xs text-slate-400">Send alerts via email</p>
+                  </div>
+                  <Switch
+                    checked={emailChannelEnabled}
+                    onCheckedChange={setEmailChannelEnabled}
+                  />
+                </div>
+
+                {emailChannelEnabled && (
+                  <div className="space-y-2">
+                    <Label className="text-white">From Email Address *</Label>
+                    <Input
+                      type="email"
+                      value={emailAddress}
+                      onChange={(e) => setEmailAddress(e.target.value)}
+                      placeholder="alerts@company.com"
+                      className="bg-nebula-navy-dark border-nebula-navy-lighter text-white"
+                    />
+                    <p className="text-xs text-slate-500">Email address used as sender</p>
+                  </div>
+                )}
+
+                <Button
+                  onClick={handleTestNotification}
+                  variant="outline"
+                  className="w-full border-nebula-navy-lighter text-slate-300 hover:text-white hover:border-nebula-purple"
+                  disabled={!emailChannelEnabled || !emailAddress.trim()}
+                >
+                  <TestTube2 className="size-4 mr-2" />
+                  Test Email Notification
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Global Settings */}
+          <Card className="bg-nebula-navy-light border-nebula-navy-lighter">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-lg bg-nebula-orange/10 flex items-center justify-center">
+                  <SettingsIcon className="size-5 text-nebula-orange" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-white">Global Settings</h3>
+                  <p className="text-sm text-slate-400">System-wide alert configuration</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="p-4 bg-nebula-navy-dark rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-white font-medium">Alert System Status</p>
+                      <p className="text-sm text-slate-400">
+                        {alertRules.filter(r => r.enabled).length} of {alertRules.length} rules active
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className={`w-3 h-3 rounded-full ${alertRules.some(r => r.enabled) ? 'bg-green-400' : 'bg-red-400'}`}></div>
+                      <span className="text-sm text-white">
+                        {alertRules.some(r => r.enabled) ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
 

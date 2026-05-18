@@ -43,6 +43,8 @@ export function AlertSettings() {
   const [emailChannelEnabled, setEmailChannelEnabled] = useState(true);
   const [emailAddress, setEmailAddress] = useState('admin@company.com');
 
+  const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '/api';
+
     const [alertEvents, setAlertEvents] = useState({
     incidentCreated: true,
     incidentAssigned: true,
@@ -72,179 +74,179 @@ export function AlertSettings() {
   });
 
   const handleToggleRule = async (ruleId: string) => {
-  try {
-    const rule = alertRules.find(r => r.id === ruleId);
-    if (!rule) return;
+    try {
+      const rule = alertRules.find(r => r.id === ruleId);
+      if (!rule) return;
 
-    const res = await fetch(`http://localhost:9000/api/alerts/${ruleId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ enabled: !rule.enabled }),
-    });
+      const res = await fetch(`${API_BASE}/alerts/${ruleId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: !rule.enabled }),
+      });
 
-    const updatedRule = await res.json();
+      const updatedRule = await res.json();
 
-    setAlertRules(rules =>
-      rules.map(r => (r.id === ruleId ? updatedRule : r))
-    );
-  } catch (err) {
-    console.error('Toggle failed', err);
-  }
-};
+      setAlertRules(rules =>
+        rules.map(r => (r.id === ruleId ? updatedRule : r))
+      );
+    } catch (err) {
+      console.error('Toggle failed', err);
+    }
+  };
 
- const handleDeleteRule = async (ruleId: string) => {
-  try {
-    await fetch(`http://localhost:9000/api/alerts/${ruleId}`, {
-      method: 'DELETE',
-    });
+  const handleDeleteRule = async (ruleId: string) => {
+    try {
+      await fetch(`${API_BASE}/alerts/${ruleId}`, {
+        method: 'DELETE',
+      });
 
-    setAlertRules(rules => rules.filter(rule => rule.id !== ruleId));
-  } catch (err) {
-    console.error('Delete failed', err);
-  }
-};
+      setAlertRules(rules => rules.filter(rule => rule.id !== ruleId));
+    } catch (err) {
+      console.error('Delete failed', err);
+    }
+  };
 
-const isValidEmail = (email: string) =>
-  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const isValidEmail = (email: string) =>
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
   const handleCreateRule = async () => {
     // REQUIRED FIELDS
-if (!newRule.name?.trim()) {
-  alert("Alert name is required");
-  return;
-}
+    if (!newRule.name?.trim()) {
+      alert("Alert name is required");
+      return;
+    }
 
-if (!newRule.condition) {
-  alert("Please select a trigger condition");
-  return;
-}
+    if (!newRule.condition) {
+      alert("Please select a trigger condition");
+      return;
+    }
 
-// DURATION CHECK
-if (!newRule.duration || Number(newRule.duration) <= 0) {
-  alert("Duration must be greater than 0");
-  return;
-}
+    // DURATION CHECK
+    if (!newRule.duration || Number(newRule.duration) <= 0) {
+      alert("Duration must be greater than 0");
+      return;
+    }
 
-// THRESHOLD VALIDATION (0–100)
-if (newRule.threshold) {
-  const t = Number(newRule.threshold);
-  if (t < 0 || t > 100) {
-    alert("Threshold must be between 0 and 100");
-    return;
-  }
-}
+    // THRESHOLD VALIDATION (0–100)
+    if (newRule.threshold) {
+      const t = Number(newRule.threshold);
+      if (t < 0 || t > 100) {
+        alert("Threshold must be between 0 and 100");
+        return;
+      }
+    }
 
-// RECIPIENT CHECK
-if (!newRule.recipients || newRule.recipients.length === 0) {
-  alert("At least one recipient is required");
-  return;
-}
+    // RECIPIENT CHECK
+    if (!newRule.recipients || newRule.recipients.length === 0) {
+      alert("At least one recipient is required");
+      return;
+    }
 
-// EMAIL VALIDATION
-const invalidEmail = newRule.recipients.some(e => !isValidEmail(e));
-if (invalidEmail) {
-  alert("Enter valid email addresses only");
-  return;
-}
+    // EMAIL VALIDATION
+    const invalidEmail = newRule.recipients.some(e => !isValidEmail(e));
+    if (invalidEmail) {
+      alert("Enter valid email addresses only");
+      return;
+    }
 
-  try {
-    const res = await fetch('http://localhost:9000/api/alerts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: newRule.name,
-        condition: newRule.condition,
-        severity: newRule.severity,
-        duration: newRule.duration,
-        enabled: newRule.enabled ?? true,
-        recipients: newRule.recipients || [],
-        scope: newRule.scope,
-        cooldown: newRule.cooldown,
-        sendOnce: newRule.sendOnce ?? false,
-        threshold: newRule.threshold || null,
-      }),
-    });
+    try {
+      const res = await fetch(`${API_BASE}/alerts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newRule.name,
+          condition: newRule.condition,
+          severity: newRule.severity,
+          duration: newRule.duration,
+          enabled: newRule.enabled ?? true,
+          recipients: newRule.recipients || [],
+          scope: newRule.scope,
+          cooldown: newRule.cooldown,
+          sendOnce: newRule.sendOnce ?? false,
+          threshold: newRule.threshold || null,
+        }),
+      });
 
-    const createdRule = await res.json();
-    console.log('Created rule response:', createdRule); // debug
+      const createdRule = await res.json();
+      console.log('Created rule response:', createdRule); // debug
 
-    // ✅ prevent crash if backend response is incomplete
-    const safeRule = {
-      id: createdRule.id || `temp-${Date.now()}`,
-      name: createdRule.name || newRule.name || 'New Rule',
-      condition: createdRule.condition || '',
-      severity: createdRule.severity || 'medium',
-      duration: createdRule.duration || '5',
-      enabled: createdRule.enabled ?? true,
-      recipients: createdRule.recipients || [],
-      scope: createdRule.scope || 'global',
-      cooldown: createdRule.cooldown || '30',
-      sendOnce: createdRule.sendOnce ?? false,
-      threshold: createdRule.threshold,
-    };
+      // ✅ prevent crash if backend response is incomplete
+      const safeRule = {
+        id: createdRule.id || `temp-${Date.now()}`,
+        name: createdRule.name || newRule.name || 'New Rule',
+        condition: createdRule.condition || '',
+        severity: createdRule.severity || 'medium',
+        duration: createdRule.duration || '5',
+        enabled: createdRule.enabled ?? true,
+        recipients: createdRule.recipients || [],
+        scope: createdRule.scope || 'global',
+        cooldown: createdRule.cooldown || '30',
+        sendOnce: createdRule.sendOnce ?? false,
+        threshold: createdRule.threshold,
+      };
 
-    setAlertRules(prev => [...prev, safeRule]);
+      setAlertRules(prev => [...prev, safeRule]);
 
-    setIsCreateDialogOpen(false);
+      setIsCreateDialogOpen(false);
 
-    setNewRule({
-      name: '',
-      condition: '',
-      severity: 'medium',
-      duration: '5',
-      enabled: true,
-      recipients: [],
-      scope: 'global',
-      cooldown: '30',
-      sendOnce: false,
-    });
+      setNewRule({
+        name: '',
+        condition: '',
+        severity: 'medium',
+        duration: '5',
+        enabled: true,
+        recipients: [],
+        scope: 'global',
+        cooldown: '30',
+        sendOnce: false,
+      });
 
-  } catch (err) {
-    console.error('Create failed', err);
-  }
-};
+    } catch (err) {
+      console.error('Create failed', err);
+    }
+  };
   const handleSaveSettings = async () => {
-    
     // AT LEAST ONE EVENT
     const atLeastOneEvent = Object.values(alertEvents).some(v => v);
     if (!atLeastOneEvent) {
       alert("Select at least one alert event");
       return;
     }
-    
+
     // RECIPIENTS CHECK
-  const invalidRecipient = Object.values(recipients).some(v => !v);
-  if (invalidRecipient) {
-    alert("All recipient fields must be selected");
-    return;
-  }
-  
-  // EMAIL REQUIRED IF ENABLED
-  if (emailChannelEnabled && !emailAddress.trim()) {
-    alert("Email address is required");
-    return;
-}
-  try {
-    const res = await fetch('http://localhost:9000/api/alert-settings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        alertEvents,
-        recipients,
-        emailChannelEnabled,
-        emailAddress,
-      }),
-    });
+    const invalidRecipient = Object.values(recipients).some(v => !v);
+    if (invalidRecipient) {
+      alert("All recipient fields must be selected");
+      return;
+    }
 
-    const data = await res.json();
-    console.log('Saved settings:', data);
+    // EMAIL REQUIRED IF ENABLED
+    if (emailChannelEnabled && !emailAddress.trim()) {
+      alert("Email address is required");
+      return;
+    }
 
-    alert('Settings saved successfully!');
-  } catch (err) {
-    console.error('Save failed', err);
-    alert('Failed to save settings');
-  }
-};
+    try {
+      const res = await fetch(`${API_BASE}/alert-settings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          alertEvents,
+          recipients,
+          emailChannelEnabled,
+          emailAddress,
+        }),
+      });
+
+      const data = await res.json();
+      console.log('Saved settings:', data);
+
+      alert('Settings saved successfully!');
+    } catch (err) {
+      console.error('Save failed', err);
+      alert('Failed to save settings');
+    }
+  };
 
   const handleTestNotification = () => {
     // Mock test notification
@@ -267,35 +269,35 @@ if (invalidEmail) {
   };
 
   const fetchSettings = async () => {
-  try {
-    const res = await fetch('http://localhost:9000/api/alert-settings');
-    const data = await res.json();
+    try {
+      const res = await fetch(`${API_BASE}/alert-settings`);
+      const data = await res.json();
 
-    if (data) {
-      setAlertEvents(data.alertEvents || {});
-      setRecipients(data.recipients || {});
-      setEmailChannelEnabled(data.emailChannelEnabled ?? true);
-      setEmailAddress(data.emailAddress || '');
+      if (data) {
+        setAlertEvents(data.alertEvents || {});
+        setRecipients(data.recipients || {});
+        setEmailChannelEnabled(data.emailChannelEnabled ?? true);
+        setEmailAddress(data.emailAddress || '');
+      }
+    } catch (err) {
+      console.error('Failed to load settings', err);
     }
-  } catch (err) {
-    console.error('Failed to load settings', err);
-  }
-};
+  };
 
-const fetchAlertRules = async () => {
-  try {
-    const res = await fetch('http://localhost:9000/api/alerts');
-    const data = await res.json();
-    setAlertRules(Array.isArray(data) ? data : data.data || []);
-  } catch (err) {
-    console.error('Failed to fetch alert rules', err);
-  }
-};
+  const fetchAlertRules = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/alerts`);
+      const data = await res.json();
+      setAlertRules(Array.isArray(data) ? data : data.data || []);
+    } catch (err) {
+      console.error('Failed to fetch alert rules', err);
+    }
+  };
 
-useEffect(() => {
-  fetchSettings();
-  fetchAlertRules();
-}, []);
+  useEffect(() => {
+    fetchSettings();
+    fetchAlertRules();
+  }, []);
 
   const conditionOptions = [
     { value: 'system_health_critical', label: 'System Health = Critical' },
@@ -589,6 +591,91 @@ useEffect(() => {
 
         {/* Right Column - Notification Channels & Settings */}
         <div className="space-y-6">
+          {/* Email Notification Settings */}
+          <Card className="bg-nebula-navy-light border-nebula-navy-lighter">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-lg bg-nebula-green/10 flex items-center justify-center">
+                  <Mail className="size-5 text-nebula-green" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-white">Email Notifications</h3>
+                  <p className="text-sm text-slate-400">Configure email delivery settings</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <Label className="text-white">Enable Email Channel</Label>
+                    <p className="text-xs text-slate-400">Send alerts via email</p>
+                  </div>
+                  <Switch
+                    checked={emailChannelEnabled}
+                    onCheckedChange={setEmailChannelEnabled}
+                  />
+                </div>
+
+                {emailChannelEnabled && (
+                  <div className="space-y-2">
+                    <Label className="text-white">From Email Address *</Label>
+                    <Input
+                      type="email"
+                      value={emailAddress}
+                      onChange={(e) => setEmailAddress(e.target.value)}
+                      placeholder="alerts@company.com"
+                      className="bg-nebula-navy-dark border-nebula-navy-lighter text-white"
+                    />
+                    <p className="text-xs text-slate-500">Email address used as sender</p>
+                  </div>
+                )}
+
+                <Button
+                  onClick={handleTestNotification}
+                  variant="outline"
+                  className="w-full border-nebula-navy-lighter text-slate-300 hover:text-white hover:border-nebula-purple"
+                  disabled={!emailChannelEnabled || !emailAddress.trim()}
+                >
+                  <TestTube2 className="size-4 mr-2" />
+                  Test Email Notification
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Global Settings */}
+          <Card className="bg-nebula-navy-light border-nebula-navy-lighter">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-lg bg-nebula-orange/10 flex items-center justify-center">
+                  <SettingsIcon className="size-5 text-nebula-orange" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-white">Global Settings</h3>
+                  <p className="text-sm text-slate-400">System-wide alert configuration</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="p-4 bg-nebula-navy-dark rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-white font-medium">Alert System Status</p>
+                      <p className="text-sm text-slate-400">
+                        {alertRules.filter(r => r.enabled).length} of {alertRules.length} rules active
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className={`w-3 h-3 rounded-full ${alertRules.some(r => r.enabled) ? 'bg-green-400' : 'bg-red-400'}`}></div>
+                      <span className="text-sm text-white">
+                        {alertRules.some(r => r.enabled) ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
 

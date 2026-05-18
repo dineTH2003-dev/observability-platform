@@ -7,215 +7,121 @@ interface DashboardProps {
   onNavigate: (page: string, anomalyId?: string) => void;
 }
 
+import { useState, useEffect } from 'react';
+import { getDashboardSummary, type DashboardSummary } from '../../services/dashboardService';
+import { useLiveMetrics } from '../../hooks/useLiveMetrics';
+
 export function Dashboard({ onNavigate }: DashboardProps) {
-  // KPI Stats
-  const stats = [
-    { 
-      label: 'System Health', 
-      value: '87',
-      unit: '/100',
-      icon: Activity, 
-      iconBg: 'bg-green-500/10',
-      iconColor: 'text-green-400',
-      trend: '+3%'
-    },
-    { 
-      label: 'Open Incidents', 
-      value: '4',
-      icon: AlertCircle, 
-      iconBg: 'bg-red-500/10',
-      iconColor: 'text-red-400'
-    },
-    { 
-      label: 'Active Anomalies', 
-      value: '8',
-      icon: AlertTriangle, 
-      iconBg: 'bg-orange-500/10',
-      iconColor: 'text-orange-400'
-    },
-    { 
-      label: 'Avg MTTD', 
-      value: '2.3',
-      unit: 'min',
-      icon: Clock, 
-      iconBg: 'bg-blue-500/10',
-      iconColor: 'text-blue-400',
-      trend: '-15%'
-    },
-    { 
-      label: 'Avg MTTR', 
-      value: '18',
-      unit: 'min',
-      icon: TrendingUp, 
-      iconBg: 'bg-purple-500/10',
-      iconColor: 'text-purple-400',
-      trend: '-12%'
-    },
-    { 
-      label: 'Recommendations', 
-      value: '6',
-      icon: Lightbulb, 
-      iconBg: 'bg-yellow-500/10',
-      iconColor: 'text-yellow-400'
-    },
-  ];
+  const [data, setData] = useState<DashboardSummary | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Anomaly Trend with baseline data
-  const anomalyTrendData = [
-    { time: '00:00', anomalies: 3, baseline: 2, normalMin: 1, normalMax: 4 },
-    { time: '04:00', anomalies: 2, baseline: 2, normalMin: 1, normalMax: 4 },
-    { time: '08:00', anomalies: 5, baseline: 3, normalMin: 2, normalMax: 5 },
-    { time: '12:00', anomalies: 12, baseline: 3, normalMin: 2, normalMax: 5 },
-    { time: '16:00', anomalies: 8, baseline: 3, normalMin: 2, normalMax: 5 },
-    { time: '20:00', anomalies: 4, baseline: 2, normalMin: 1, normalMax: 4 },
-    { time: '24:00', anomalies: 3, baseline: 2, normalMin: 1, normalMax: 4 },
-  ];
+  const latestMetric = useLiveMetrics();
 
-  // Open Incidents
-  const openIncidents = [
-    { 
-      id: 'INC-342', 
-      title: 'High CPU utilization on prod-db-01', 
-      severity: 'critical', 
-      status: 'open',
-      assignedTo: 'Unassigned',
-      duration: '2h 10m',
-      hasRecommendation: true
-    },
-    { 
-      id: 'INC-341', 
-      title: 'Memory leak detected in API Gateway', 
-      severity: 'high', 
-      status: 'acknowledged',
-      assignedTo: 'Alex Martinez',
-      duration: '2h 32m',
-      hasRecommendation: true
-    },
-    { 
-      id: 'INC-339', 
-      title: 'Elevated error rate in authentication', 
-      severity: 'high', 
-      status: 'open',
-      assignedTo: 'Unassigned',
-      duration: '47m',
-      hasRecommendation: false
-    },
-    { 
-      id: 'INC-338', 
-      title: 'Slow query performance on reports DB', 
-      severity: 'medium', 
-      status: 'open',
-      assignedTo: 'Sarah Chen',
-      duration: '1h 15m',
-      hasRecommendation: true
-    },
-  ];
+  const fetchData = async () => {
+    try {
+      const summary = await getDashboardSummary();
+      setData(summary);
+    } catch (err) {
+      console.error("Failed to fetch dashboard summary", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // Top Affected Resources
-  const topAffectedResources = [
-    { name: 'prod-db-01 / User Service', health: 65, status: 'critical', anomalyCount: 3 },
-    { name: 'API Gateway / gateway', health: 72, status: 'degraded', anomalyCount: 2 },
-    { name: 'Auth Service / auth-api', health: 85, status: 'degraded', anomalyCount: 1 },
-    { name: 'Payment Service / payment-db', health: 92, status: 'healthy', anomalyCount: 1 },
-     {name: 'prod-db-01 / Analytics Engine', health: 97, status: 'healthy', anomalyCount: 1 },
-  ];
+  useEffect(() => {
+    fetchData();
+  }, []);
 
+  // Re-fetch dashboard data when a new live metric arrives
+  useEffect(() => {
+    if (latestMetric) {
+      fetchData();
+    }
+  }, [latestMetric]);
 
   const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case 'critical':
-        return 'bg-red-500/10 text-red-400 border-red-500/20';
-      case 'high':
-        return 'bg-orange-500/10 text-orange-400 border-orange-500/20';
-      case 'medium':
-        return 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20';
-      case 'low':
-        return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
-      default:
-        return 'bg-slate-500/10 text-slate-400 border-slate-500/20';
+    switch (severity?.toLowerCase()) {
+      case 'critical': return 'bg-red-500/10 text-red-400 border-red-500/20';
+      case 'high': return 'bg-orange-500/10 text-orange-400 border-orange-500/20';
+      case 'medium': return 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20';
+      case 'low': return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+      default: return 'bg-slate-500/10 text-slate-400 border-slate-500/20';
     }
   };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'open':
-        return 'bg-blue-500/10 text-blue-400';
-      case 'acknowledged':
-        return 'bg-purple-500/10 text-purple-400';
-      case 'resolved':
-        return 'bg-green-500/10 text-green-400';
-      default:
-        return 'bg-slate-500/10 text-slate-400';
+    switch (status?.toLowerCase()) {
+      case 'open': return 'bg-blue-500/10 text-blue-400';
+      case 'acknowledged': return 'bg-purple-500/10 text-purple-400';
+      case 'resolved': return 'bg-green-500/10 text-green-400';
+      default: return 'bg-slate-500/10 text-slate-400';
     }
   };
 
   const getHealthColor = (status: string) => {
-    switch (status) {
-      case 'healthy':
-        return 'text-green-400';
-      case 'degraded':
-        return 'text-yellow-400';
-      case 'critical':
-        return 'text-red-400';
-      default:
-        return 'text-slate-400';
+    switch (status?.toLowerCase()) {
+      case 'healthy': return 'text-green-400';
+      case 'degraded': return 'text-yellow-400';
+      case 'critical': return 'text-red-400';
+      default: return 'text-slate-400';
     }
   };
 
-  // Metrics Overview Data
+  const getMetricStatusColor = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'elevated': return 'text-yellow-400';
+      case 'critical': return 'text-red-400';
+      default: return 'text-green-400';
+    }
+  };
+
+  const anomalyTrendData = data?.anomalyTrend.map(a => ({ 
+    time: new Date(a.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}), 
+    anomalies: Number(a.anomalies) 
+  })) || [];
+
+  const openIncidents = data?.openIncidents || [];
+  const topAffectedResources = data?.topAffectedResources || [];
+
+  const cpuData = data?.metricsOverview.map(m => Number(m.avg_cpu)) || [];
+  const memData = data?.metricsOverview.map(m => Number(m.avg_memory)) || [];
+  const diskData = data?.metricsOverview.map(m => Number(m.avg_disk)) || [];
+  const threadData = data?.metricsOverview.map(m => Number(m.avg_thread_count)) || [];
+
   const metricsOverview = [
     {
-      label: 'CPU Usage',
-      icon: Cpu,
-      iconBg: 'bg-blue-500/10',
-      iconColor: 'text-blue-400',
-      current: 68,
-      average: 55,
-      status: 'elevated',
-      data: [45, 52, 48, 62, 58, 68]
+      label: 'CPU Usage', icon: Cpu, iconBg: 'bg-blue-500/10', iconColor: 'text-blue-400',
+      current: Math.round(cpuData[cpuData.length - 1] || 0),
+      average: Math.round(cpuData.reduce((a, b) => a + b, 0) / (cpuData.length || 1)),
+      status: (cpuData[cpuData.length - 1] || 0) > 80 ? 'critical' : (cpuData[cpuData.length - 1] || 0) > 60 ? 'elevated' : 'normal',
+      data: cpuData
     },
     {
-      label: 'Memory',
-      icon: Activity,
-      iconBg: 'bg-purple-500/10',
-      iconColor: 'text-purple-400',
-      current: 72,
-      average: 65,
-      status: 'elevated',
-      data: [60, 65, 63, 70, 68, 72]
+      label: 'Memory', icon: Activity, iconBg: 'bg-purple-500/10', iconColor: 'text-purple-400',
+      current: Math.round(memData[memData.length - 1] || 0),
+      average: Math.round(memData.reduce((a, b) => a + b, 0) / (memData.length || 1)),
+      status: (memData[memData.length - 1] || 0) > 80 ? 'critical' : (memData[memData.length - 1] || 0) > 60 ? 'elevated' : 'normal',
+      data: memData
     },
     {
-      label: 'Disk I/O',
-      icon: HardDrive,
-      iconBg: 'bg-cyan-500/10',
-      iconColor: 'text-cyan-400',
-      current: 45,
-      average: 48,
+      label: 'Disk Usage', icon: HardDrive, iconBg: 'bg-cyan-500/10', iconColor: 'text-cyan-400',
+      current: Math.round(diskData[diskData.length - 1] || 0),
+      average: Math.round(diskData.reduce((a, b) => a + b, 0) / (diskData.length || 1)),
+      status: (diskData[diskData.length - 1] || 0) > 80 ? 'critical' : (diskData[diskData.length - 1] || 0) > 60 ? 'elevated' : 'normal',
+      data: diskData
+    },
+    {
+      label: 'Thread Count', icon: Network, iconBg: 'bg-green-500/10', iconColor: 'text-green-400',
+      current: Math.round(threadData[threadData.length - 1] || 0),
+      average: Math.round(threadData.reduce((a, b) => a + b, 0) / (threadData.length || 1)),
       status: 'normal',
-      data: [55, 50, 48, 45, 47, 45]
-    },
-    {
-      label: 'Network',
-      icon: Network,
-      iconBg: 'bg-green-500/10',
-      iconColor: 'text-green-400',
-      current: 52,
-      average: 50,
-      status: 'normal',
-      data: [48, 50, 51, 49, 53, 52]
+      data: threadData
     },
   ];
 
-  const getMetricStatusColor = (status: string) => {
-    switch (status) {
-      case 'elevated':
-        return 'text-yellow-400';
-      case 'critical':
-        return 'text-red-400';
-      default:
-        return 'text-green-400';
-    }
-  };
+  if (loading) {
+    return <div className="flex h-full items-center justify-center text-slate-400">Loading Dashboard...</div>;
+  }
 
   return (
     <div className="space-y-6">
@@ -237,7 +143,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
               <span className="text-xs text-slate-400">Last 24h</span>
             </div>
             <h3 className="text-sm text-slate-400 mb-1">System Health</h3>
-            <p className="text-3xl font-bold text-white mb-2">98.5%</p>
+            <p className="text-3xl font-bold text-white mb-2">{data?.kpis.systemHealth || 0}%</p>
           </CardContent>
         </Card>
 
@@ -251,7 +157,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
               <span className="text-xs text-slate-400">Active</span>
             </div>
             <h3 className="text-sm text-slate-400 mb-1">Hosts</h3>
-            <p className="text-3xl font-bold text-white mb-2">248</p>
+            <p className="text-3xl font-bold text-white mb-2">{data?.kpis.hosts || 0}</p>
           </CardContent>
         </Card>
 
@@ -265,7 +171,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
               <span className="text-xs text-slate-400">Monitored</span>
             </div>
             <h3 className="text-sm text-slate-400 mb-1">Applications</h3>
-            <p className="text-3xl font-bold text-white mb-2">42</p>
+            <p className="text-3xl font-bold text-white mb-2">{data?.kpis.applications || 0}</p>
           </CardContent>
         </Card>
 
@@ -279,7 +185,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
               <span className="text-xs text-slate-400">Deployed</span>
             </div>
             <h3 className="text-sm text-slate-400 mb-1">Services</h3>
-            <p className="text-3xl font-bold text-white mb-2">156</p>
+            <p className="text-3xl font-bold text-white mb-2">{data?.kpis.services || 0}</p>
           </CardContent>
         </Card>
 
@@ -296,7 +202,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
               <span className="text-xs text-slate-400">Detected</span>
             </div>
             <h3 className="text-sm text-slate-400 mb-1">Active Anomalies</h3>
-            <p className="text-3xl font-bold text-white mb-2">23</p>
+            <p className="text-3xl font-bold text-white mb-2">{data?.kpis.activeAnomalies || 0}</p>
           </CardContent>
         </Card>
 
@@ -313,7 +219,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
               <span className="text-xs text-slate-400">Unresolved</span>
             </div>
             <h3 className="text-sm text-slate-400 mb-1">Open Incidents</h3>
-            <p className="text-3xl font-bold text-white mb-2">8</p>
+            <p className="text-3xl font-bold text-white mb-2">{data?.kpis.openIncidents || 0}</p>
           </CardContent>
         </Card>
       </div>

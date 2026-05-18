@@ -51,7 +51,7 @@ exports.ingestMetrics = async (
 exports.ingestDiscoveredServices = async (server_id, services) => {
   if (!Array.isArray(services) || services.length === 0) {
     await ServiceModel.markStopped(server_id, []);
-    return { upserted: 0 };
+    return { upserted: 0, metrics: [] };
   }
 
   const runningNames = services.map((s) => s.name);
@@ -59,6 +59,7 @@ exports.ingestDiscoveredServices = async (server_id, services) => {
   await ServiceModel.markStopped(server_id, runningNames);
 
   let upserted = 0;
+  const insertedMetrics = [];
   for (const svc of services) {
     const row = await ServiceModel.upsert({
       server_id,
@@ -70,16 +71,17 @@ exports.ingestDiscoveredServices = async (server_id, services) => {
     });
 
     if (svc.cpu_usage != null || svc.memory_usage != null) {
-      await ServiceMetricModel.insert({
+      const metric = await ServiceMetricModel.insert({
         service_id: row.service_id,
         cpu_usage: svc.cpu_usage ?? null,
         memory_usage: svc.memory_usage ?? null,
       });
+      insertedMetrics.push(metric);
     }
     upserted++;
   }
 
-  return { upserted };
+  return { upserted, metrics: insertedMetrics };
 };
 
 // Stale agent sweep

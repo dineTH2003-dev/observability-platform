@@ -7,6 +7,11 @@ function requireEnv(name) {
   return val;
 }
 
+function optionalEnv(name, fallback = "") {
+  const val = process.env[name];
+  return val == null ? fallback : val;
+}
+
 const env = {
   nodeEnv: process.env.NODE_ENV || "development",
   port: Number(process.env.PORT || 9000),
@@ -33,10 +38,10 @@ const env = {
 
   FRONTEND_URL: requireEnv("FRONTEND_URL"),
 
-  EMAIL_HOST: requireEnv("EMAIL_HOST"),
-  EMAIL_PORT: Number(requireEnv("EMAIL_PORT")),
-  EMAIL_USER: requireEnv("EMAIL_USER"),
-  EMAIL_PASS: requireEnv("EMAIL_PASS"),
+  EMAIL_HOST: optionalEnv("EMAIL_HOST"),
+  EMAIL_PORT: Number(process.env.EMAIL_PORT || 587),
+  EMAIL_USER: optionalEnv("EMAIL_USER"),
+  EMAIL_PASS: optionalEnv("EMAIL_PASS"),
 };
 
 module.exports = env;

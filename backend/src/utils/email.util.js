@@ -1,21 +1,30 @@
 const nodemailer = require('nodemailer');
 const env = require('../config/env');
 
-const transporter = nodemailer.createTransport({
-  host: env.EMAIL_HOST,
-  port: env.EMAIL_PORT,
-  secure: false,
-  auth: {
-    user: env.EMAIL_USER,
-    pass: env.EMAIL_PASS,
-  },
-  tls: {
-    rejectUnauthorized: false,
-  },
-});
+function getTransporter() {
+  if (!env.EMAIL_HOST || !env.EMAIL_USER || !env.EMAIL_PASS) {
+    throw new Error(
+      'Email is not configured. Set EMAIL_HOST, EMAIL_USER, and EMAIL_PASS to enable password reset emails.',
+    );
+  }
+
+  return nodemailer.createTransport({
+    host: env.EMAIL_HOST,
+    port: env.EMAIL_PORT,
+    secure: false,
+    auth: {
+      user: env.EMAIL_USER,
+      pass: env.EMAIL_PASS,
+    },
+    tls: {
+      rejectUnauthorized: false,
+    },
+  });
+}
 
 async function sendResetEmail(email, token) {
   const resetLink = `${env.FRONTEND_URL}/reset-password?token=${token}`;
+  const transporter = getTransporter();
 
   console.log("Sending email to:", email);
   console.log("Reset link:", resetLink);

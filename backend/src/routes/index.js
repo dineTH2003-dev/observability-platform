@@ -19,7 +19,9 @@ router.use("/agent", require("./agent.routes"));
 router.use("/reports", require("./report.routes"));
 
 router.use("/incidents", require("./incident.routes"));
-router.use("/alerts", require("./alert.routes"));
-router.use("/alert-settings", require("./alertSettings.routes"));
+router.use("/alerts",require("./alert.routes"));
+router.use("/alert-settings",require("./alertSettings.routes"))
+router.use("/metrics", require("./metric.routes"));
+router.use("/dashboard", require("./dashboard.routes"));
 
 module.exports = router;

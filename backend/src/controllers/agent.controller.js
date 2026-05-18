@@ -45,6 +45,20 @@ exports.ingestMetrics = asyncHandler(async (req, res) => {
     disk_usage,
     thread_count,
   });
+
+  try {
+    const { getIO } = require("../socket");
+    const io = getIO();
+    const liveMetric = {
+      ...result.metric,
+      server_status: result.server_status,
+    };
+    io.emit("live_server_metric", liveMetric);
+    io.to(`server_${server_id}`).emit("live_server_metric", liveMetric);
+  } catch (err) {
+    req.log("error", { msg: "WebSocket emit failed", error: err.message });
+  }
+
   res.json({ success: true, data: result });
 });
 
@@ -68,5 +82,19 @@ exports.ingestServices = asyncHandler(async (req, res) => {
     Number(server_id),
     services,
   );
+
+  try {
+    const { getIO } = require("../socket");
+    const io = getIO();
+    if (Array.isArray(result.metrics)) {
+      result.metrics.forEach((svc) => {
+        io.emit("live_service_metric", svc);
+        io.to(`service_${svc.service_id}`).emit("live_service_metric", svc);
+      });
+    }
+  } catch (err) {
+    req.log("error", { msg: "WebSocket emit failed for services", error: err.message });
+  }
+
   res.json({ success: true, data: result });
 });

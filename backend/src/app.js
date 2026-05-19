@@ -38,7 +38,7 @@ app.use(errorHandler);
 app.set("trust proxy", true);
 
 // Stale-agent sweep: every 60s, mark INACTIVE after 10 min no heartbeat
-/*setInterval(async () => {
+setInterval(async () => {
   try {
     const count = await AgentService.sweepStaleAgents(10);
     if (count > 0)
@@ -46,6 +46,6 @@ app.set("trust proxy", true);
   } catch (err) {
     logger.error({ msg: "AgentSweep error", err: err.message });
   }
-}, 60_000);*/
+}, 60_000);
 
 module.exports = app;

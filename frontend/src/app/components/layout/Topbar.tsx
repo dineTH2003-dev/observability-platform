@@ -16,7 +16,8 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from '../ui/dropdown-menu';
-import { NotificationDropdown, Notification } from '../ui/NotificationDropdown';
+import { NotificationDropdown } from '../ui/NotificationDropdown';
+import type { Notification } from '../ui/NotificationDropdown';
 
 interface TopbarProps {
   currentPage: string;

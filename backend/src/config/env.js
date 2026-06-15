@@ -25,6 +25,10 @@ const env = {
     ssl: process.env.DB_SSL === "true",
   },
 
+  ml: {
+    internalToken: process.env.ML_INTERNAL_TOKEN || null,
+  },
+
   jwt: {
     secret: requireEnv("JWT_SECRET"),
     refreshSecret: requireEnv("JWT_REFRESH_SECRET"),

@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from '../../components/ui/select';
 
-import { AlertRule } from './types';
+import type { AlertRule } from '../../types/alert';
 import { AlertRuleList } from '../../components/AlertRuleList';
 import { AlertRuleModal } from '../../components/AlertRuleModal';
 

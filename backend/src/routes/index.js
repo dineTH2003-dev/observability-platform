@@ -8,7 +8,9 @@ router.use("/services", require("./service.routes"));
 router.use("/agent", require("./agent.routes"));
 router.use("/reports", require("./reports.routes"));
 router.use("/incidents", require("./incident.routes"));
-router.use("/alerts",require("./alert.routes"));
-router.use("/alert-settings",require("./alertSettings.routes"))
+router.use("/anomalies", require("./anomaly.routes"));
+router.use("/ml", require("./ml.routes"));
+router.use("/alerts", require("./alert.routes"));
+router.use("/alert-settings", require("./alertSettings.routes"));
 
 module.exports = router;

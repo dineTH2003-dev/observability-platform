@@ -1,8 +1,8 @@
 const db = require('../config/db');
 
 // Append a new event to the timeline (never update or delete rows here)
-exports.addEvent = async (incidentId, actorId, eventType, message) => {
-  const { rows } = await db.query(
+exports.addEvent = async (incidentId, actorId, eventType, message, client = db) => {
+  const { rows } = await client.query(
     `INSERT INTO incident_timeline (incident_id, actor_id, event_type, message)
      VALUES ($1, $2, $3, $4)
      RETURNING *`,

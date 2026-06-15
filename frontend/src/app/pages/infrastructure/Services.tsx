@@ -143,8 +143,7 @@ export function Services({ onNavigate }: ServicesPageProps) {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // Auto-poll every 30s - picks up status changes (RUNNING => STOPPED => RUNNING)
-  // without user action when services go down or come back up.
+  // Optionally refresh if significant status changes happen, or just refresh periodically
   useEffect(() => {
     const t = setInterval(() => loadData(true), 30_000);
     return () => clearInterval(t);

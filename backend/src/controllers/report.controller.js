@@ -1,108 +1,59 @@
-const PDFDocument = require("pdfkit");
-const pool = require("../config/db");
-const { formatDate, formatCellValue } = require("../utils/format");
+const reportService = require("../services/report.service");
+const { generateReportPDF } = require("../utils/format");
 
-  const TABLES = {
-  "system-health": "system_uptime",
-  "incident-anomaly": "anomaly_incident",
-  "mttr-mttd": "mttr_mttd",
-  "service-health": "service_health",
-};
-
-const resolveTable = (type) => TABLES[type] || null;
-
-exports.previewReport = async (req, res) => {
-  const { reportType, scope, fromDate, toDate } = req.body;
-
-  const table = resolveTable(reportType);
-  if (!table) return res.status(400).json({ error: "Invalid type" });
-
+// 📊 JSON report
+const getReport = async (req, res) => {
   try {
-    const { rows } = await pool.query(
-      `SELECT * FROM ${table}
-       WHERE LOWER(scope) = LOWER($1)
-       AND report_date::date BETWEEN $2 AND $3`,
-      [scope, fromDate, toDate]
-    );
+    console.log("📥 REPORT REQUEST:", req.query);
 
-    res.json({ rows });
+    const data = await reportService.getReport(req.query);
+
+    return res.json({
+      success: true,
+      count: Array.isArray(data) ? data.length : 0,
+      data,
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("❌ Report Error:", err.message);
+
+    return res.status(400).json({
+      success: false,
+      message: err.message,
+    });
   }
 };
 
-exports.exportPDF = async (req, res) => {
-  const { reportType, scope, startDate, endDate } = req.body;
-
-  const table = resolveTable(reportType);
-  if (!table) return res.status(400).json({ error: "Invalid type" });
-
+// 📄 PDF report
+const downloadReportPDF = async (req, res) => {
   try {
-    const { rows } = await pool.query(
-      `SELECT * FROM ${table}
-       WHERE LOWER(scope) = LOWER($1)
-       AND report_date::date BETWEEN $2 AND $3`,
-      [scope, startDate, endDate]
-    );
+    console.log("📥 PDF REQUEST:", req.query);
 
-    const doc = new PDFDocument({ margin: 40 });
+    const type = req.query.type || "GENERAL";
+
+    const data = await reportService.getReport(req.query);
+
+    const pdfBuffer = await generateReportPDF(
+      data,
+      `${type.toUpperCase()} REPORT`,
+      req.query.from,
+      req.query.to
+    );
 
     res.setHeader("Content-Type", "application/pdf");
-    doc.pipe(res);
+    res.setHeader("Content-Disposition", "attachment; filename=report.pdf");
 
-    doc.fontSize(20).text("System Report", { align: "center" });
-
-    doc.moveDown();
-doc.fontSize(10).text(`Records: ${rows.length}`);
-doc.moveDown();
-
-// ===== TABLE START =====
-
-// Dynamic headers
-if (rows.length > 0) {
-  const headers = Object.keys(rows[0]);
-
-  const startX = 40;
-  let y = doc.y;
-
-  const colWidth = 80;
-
-  // Draw headers
-  headers.forEach((header, i) => {
-    doc
-      .fontSize(10)
-      .text(header, startX + i * colWidth, y, { bold: true });
-  });
-
-  y += 20;
-
-  // Draw rows
-  rows.forEach((row) => {
-    headers.forEach((header, i) => {
-      let value = row[header];
-
-      // format date nicely
-      if (value instanceof Date) {
-        value = formatCellValue(value);
-      }
-
-      doc.text(String(value), startX + i * colWidth, y);
-    });
-
-    y += 20;
-
-    // Add new page if overflow
-    if (y > 750) {
-      doc.addPage();
-      y = 50;
-    }
-  });
-}
-
-// ===== TABLE END =====
-
-    doc.end();
+    return res.send(pdfBuffer);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("❌ PDF Error:", err.message);
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
   }
+};
+
+module.exports = {
+  getReport,
+  downloadReportPDF,
 };

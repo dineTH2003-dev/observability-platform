@@ -78,7 +78,7 @@ exports.ingestDiscoveredServices = async (server_id, services) => {
   if (normalizedServices.length === 0) {
     await ServiceModel.markStopped(normalizedServerId, []);
     await markServerSeen(normalizedServerId);
-    return { upserted: 0 };
+    return { upserted: 0, metrics: [] };
   }
 
   const runningNames = normalizedServices.map((s) => s.name);
@@ -86,6 +86,7 @@ exports.ingestDiscoveredServices = async (server_id, services) => {
   await ServiceModel.markStopped(normalizedServerId, runningNames);
 
   let upserted = 0;
+  const insertedMetrics = [];
   for (const svc of normalizedServices) {
     const row = await ServiceModel.upsert({
       server_id: normalizedServerId,
@@ -97,17 +98,18 @@ exports.ingestDiscoveredServices = async (server_id, services) => {
     });
 
     if (svc.cpu_usage != null || svc.memory_usage != null) {
-      await ServiceMetricModel.insert({
+      const metric = await ServiceMetricModel.insert({
         service_id: row.service_id,
         cpu_usage: svc.cpu_usage,
         memory_usage: svc.memory_usage,
       });
+      insertedMetrics.push(metric);
     }
     upserted++;
   }
 
   await markServerSeen(normalizedServerId);
-  return { upserted };
+  return { upserted, metrics: insertedMetrics };
 };
 
 async function ensureServerExists(server_id) {

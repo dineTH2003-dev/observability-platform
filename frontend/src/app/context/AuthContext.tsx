@@ -1,43 +1,73 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState } from 'react';
+import type { ReactNode } from 'react';
+
+export type UserRole = 'admin' | 'engineer';
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  role: UserRole;
+}
 
 interface AuthContextType {
   isAuthenticated: boolean;
-  login: (token: string) => void;
-  signup: () => void;
+  user: AuthUser | null;
+  login: (authData: {
+    accessToken: string;
+    refreshToken: string;
+    user: AuthUser;
+  }) => void;
   logout: () => void;
+  hasRole: (roles: UserRole[]) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function parseStoredUser(): AuthUser | null {
+  const stored = localStorage.getItem('user');
+  if (!stored) return null;
+
+  try {
+    return JSON.parse(stored) as AuthUser;
+  } catch {
+    return null;
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  // Initialize state by checking if a token exists in either storage
+  const [user, setUser] = useState<AuthUser | null>(() => parseStoredUser());
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(
-    !!localStorage.getItem("accessToken")
+    !!localStorage.getItem('accessToken') && !!parseStoredUser()
   );
 
-  const login = (token: string) => {
-    localStorage.setItem("accessToken", token);
-    setIsAuthenticated(true);
-  };
-
-  const signup = () => {
+  const login = (authData: {
+    accessToken: string;
+    refreshToken: string;
+    user: AuthUser;
+  }) => {
+    localStorage.setItem('accessToken', authData.accessToken);
+    localStorage.setItem('refreshToken', authData.refreshToken);
+    localStorage.setItem('user', JSON.stringify(authData.user));
+    setUser(authData.user);
     setIsAuthenticated(true);
   };
 
   const logout = () => {
-    console.log("LOGOUT CLICKED");
-
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
-    localStorage.removeItem("user");
-
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
+    setUser(null);
     setIsAuthenticated(false);
+    window.location.href = '/';
+  };
 
-    window.location.href = "/";
+  const hasRole = (roles: UserRole[]) => {
+    if (!user) return false;
+    return roles.includes(user.role);
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, login, signup, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, user, login, logout, hasRole }}>
       {children}
     </AuthContext.Provider>
   );

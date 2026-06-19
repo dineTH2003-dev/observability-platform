@@ -1,14 +1,18 @@
 import { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
-import { signupUser } from '../../../api/authApi';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Checkbox } from '../../components/ui/checkbox';
 import logoImage from '../../../assets/logo.png';
+import { authService } from '../../services/authService';
 
 interface SignupProps {
-  onSignup: () => void;
+  onSignup: (authData: {
+    accessToken: string;
+    refreshToken: string;
+    user: { id: string; email: string; role: 'admin' | 'engineer' };
+  }) => void;
   onSwitchToLogin: () => void;
 }
 
@@ -29,13 +33,12 @@ export function Signup({ onSignup, onSwitchToLogin }: SignupProps) {
     }
 
     try {
-      const res = await signupUser({ email, password });
-      
-      // Save token to session storage (cleared on tab close)
-      sessionStorage.setItem('token', res.data.accessToken);
-
-      alert('Signup successful!');
-      onSignup();
+      const data = await authService.signup({ email, password });
+      onSignup({
+        accessToken: data.accessToken,
+        refreshToken: data.refreshToken,
+        user: data.user,
+      });
     } catch (error: any) {
       alert(error.response?.data?.message || 'Signup failed');
     }

@@ -14,8 +14,8 @@ async function signup(req, res) {
 
 async function login(req, res) {
   try {
-    const tokens = await loginUser(req.body);
-    res.json(tokens);
+    const authResult = await loginUser(req.body);
+    res.json(authResult);
   } catch (err) {
     res.status(401).json({ message: err.message });
   }

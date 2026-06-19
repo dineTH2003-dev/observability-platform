@@ -12,12 +12,16 @@ import {
   Ticket,
 } from 'lucide-react';
 import logoImage from '../../../assets/logo.png';
+import { useAuthContext } from '../../context/AuthContext';
+
 interface SidebarProps {
   currentPage: string;
   onNavigate: (page: string) => void;
   sidebarCollapsed: boolean;
 }
 export function Sidebar({ currentPage, onNavigate, sidebarCollapsed }: SidebarProps) {
+  const { user } = useAuthContext();
+
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, section: 'main' },
     { id: 'hosts', label: 'Hosts', icon: Server, section: 'infrastructure' },
@@ -28,8 +32,8 @@ export function Sidebar({ currentPage, onNavigate, sidebarCollapsed }: SidebarPr
     { id: 'incidents', label: 'Incidents', icon: AlertOctagon, section: 'incident-management' },
     { id: 'anomalies', label: 'Anomalies', icon: AlertTriangle, section: 'investigation' },
     { id: 'tickets', label: 'Tickets', icon: Ticket, section: 'management' },
-    { id: 'reports', label: 'Reports', icon: BarChart3, section: 'management' },
-    { id: 'alert-settings', label: 'Alert Settings', icon: Bell, section: 'settings' },
+    { id: 'reports', label: 'Reports', icon: BarChart3, section: 'management', roles: ['admin'] },
+    { id: 'alert-settings', label: 'Alert Settings', icon: Bell, section: 'settings', roles: ['admin'] },
   ];
   const getSectionTitle = (section: string) => {
     switch (section) {
@@ -43,13 +47,19 @@ export function Sidebar({ currentPage, onNavigate, sidebarCollapsed }: SidebarPr
       default: return null;
     }
   };
-  const groupedNavItems = navItems.reduce((acc, item) => {
+  const visibleNavItems = navItems.filter((item) => {
+    if (!item.roles) return true;
+    return user?.role && item.roles.includes(user.role);
+  });
+
+  const groupedNavItems = visibleNavItems.reduce((acc, item) => {
     if (!acc[item.section]) {
       acc[item.section] = [];
     }
     acc[item.section].push(item);
     return acc;
-  }, {} as Record<string, typeof navItems>);
+  }, {} as Record<string, typeof visibleNavItems>);
+
   return (
     <aside
       className={`${sidebarCollapsed ? 'w-20' : 'w-64'
@@ -113,19 +123,21 @@ export function Sidebar({ currentPage, onNavigate, sidebarCollapsed }: SidebarPr
         ))}
       </nav>
       {/* Settings at bottom */}
-      <div className="border-t border-nebula-navy-lighter p-3">
-        <button
-          onClick={() => onNavigate('settings')}
-          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${currentPage === 'settings'
-            ? 'bg-nebula-purple text-white'
-            : 'text-slate-400 hover:text-white hover:bg-nebula-navy-lighter'
-            } ${sidebarCollapsed ? 'justify-center' : ''}`}
-          title={sidebarCollapsed ? 'Settings' : undefined}
-        >
-          <Settings className="size-5 flex-shrink-0" />
-          {!sidebarCollapsed && <span className="text-sm font-medium">Settings</span>}
-        </button>
-      </div>
+      {user?.role === 'admin' && (
+        <div className="border-t border-nebula-navy-lighter p-3">
+          <button
+            onClick={() => onNavigate('settings')}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${currentPage === 'settings'
+              ? 'bg-nebula-purple text-white'
+              : 'text-slate-400 hover:text-white hover:bg-nebula-navy-lighter'
+              } ${sidebarCollapsed ? 'justify-center' : ''}`}
+            title={sidebarCollapsed ? 'Settings' : undefined}
+          >
+            <Settings className="size-5 flex-shrink-0" />
+            {!sidebarCollapsed && <span className="text-sm font-medium">Settings</span>}
+          </button>
+        </div>
+      )}
     </aside>
   );
 }

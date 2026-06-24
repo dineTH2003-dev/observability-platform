@@ -1,9 +1,9 @@
 import { ReactNode } from 'react';
-import { useAuthContext } from '../../context/AuthContext';
+import { useAuthContext, type UserRole } from '../../context/AuthContext';
 import { AccessDenied } from '../../pages/accessDenied/AccessDenied';
 
 interface ProtectedRouteProps {
-  allowedRoles: Array<'admin' | 'engineer'>;
+  allowedRoles: UserRole[];
   children: ReactNode;
 }
 

@@ -26,6 +26,14 @@ class ApiService {
       ...options.headers,
     };
 
+    const token =
+      localStorage.getItem("accessToken") ||
+      sessionStorage.getItem("accessToken");
+
+    if (token) {
+      (headers as Record<string, string>).Authorization = `Bearer ${token}`;
+    }
+
     const response = await fetch(url, {
       ...options,
       headers,

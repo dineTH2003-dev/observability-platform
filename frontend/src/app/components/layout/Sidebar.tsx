@@ -10,6 +10,7 @@ import {
   Settings,
   Bell,
   Ticket,
+  UserRound,
 } from 'lucide-react';
 import logoImage from '../../../assets/logo.png';
 import { useAuthContext } from '../../context/AuthContext';
@@ -32,6 +33,7 @@ export function Sidebar({ currentPage, onNavigate, sidebarCollapsed }: SidebarPr
     { id: 'incidents', label: 'Incidents', icon: AlertOctagon, section: 'incident-management' },
     { id: 'anomalies', label: 'Anomalies', icon: AlertTriangle, section: 'investigation' },
     { id: 'tickets', label: 'Tickets', icon: Ticket, section: 'management' },
+    { id: 'profile', label: 'Profile', icon: UserRound, section: 'management' },
     { id: 'reports', label: 'Reports', icon: BarChart3, section: 'management', roles: ['admin'] },
     { id: 'alert-settings', label: 'Alert Settings', icon: Bell, section: 'settings', roles: ['admin'] },
   ];
@@ -122,22 +124,6 @@ export function Sidebar({ currentPage, onNavigate, sidebarCollapsed }: SidebarPr
           </div>
         ))}
       </nav>
-      {/* Settings at bottom */}
-      {user?.role === 'admin' && (
-        <div className="border-t border-nebula-navy-lighter p-3">
-          <button
-            onClick={() => onNavigate('settings')}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${currentPage === 'settings'
-              ? 'bg-nebula-purple text-white'
-              : 'text-slate-400 hover:text-white hover:bg-nebula-navy-lighter'
-              } ${sidebarCollapsed ? 'justify-center' : ''}`}
-            title={sidebarCollapsed ? 'Settings' : undefined}
-          >
-            <Settings className="size-5 flex-shrink-0" />
-            {!sidebarCollapsed && <span className="text-sm font-medium">Settings</span>}
-          </button>
-        </div>
-      )}
     </aside>
   );
 }

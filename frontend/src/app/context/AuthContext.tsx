@@ -23,12 +23,21 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function normalizeUser(user: Partial<AuthUser> | null): AuthUser | null {
+  if (!user) return null;
+  return {
+    id: user.id ?? '',
+    email: user.email ?? '',
+    role: user.role === 'admin' ? 'admin' : 'engineer',
+  };
+}
+
 function parseStoredUser(): AuthUser | null {
   const stored = localStorage.getItem('user');
   if (!stored) return null;
 
   try {
-    return JSON.parse(stored) as AuthUser;
+    return normalizeUser(JSON.parse(stored) as Partial<AuthUser>);
   } catch {
     return null;
   }
@@ -45,10 +54,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refreshToken: string;
     user: AuthUser;
   }) => {
+    const normalizedUser = normalizeUser(authData.user);
     localStorage.setItem('accessToken', authData.accessToken);
     localStorage.setItem('refreshToken', authData.refreshToken);
-    localStorage.setItem('user', JSON.stringify(authData.user));
-    setUser(authData.user);
+    localStorage.setItem('user', JSON.stringify(normalizedUser));
+    setUser(normalizedUser);
     setIsAuthenticated(true);
   };
 

@@ -8,10 +8,16 @@ function authenticate(req, res, next) {
   }
 
   const token = authHeader.split(' ')[1];
+  if (!token) {
+    return res.status(401).json({ message: 'Invalid token format' });
+  }
 
   try {
     const decoded = jwt.verify(token, env.jwt.secret);
-    req.user = decoded;
+    req.user = {
+      ...decoded,
+      role: decoded.role ? decoded.role.toLowerCase() : 'engineer',
+    };
     next();
   } catch {
     return res.status(401).json({ message: 'Invalid token' });
@@ -24,7 +30,8 @@ function authorize(roles = []) {
       return next();
     }
 
-    if (!req.user || !roles.includes(req.user.role)) {
+    const userRole = req.user?.role?.toLowerCase();
+    if (!userRole || !roles.map((role) => role.toLowerCase()).includes(userRole)) {
       return res.status(403).json({ message: 'Forbidden' });
     }
 

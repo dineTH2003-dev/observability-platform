@@ -16,17 +16,13 @@ router.use("/tickets", authenticate, require("./ticket.routes"));
 router.use("/services", authenticate, require("./service.routes"));
 router.use("/agent", authenticate, require("./agent.routes"));
 router.use("/reports", authenticate, authorize(['admin']), require("./reports.routes"));
+router.use("/reports", authenticate, authorize(['admin']), require("./report.routes"));
 router.use("/incidents", authenticate, require("./incident.routes"));
-
-
-router.use("/reports", require("./report.routes"));
-
-router.use("/incidents", require("./incident.routes"));
-router.use("/anomalies", require("./anomaly.routes"));
-router.use("/ml", require("./ml.routes"));
-router.use("/alerts", require("./alert.routes"));
-router.use("/alert-settings", require("./alertSettings.routes"));
-router.use("/metrics", require("./metric.routes"));
-router.use("/dashboard", require("./dashboard.routes"));
+router.use("/anomalies", authenticate, require("./anomaly.routes"));
+router.use("/ml", authenticate, require("./ml.routes"));
+router.use("/alerts", authenticate, require("./alert.routes"));
+router.use("/alert-settings", authenticate, authorize(['admin']), require("./alertSettings.routes"));
+router.use("/metrics", authenticate, require("./metric.routes"));
+router.use("/dashboard", authenticate, require("./dashboard.routes"));
 
 module.exports = router;

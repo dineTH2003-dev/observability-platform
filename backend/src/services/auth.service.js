@@ -17,13 +17,13 @@ async function signupUser({ email, password, role = 'engineer' }) {
   const user = result.rows[0];
 
   const accessToken = jwt.sign(
-    { userId: user.id, role: user.role },
+    { userId: user.id, role: user.role, email: user.email },
     env.jwt.secret,
     { expiresIn: env.jwt.expiresIn }
   );
 
   const refreshToken = jwt.sign(
-    { userId: user.id },
+    { userId: user.id, role: user.role, email: user.email },
     env.jwt.refreshSecret,
     { expiresIn: env.jwt.refreshExpiresIn }
   );
@@ -48,13 +48,13 @@ async function loginUser({ email, password }) {
   if (!match) throw new Error('Invalid credentials');
 
   const accessToken = jwt.sign(
-    { userId: user.id, role: user.role },
+    { userId: user.id, role: user.role, email: user.email },
     env.jwt.secret,
     { expiresIn: env.jwt.expiresIn }
   );
 
   const refreshToken = jwt.sign(
-    { userId: user.id },
+    { userId: user.id, role: user.role, email: user.email },
     env.jwt.refreshSecret,
     { expiresIn: env.jwt.refreshExpiresIn }
   );

@@ -1,10 +1,10 @@
 const db = require('../config/db');
 
 // Create a new incident
-exports.create = async (data) => {
+exports.create = async (data, client = db) => {
   const { title, description, severity } = data;
 
-  const { rows } = await db.query(
+  const { rows } = await client.query(
     `INSERT INTO incidents (title, description, severity)
      VALUES ($1, $2, $3)
      RETURNING *`,

@@ -30,6 +30,11 @@ export const serviceService = {
     return res.data;
   },
 
+  async getById(serviceId: number): Promise<Service> {
+    const res = await api.get<ApiResponse<Service>>(`/services/${serviceId}`);
+    return res.data;
+  },
+
   async updateApplication(serviceId: number, applicationId: number): Promise<Service> {
     const res = await api.put<ApiResponse<Service>>(
       `/services/${serviceId}/application`,

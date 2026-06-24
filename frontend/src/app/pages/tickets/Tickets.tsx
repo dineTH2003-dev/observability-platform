@@ -1,4 +1,5 @@
 import { useEffect,useState } from 'react';
+import api from '../../../api/api';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -47,10 +48,12 @@ export function Tickets() {
 
   const fetchTickets = async () => {
     try {
-      const res = await fetch(
-        `http://localhost:9000/api/tickets?search=${searchQuery}&status=${filterStatus}`
-      );
-      const data = await res.json();
+      const { data } = await api.get('/tickets', {
+        params: {
+          search: searchQuery,
+          status: filterStatus,
+        },
+      });
 
       const mappedData: Ticket[] = data.map((t: any) => ({
         id: t.ticket_id,
@@ -252,21 +255,15 @@ function CreateTicketModal({ onClose, onCreated }: any) {
   const [reasonRequest, setReasonRequest] = useState('');
   const handleSubmit = async () => {
     try {
-      await fetch("http://localhost:9000/api/tickets", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          title,
-          purpose: ticketPurpose,
-          context,
-          priority,
-        }),
+      await api.post('/tickets', {
+        title,
+        purpose: ticketPurpose,
+        context,
+        priority,
       });
 
-      onCreated();   // refresh table
-      onClose();     // close modal
+      onCreated();
+      onClose();
     } catch (err) {
       console.error(err);
     }

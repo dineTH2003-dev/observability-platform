@@ -40,6 +40,17 @@ class ApiService {
     });
 
     if (!response.ok) {
+      if (response.status === 401) {
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("refreshToken");
+        localStorage.removeItem("user");
+        sessionStorage.removeItem("accessToken");
+
+        if (window.location.pathname !== "/login") {
+          window.location.replace("/login");
+        }
+      }
+
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 

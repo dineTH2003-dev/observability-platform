@@ -1,5 +1,5 @@
 import { NotificationsPage } from './pages/notifications/NotificationsPage';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigation } from './hooks/useNavigation';
 import { MainLayout } from './layouts/MainLayout';
 import { Dashboard } from './pages/dashboard/Dashboard';
@@ -25,14 +25,78 @@ import { Toaster } from './components/ui/sonner';
 import { ResetPassword } from './pages/auth/ResetPassword';
 import { Incidents } from './pages/incidents/Incidents';
 
+type AuthView = 'login' | 'signup' | 'forgot-password' | 'reset-password';
+
+const authPathToView: Record<string, AuthView> = {
+  '/login': 'login',
+  '/signup': 'signup',
+  '/forgot-password': 'forgot-password',
+  '/reset-password': 'reset-password',
+};
+
+function replacePath(path: string) {
+  if (window.location.pathname !== path) {
+    window.history.replaceState(null, '', `${path}${window.location.search}`);
+  }
+}
 
 function AppContent() {
   const { isAuthenticated, login, logout, hasRole } = useAuth();
-  const [authView, setAuthView] = useState<'login' | 'signup' | 'forgot-password' | 'reset-password'>('login');
+  const [authView, setAuthView] = useState<AuthView>(() => {
+    return authPathToView[window.location.pathname] ?? 'login';
+  });
+  const [pathname, setPathname] = useState(() => window.location.pathname);
   const { currentPage, selectedAnomalyId, selectedServiceId, handleNavigate } = useNavigation();
 
   const params = new URLSearchParams(window.location.search);
   const token = params.get('token');
+
+  useEffect(() => {
+    const syncPathname = () => setPathname(window.location.pathname);
+
+    window.addEventListener('popstate', syncPathname);
+    return () => window.removeEventListener('popstate', syncPathname);
+  }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      if (token) {
+        replacePath('/reset-password');
+        setPathname('/reset-password');
+        setAuthView('reset-password');
+        return;
+      }
+
+      const nextAuthView = authPathToView[pathname];
+      if (nextAuthView === 'reset-password') {
+        replacePath('/login');
+        setPathname('/login');
+        setAuthView('login');
+        return;
+      }
+
+      if (nextAuthView) {
+        setAuthView(nextAuthView);
+        return;
+      }
+
+      replacePath('/login');
+      setPathname('/login');
+      setAuthView('login');
+      return;
+    }
+
+    if (authPathToView[pathname]) {
+      window.history.replaceState(null, '', '/');
+      setPathname('/');
+    }
+  }, [isAuthenticated, pathname, token]);
+
+  const showAuthView = (view: AuthView, path: string) => {
+    setAuthView(view);
+    window.history.pushState(null, '', path);
+    setPathname(path);
+  };
 
   if (!isAuthenticated) {
     if (token) {
@@ -48,15 +112,15 @@ function AppContent() {
         {authView === 'login' && (
           <Login
             onLogin={login}
-            onSwitchToSignup={() => setAuthView('signup')}
-            onSwitchToForgotPassword={() => setAuthView('forgot-password')}
+            onSwitchToSignup={() => showAuthView('signup', '/signup')}
+            onSwitchToForgotPassword={() => showAuthView('forgot-password', '/forgot-password')}
           />
         )}
         {authView === 'forgot-password' && (
-          <ForgotPassword onBackToLogin={() => setAuthView('login')} />
+          <ForgotPassword onBackToLogin={() => showAuthView('login', '/login')} />
         )}
         {authView === 'signup' && (
-          <Signup onSignup={login} onSwitchToLogin={() => setAuthView('login')} />
+          <Signup onSignup={login} onSwitchToLogin={() => showAuthView('login', '/login')} />
         )}
       </AuthLayout>
     );

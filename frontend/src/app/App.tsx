@@ -24,15 +24,24 @@ import { Tickets } from './pages/tickets/Tickets';
 import { Toaster } from './components/ui/sonner';
 import { ResetPassword } from './pages/auth/ResetPassword';
 import { Incidents } from './pages/incidents/Incidents';
+import { Profile } from './pages/profile/Profile';
 
 
 function AppContent() {
-  const { isAuthenticated, login, logout, hasRole } = useAuth();
+  const { isAuthenticated, isLoading, login, signup, logout, user } = useAuth();
   const [authView, setAuthView] = useState<'login' | 'signup' | 'forgot-password' | 'reset-password'>('login');
   const { currentPage, selectedAnomalyId, selectedServiceId, handleNavigate } = useNavigation();
 
   const params = new URLSearchParams(window.location.search);
   const token = params.get('token');
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-nebula-navy-bg flex items-center justify-center text-slate-400">
+        Loading CloudSight...
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     if (token) {
@@ -83,9 +92,9 @@ function AppContent() {
   }
 
   return (
-    <MainLayout currentPage={currentPage} onNavigate={handleNavigate} onLogout={logout}>
+    <MainLayout currentPage={currentPage} onNavigate={handleNavigate} onLogout={logout} currentUser={user}>
       {currentPage === 'dashboard' && <Dashboard onNavigate={handleNavigate} />}
-      {currentPage === 'profile' && (<div className="text-white text-xl">Profile Page</div>)}
+      {currentPage === 'profile' && <Profile onLogout={logout} />}
       {currentPage === 'hosts' && <Hosts />}
       {currentPage === 'applications' && <Applications />}
       {currentPage === 'services' && <Services onNavigate={handleNavigate} />}

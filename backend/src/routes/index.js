@@ -24,5 +24,8 @@ router.use("/alerts", authenticate, require("./alert.routes"));
 router.use("/alert-settings", authenticate, authorize(['admin']), require("./alertSettings.routes"));
 router.use("/metrics", authenticate, require("./metric.routes"));
 router.use("/dashboard", authenticate, require("./dashboard.routes"));
+router.use("/profile", require("./profile.routes"));
+
+
 
 module.exports = router;

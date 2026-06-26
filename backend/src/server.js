@@ -1,6 +1,6 @@
 const app = require("./app");
 const env = require("./config/env");
-require("./config/db");
+const db = require("./config/db");
 const logger = require("./config/logger");
 
 const http = require("http");

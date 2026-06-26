@@ -1,7 +1,8 @@
 const jwt = require('jsonwebtoken');
 const env = require('../config/env');
+const db = require("../config/db");
 
-function authenticate(req, res, next) {
+async function authenticate(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader) {
     return res.status(401).json({ message: 'No token provided' });
@@ -14,9 +15,22 @@ function authenticate(req, res, next) {
 
   try {
     const decoded = jwt.verify(token, env.jwt.secret);
+    const result = await db.query(
+      `SELECT id, email, role, is_active
+       FROM users
+       WHERE id = $1`,
+      [decoded.userId],
+    );
+
+    const user = result.rows[0];
+    if (!user || user.is_active === false) {
+      return res.status(401).json({ message: "User account is no longer available" });
+    }
+
     req.user = {
-      ...decoded,
-      role: decoded.role ? decoded.role.toLowerCase() : 'engineer',
+      userId: user.id,
+      email: user.email,
+      role: user.role,
     };
     next();
   } catch {

@@ -1,15 +1,17 @@
 import { useState, ReactNode } from 'react';
 import { Sidebar } from '../components/layout/Sidebar';
 import { Topbar } from '../components/layout/Topbar';
+import type { UserProfile } from '../types/user';
 
 interface MainLayoutProps {
   children: ReactNode;
   currentPage: string;
   onNavigate: (page: string) => void;
   onLogout: () => void;
+  currentUser: UserProfile | null;
 }
 
-export function MainLayout({ children, currentPage, onNavigate, onLogout }: MainLayoutProps) {
+export function MainLayout({ children, currentPage, onNavigate, onLogout, currentUser }: MainLayoutProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   return (
@@ -26,6 +28,7 @@ export function MainLayout({ children, currentPage, onNavigate, onLogout }: Main
           currentPage={currentPage}
           onNavigate={onNavigate}
           onLogout={onLogout}
+          currentUser={currentUser}
           onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
         />
 

@@ -1,32 +1,31 @@
-/**
- * User type definitions
- */
-
 export interface User {
   id: string;
   email: string;
-  name: string;
-  role: 'admin' | 'devops' | 'sre' | 'viewer';
+  firstName: string;
+  lastName: string;
+  role: string;
   avatar?: string;
   createdAt: string;
-  lastLogin?: string;
 }
 
 export interface UserProfile extends User {
   phone?: string;
   department?: string;
-  preferences: UserPreferences;
+  location?: string;
+  bio?: string;
 }
 
-export interface UserPreferences {
-  theme: 'light' | 'dark';
-  notifications: {
-    email: boolean;
-    push: boolean;
-    slack: boolean;
-  };
-  dashboard: {
-    refreshInterval: number;
-    defaultView: string;
-  };
+export interface ProfileFormValues {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  role: string;
+  bio: string;
+}
+
+export interface PasswordChangePayload {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
 }

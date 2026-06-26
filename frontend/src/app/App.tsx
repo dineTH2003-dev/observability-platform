@@ -24,6 +24,7 @@ import { Tickets } from './pages/tickets/Tickets';
 import { Toaster } from './components/ui/sonner';
 import { ResetPassword } from './pages/auth/ResetPassword';
 import { Incidents } from './pages/incidents/Incidents';
+import { Profile } from './pages/profile/Profile';
 
 type AuthView = 'login' | 'signup' | 'forgot-password' | 'reset-password';
 
@@ -41,6 +42,8 @@ function replacePath(path: string) {
 }
 
 function AppContent() {
+  const { isAuthenticated, isLoading, login, signup, logout, user } = useAuth();
+  const [authView, setAuthView] = useState<'login' | 'signup' | 'forgot-password' | 'reset-password'>('login');
   const { isAuthenticated, login, logout, hasRole } = useAuth();
   const [authView, setAuthView] = useState<AuthView>(() => {
     return authPathToView[window.location.pathname] ?? 'login';
@@ -51,52 +54,13 @@ function AppContent() {
   const params = new URLSearchParams(window.location.search);
   const token = params.get('token');
 
-  useEffect(() => {
-    const syncPathname = () => setPathname(window.location.pathname);
-
-    window.addEventListener('popstate', syncPathname);
-    return () => window.removeEventListener('popstate', syncPathname);
-  }, []);
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      if (token) {
-        replacePath('/reset-password');
-        setPathname('/reset-password');
-        setAuthView('reset-password');
-        return;
-      }
-
-      const nextAuthView = authPathToView[pathname];
-      if (nextAuthView === 'reset-password') {
-        replacePath('/login');
-        setPathname('/login');
-        setAuthView('login');
-        return;
-      }
-
-      if (nextAuthView) {
-        setAuthView(nextAuthView);
-        return;
-      }
-
-      replacePath('/login');
-      setPathname('/login');
-      setAuthView('login');
-      return;
-    }
-
-    if (authPathToView[pathname]) {
-      window.history.replaceState(null, '', '/');
-      setPathname('/');
-    }
-  }, [isAuthenticated, pathname, token]);
-
-  const showAuthView = (view: AuthView, path: string) => {
-    setAuthView(view);
-    window.history.pushState(null, '', path);
-    setPathname(path);
-  };
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-nebula-navy-bg flex items-center justify-center text-slate-400">
+        Loading CloudSight...
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     if (token) {
@@ -147,9 +111,9 @@ function AppContent() {
   }
 
   return (
-    <MainLayout currentPage={currentPage} onNavigate={handleNavigate} onLogout={logout}>
+    <MainLayout currentPage={currentPage} onNavigate={handleNavigate} onLogout={logout} currentUser={user}>
       {currentPage === 'dashboard' && <Dashboard onNavigate={handleNavigate} />}
-      {currentPage === 'profile' && (<div className="text-white text-xl">Profile Page</div>)}
+      {currentPage === 'profile' && <Profile onLogout={logout} />}
       {currentPage === 'hosts' && <Hosts />}
       {currentPage === 'applications' && <Applications />}
       {currentPage === 'services' && <Services onNavigate={handleNavigate} />}

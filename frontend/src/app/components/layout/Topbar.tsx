@@ -3,7 +3,6 @@ import {
   Menu,
   LayoutGrid,
   Search,
-  BellRing,
   Moon,
   User,
 } from 'lucide-react';
@@ -18,15 +17,17 @@ import {
 } from '../ui/dropdown-menu';
 import { NotificationDropdown } from '../ui/NotificationDropdown';
 import type { Notification } from '../ui/NotificationDropdown';
+import type { UserProfile } from '../../types/user';
 
 interface TopbarProps {
   currentPage: string;
   onNavigate: (page: string) => void;
   onLogout: () => void;
   onToggleSidebar: () => void;
+  currentUser: UserProfile | null;
 }
 
-export function Topbar({ currentPage, onNavigate, onLogout, onToggleSidebar }: TopbarProps) {
+export function Topbar({ currentPage, onNavigate, onLogout, onToggleSidebar, currentUser }: TopbarProps) {
   const [notifications, setNotifications] = useState<Notification[]>([
     {
       id: '1',
@@ -95,6 +96,9 @@ export function Topbar({ currentPage, onNavigate, onLogout, onToggleSidebar }: T
     onNavigate('notifications');
   };
 
+  const initials = `${currentUser?.firstName?.[0] ?? ''}${currentUser?.lastName?.[0] ?? ''}`.trim().toUpperCase();
+  const displayName = `${currentUser?.firstName ?? ''} ${currentUser?.lastName ?? ''}`.trim() || currentUser?.email || 'Profile';
+
   return (
     <header className="h-20 bg-nebula-navy-dark border-b border-nebula-navy-lighter px-6 flex items-center justify-between">
       <div className="flex items-center gap-4">
@@ -148,8 +152,18 @@ export function Topbar({ currentPage, onNavigate, onLogout, onToggleSidebar }: T
               variant="ghost"
               className="flex items-center gap-2 text-slate-400 hover:text-white hover:bg-nebula-navy-lighter"
             >
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-nebula-cyan to-nebula-purple flex items-center justify-center">
-                <User className="size-4 text-white" />
+              <div className="w-8 h-8 overflow-hidden rounded-full bg-gradient-to-br from-nebula-cyan to-nebula-purple flex items-center justify-center">
+                {currentUser?.avatar ? (
+                  <img src={currentUser.avatar} alt={displayName} className="h-full w-full object-cover" />
+                ) : initials ? (
+                  <span className="text-xs font-semibold text-white">{initials}</span>
+                ) : (
+                  <User className="size-4 text-white" />
+                )}
+              </div>
+              <div className="hidden text-left md:block">
+                <p className="text-sm font-medium text-white">{displayName}</p>
+                <p className="text-xs uppercase tracking-wide text-slate-500">{currentUser?.role || 'User'}</p>
               </div>
             </Button>
           </DropdownMenuTrigger>

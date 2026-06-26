@@ -1,43 +1,36 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
+import type { UserProfile } from '../types/user';
+import { getProfile } from '../../api/profileApi';
 
 export type UserRole = 'admin' | 'engineer';
 
-export interface AuthUser {
-  id: string;
-  email: string;
-  role: UserRole;
-}
+export type AuthUser = UserProfile;
 
-interface AuthContextType {
+export interface AuthContextType {
   isAuthenticated: boolean;
-  user: AuthUser | null;
+  isLoading: boolean;
+  user: UserProfile | null;
   login: (authData: {
     accessToken: string;
     refreshToken: string;
-    user: AuthUser;
+    user: UserProfile;
   }) => void;
+  signup: () => void;
   logout: () => void;
   hasRole: (roles: UserRole[]) => boolean;
+  refreshProfile: () => Promise<void>;
+  setUser: React.Dispatch<React.SetStateAction<UserProfile | null>>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-function normalizeUser(user: Partial<AuthUser> | null): AuthUser | null {
-  if (!user) return null;
-  return {
-    id: user.id ?? '',
-    email: user.email ?? '',
-    role: user.role === 'admin' ? 'admin' : 'engineer',
-  };
-}
-
-function parseStoredUser(): AuthUser | null {
+function parseStoredUser(): UserProfile | null {
   const stored = localStorage.getItem('user');
   if (!stored) return null;
 
   try {
-    return normalizeUser(JSON.parse(stored) as Partial<AuthUser>);
+    return JSON.parse(stored) as UserProfile;
   } catch {
     return null;
   }
@@ -82,37 +75,99 @@ function getInitialAuthState() {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [authState, setAuthState] = useState(getInitialAuthState);
-  const { user, isAuthenticated } = authState;
+const initialState = getInitialAuthState();
+
+const [user, setUser] = useState<UserProfile | null>(initialState.user);
+const [isAuthenticated, setIsAuthenticated] = useState<boolean>(
+  initialState.isAuthenticated
+);
+const [isLoading, setIsLoading] = useState<boolean>(true);
+
+const clearAuth = () => {
+  clearStoredAuth();
+  sessionStorage.removeItem("accessToken");
+  sessionStorage.removeItem("refreshToken");
+  setUser(null);
+  setIsAuthenticated(false);
+};
+
+const refreshProfile = async () => {
+  const profile = await getProfile();
+  setUser(profile);
+  localStorage.setItem("user", JSON.stringify(profile));
+  setIsAuthenticated(true);
+};
 
   const login = (authData: {
     accessToken: string;
     refreshToken: string;
-    user: AuthUser;
+    user: UserProfile;
   }) => {
-    const normalizedUser = normalizeUser(authData.user);
-    localStorage.setItem('accessToken', authData.accessToken);
-    localStorage.setItem('refreshToken', authData.refreshToken);
-    localStorage.setItem('user', JSON.stringify(normalizedUser));
-    setAuthState({
-      user: normalizedUser,
-      isAuthenticated: !!normalizedUser && isUsableAccessToken(authData.accessToken),
-    });
+const login = (authData: {
+  accessToken: string;
+  refreshToken: string;
+  user: UserProfile;
+}) => {
+  localStorage.setItem("accessToken", authData.accessToken);
+  localStorage.setItem("refreshToken", authData.refreshToken);
+  localStorage.setItem("user", JSON.stringify(authData.user));
+
+  setUser(authData.user);
+  setIsAuthenticated(isUsableAccessToken(authData.accessToken));
+};
   };
 
+  const signup = () => {};
+
   const logout = () => {
-    clearStoredAuth();
-    setAuthState({ user: null, isAuthenticated: false });
-    window.location.href = '/login';
+const logout = () => {
+  clearAuth();
+  window.location.href = "/login";
+};
   };
 
   const hasRole = (roles: UserRole[]) => {
     if (!user) return false;
-    return roles.includes(user.role);
+    return roles.includes(user.role as UserRole);
   };
 
+  useEffect(() => {
+    const bootstrapAuth = async () => {
+      const token =
+        localStorage.getItem("accessToken") || sessionStorage.getItem("accessToken");
+
+      if (!token) {
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        await refreshProfile();
+      } catch (error) {
+        console.error("Auth bootstrapping failed:", error);
+        clearAuth();
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    bootstrapAuth();
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, login, logout, hasRole }}>
+    <AuthContext.Provider
+      value={{
+        isAuthenticated,
+        isLoading,
+        user,
+        login,
+        signup,
+        logout,
+        hasRole,
+        refreshProfile,
+        setUser,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

@@ -36,47 +36,94 @@ function parseStoredUser(): UserProfile | null {
   }
 }
 
+function clearStoredAuth() {
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('refreshToken');
+  localStorage.removeItem('user');
+}
+
+function isUsableAccessToken(token: string | null): token is string {
+  if (!token) return false;
+
+  try {
+    const [, payload] = token.split('.');
+    if (!payload) return false;
+
+    const normalizedPayload = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const paddedPayload = normalizedPayload.padEnd(
+      Math.ceil(normalizedPayload.length / 4) * 4,
+      '='
+    );
+    const decoded = JSON.parse(atob(paddedPayload)) as { exp?: number };
+
+    return typeof decoded.exp === 'number' && decoded.exp * 1000 > Date.now();
+  } catch {
+    return false;
+  }
+}
+
+function getInitialAuthState() {
+  const accessToken = localStorage.getItem('accessToken');
+  const user = parseStoredUser();
+
+  if (!user || !isUsableAccessToken(accessToken)) {
+    clearStoredAuth();
+    return { user: null, isAuthenticated: false };
+  }
+
+  return { user, isAuthenticated: true };
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<UserProfile | null>(() => parseStoredUser());
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(
-    !!localStorage.getItem('accessToken') && !!parseStoredUser()
-  );
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+const initialState = getInitialAuthState();
 
-  const clearAuth = () => {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
-    localStorage.removeItem("user");
-    sessionStorage.removeItem("accessToken");
-    sessionStorage.removeItem("refreshToken");
-    setUser(null);
-    setIsAuthenticated(false);
-  };
+const [user, setUser] = useState<UserProfile | null>(initialState.user);
+const [isAuthenticated, setIsAuthenticated] = useState<boolean>(
+  initialState.isAuthenticated
+);
+const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  const refreshProfile = async () => {
-    const profile = await getProfile();
-    setUser(profile);
-    localStorage.setItem("user", JSON.stringify(profile));
-    setIsAuthenticated(true);
-  };
+const clearAuth = () => {
+  clearStoredAuth();
+  sessionStorage.removeItem("accessToken");
+  sessionStorage.removeItem("refreshToken");
+  setUser(null);
+  setIsAuthenticated(false);
+};
+
+const refreshProfile = async () => {
+  const profile = await getProfile();
+  setUser(profile);
+  localStorage.setItem("user", JSON.stringify(profile));
+  setIsAuthenticated(true);
+};
 
   const login = (authData: {
     accessToken: string;
     refreshToken: string;
     user: UserProfile;
   }) => {
-    localStorage.setItem("accessToken", authData.accessToken);
-    localStorage.setItem("refreshToken", authData.refreshToken);
-    localStorage.setItem("user", JSON.stringify(authData.user));
-    setUser(authData.user);
-    setIsAuthenticated(true);
+const login = (authData: {
+  accessToken: string;
+  refreshToken: string;
+  user: UserProfile;
+}) => {
+  localStorage.setItem("accessToken", authData.accessToken);
+  localStorage.setItem("refreshToken", authData.refreshToken);
+  localStorage.setItem("user", JSON.stringify(authData.user));
+
+  setUser(authData.user);
+  setIsAuthenticated(isUsableAccessToken(authData.accessToken));
+};
   };
 
   const signup = () => {};
 
   const logout = () => {
-    clearAuth();
-    window.location.href = '/';
+const logout = () => {
+  clearAuth();
+  window.location.href = "/login";
+};
   };
 
   const hasRole = (roles: UserRole[]) => {

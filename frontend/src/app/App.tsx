@@ -1,5 +1,5 @@
 import { NotificationsPage } from './pages/notifications/NotificationsPage';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigation } from './hooks/useNavigation';
 import { MainLayout } from './layouts/MainLayout';
 import { Dashboard } from './pages/dashboard/Dashboard';
@@ -26,10 +26,29 @@ import { ResetPassword } from './pages/auth/ResetPassword';
 import { Incidents } from './pages/incidents/Incidents';
 import { Profile } from './pages/profile/Profile';
 
+type AuthView = 'login' | 'signup' | 'forgot-password' | 'reset-password';
+
+const authPathToView: Record<string, AuthView> = {
+  '/login': 'login',
+  '/signup': 'signup',
+  '/forgot-password': 'forgot-password',
+  '/reset-password': 'reset-password',
+};
+
+function replacePath(path: string) {
+  if (window.location.pathname !== path) {
+    window.history.replaceState(null, '', `${path}${window.location.search}`);
+  }
+}
 
 function AppContent() {
   const { isAuthenticated, isLoading, login, signup, logout, user } = useAuth();
   const [authView, setAuthView] = useState<'login' | 'signup' | 'forgot-password' | 'reset-password'>('login');
+  const { isAuthenticated, login, logout, hasRole } = useAuth();
+  const [authView, setAuthView] = useState<AuthView>(() => {
+    return authPathToView[window.location.pathname] ?? 'login';
+  });
+  const [pathname, setPathname] = useState(() => window.location.pathname);
   const { currentPage, selectedAnomalyId, selectedServiceId, handleNavigate } = useNavigation();
 
   const params = new URLSearchParams(window.location.search);
@@ -57,15 +76,15 @@ function AppContent() {
         {authView === 'login' && (
           <Login
             onLogin={login}
-            onSwitchToSignup={() => setAuthView('signup')}
-            onSwitchToForgotPassword={() => setAuthView('forgot-password')}
+            onSwitchToSignup={() => showAuthView('signup', '/signup')}
+            onSwitchToForgotPassword={() => showAuthView('forgot-password', '/forgot-password')}
           />
         )}
         {authView === 'forgot-password' && (
-          <ForgotPassword onBackToLogin={() => setAuthView('login')} />
+          <ForgotPassword onBackToLogin={() => showAuthView('login', '/login')} />
         )}
         {authView === 'signup' && (
-          <Signup onSignup={login} onSwitchToLogin={() => setAuthView('login')} />
+          <Signup onSignup={login} onSwitchToLogin={() => showAuthView('login', '/login')} />
         )}
       </AuthLayout>
     );

@@ -19,7 +19,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
-import { AlertRule, conditionOptions } from '../types/alert';
+import { conditionOptions } from '../types/alert';
+import type { AlertRule } from '../types/alert';
 
 interface AlertRuleModalProps {
   isOpen: boolean;

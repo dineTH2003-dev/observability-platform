@@ -7,14 +7,37 @@ CREATE TYPE service_status_enum AS ENUM ('RUNNING', 'STOPPED', 'ERROR', 'UNKNOWN
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 
+    FROM pg_type 
+    WHERE typname = 'user_role_enum'
+    ) THEN
+    CREATE TYPE user_role_enum AS ENUM ('admin', 'engineer');
+  END IF;
+END$$;
+
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   email VARCHAR(50) UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
-  role VARCHAR(20) DEFAULT 'engineer',
+  role user_role_enum NOT NULL DEFAULT 'engineer',
   is_active BOOLEAN DEFAULT true,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS first_name VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS last_name VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS phone VARCHAR(30),
+  ADD COLUMN IF NOT EXISTS department VARCHAR(100),
+  ADD COLUMN IF NOT EXISTS location VARCHAR(100),
+  ADD COLUMN IF NOT EXISTS bio VARCHAR(300),
+  ADD COLUMN IF NOT EXISTS avatar_url TEXT,
+  ADD COLUMN IF NOT EXISTS profile_image BYTEA,
+  ADD COLUMN IF NOT EXISTS profile_image_type VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
 
 CREATE TABLE IF NOT EXISTS password_resets (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),

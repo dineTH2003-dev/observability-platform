@@ -1,9 +1,4 @@
-/**
- * Authentication Service
- * Handles login, logout, and authentication state
- */
-
-import { api } from './api';
+import { loginUser, signupUser } from '../../api/authApi';
 
 interface LoginCredentials {
   email: string;
@@ -13,69 +8,34 @@ interface LoginCredentials {
 interface SignupData {
   email: string;
   password: string;
-  name?: string;
 }
 
-interface AuthResponse {
-  token: string;
+export interface AuthResponse {
+  accessToken: string;
+  refreshToken: string;
   user: {
     id: string;
     email: string;
-    name: string;
-    role: string;
+    role: 'admin' | 'engineer';
   };
 }
 
 export const authService = {
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
-    // Mock implementation - replace with actual API call
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          token: 'mock-token-123',
-          user: {
-            id: '1',
-            email: credentials.email,
-            name: 'Admin User',
-            role: 'admin',
-          },
-        });
-      }, 500);
-    });
+    const response = await loginUser(credentials);
+    return response.data as AuthResponse;
   },
 
   async signup(data: SignupData): Promise<AuthResponse> {
-    // Mock implementation - replace with actual API call
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          token: 'mock-token-123',
-          user: {
-            id: '1',
-            email: data.email,
-            name: data.name || 'New User',
-            role: 'user',
-          },
-        });
-      }, 500);
-    });
+    const response = await signupUser(data);
+    return response.data as AuthResponse;
   },
 
   async logout(): Promise<void> {
-    // Mock implementation - replace with actual API call
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve();
-      }, 200);
-    });
+    return Promise.resolve();
   },
 
   async resetPassword(email: string): Promise<void> {
-    // Mock implementation - replace with actual API call
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve();
-      }, 500);
-    });
+    return Promise.resolve();
   },
 };

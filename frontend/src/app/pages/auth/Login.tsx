@@ -1,14 +1,18 @@
 import { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
-import { loginUser } from '../../../api/authApi';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Checkbox } from '../../components/ui/checkbox';
 import logoImage from '../../../assets/logo.png';
+import { authService } from '../../services/authService';
 
 interface LoginProps {
-  onLogin: (token: string) => void;
+  onLogin: (authData: {
+    accessToken: string;
+    refreshToken: string;
+    user: { id: string; email: string; role: 'admin' | 'engineer' };
+  }) => void;
   onSwitchToSignup: () => void;
   onSwitchToForgotPassword: () => void;
 }
@@ -23,29 +27,15 @@ export function Login({ onLogin, onSwitchToSignup, onSwitchToForgotPassword }: L
     e.preventDefault();
 
     try {
-      const res = await fetch("http://localhost:9000/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email,
-          password,
-        }),
+      const data = await authService.login({ email, password });
+      onLogin({
+        accessToken: data.accessToken,
+        refreshToken: data.refreshToken,
+        user: data.user,
       });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        alert(data.message || "Login failed");
-        return;
-      }
-
-      onLogin(data.accessToken);
-
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("Something went wrong");
+      alert(err.response?.data?.message || 'Login failed');
     }
   };
 

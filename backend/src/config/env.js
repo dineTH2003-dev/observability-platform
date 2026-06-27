@@ -4,7 +4,7 @@ dotenv.config();
 function requireEnv(name) {
   const val = process.env[name];
   if (!val) throw new Error(`Missing required env var: ${name}`);
-  return val;
+  return val.trim();
 }
 
 function optionalEnv(name, fallback = "") {
@@ -23,6 +23,10 @@ const env = {
     password: requireEnv("DB_PASSWORD"),
     port: Number(process.env.DB_PORT || 5432),
     ssl: process.env.DB_SSL === "true",
+  },
+
+  ml: {
+    internalToken: process.env.ML_INTERNAL_TOKEN || null,
   },
 
   jwt: {

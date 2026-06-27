@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select';
-import { Notification } from '../../components/ui/NotificationDropdown';
+import type { Notification } from '../../components/ui/NotificationDropdown';
 
 interface NotificationsPageProps {
   onNavigate?: (page: string) => void;

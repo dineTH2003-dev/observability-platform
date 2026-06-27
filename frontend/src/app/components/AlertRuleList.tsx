@@ -2,7 +2,8 @@ import { AlertCircle, Edit2, Trash2, Mail } from 'lucide-react';
 import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { Switch } from './ui/switch';
-import { AlertRule, conditionOptions, getSeverityColor } from '../types/alert';
+import { conditionOptions, getSeverityColor } from '../types/alert';
+import type { AlertRule } from '../types/alert';
 
 interface AlertRuleListProps {
   alertRules: AlertRule[];

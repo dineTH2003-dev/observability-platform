@@ -7,15 +7,16 @@ const logger = require("../config/logger");
 
 // Heartbeat
 exports.heartbeat = async (server_id) => {
+  const normalizedServerId = normalizePositiveInt(server_id, "server_id");
   const { rows } = await pool.query(
     `UPDATE servers
      SET agent_status       = 'ACTIVE',
          last_discovered_at = NOW()
      WHERE server_id = $1
      RETURNING server_id, hostname, agent_status, last_discovered_at`,
-    [server_id],
+    [normalizedServerId],
   );
-  if (!rows[0]) throw new ApiError(404, `Server ${server_id} not found`);
+  if (!rows[0]) throw new ApiError(404, `Server ${normalizedServerId} not found`);
   return rows[0];
 };
 
@@ -24,24 +25,34 @@ exports.ingestMetrics = async (
   server_id,
   { cpu_usage, memory_usage, disk_usage, thread_count },
 ) => {
-  const { rows: check } = await pool.query(
-    `SELECT server_id FROM servers WHERE server_id = $1`,
-    [server_id],
-  );
-  if (!check[0]) throw new ApiError(404, `Server ${server_id} not found`);
-
-  const metric = await ServerMetricModel.insert({
-    server_id,
+  const normalizedServerId = normalizePositiveInt(server_id, "server_id");
+  const metrics = normalizeServerMetrics({
     cpu_usage,
     memory_usage,
     disk_usage,
     thread_count,
   });
 
-  const server_status = deriveServerStatus(cpu_usage, memory_usage, disk_usage);
+  await ensureServerExists(normalizedServerId);
+
+  const metric = await ServerMetricModel.insert({
+    server_id: normalizedServerId,
+    ...metrics,
+  });
+
+  const server_status = deriveServerStatus(
+    metrics.cpu_usage,
+    metrics.memory_usage,
+    metrics.disk_usage,
+  );
   await pool.query(
-    `UPDATE servers SET server_status = $1 WHERE server_id = $2`,
-    [server_status, server_id],
+    `UPDATE servers
+     SET server_status = $1,
+         agent_status = 'ACTIVE',
+         last_discovered_at = NOW(),
+         updated_at = NOW()
+     WHERE server_id = $2`,
+    [server_status, normalizedServerId],
   );
 
   return { metric, server_status };
@@ -49,40 +60,78 @@ exports.ingestMetrics = async (
 
 // Service discovery + health tracking
 exports.ingestDiscoveredServices = async (server_id, services) => {
-  if (!Array.isArray(services) || services.length === 0) {
-    await ServiceModel.markStopped(server_id, []);
+  const normalizedServerId = normalizePositiveInt(server_id, "server_id");
+  await ensureServerExists(normalizedServerId);
+
+  if (!Array.isArray(services)) {
+    throw new ApiError(400, "services must be an array");
+  }
+
+  if (services.length > 500) {
+    throw new ApiError(400, "services payload exceeds maximum of 500 entries");
+  }
+
+  const normalizedServices = services.map((svc, index) =>
+    normalizeServiceDiscoveryEntry(svc, index),
+  );
+
+  if (normalizedServices.length === 0) {
+    await ServiceModel.markStopped(normalizedServerId, []);
+    await markServerSeen(normalizedServerId);
     return { upserted: 0, metrics: [] };
   }
 
-  const runningNames = services.map((s) => s.name);
+  const runningNames = normalizedServices.map((s) => s.name);
 
-  await ServiceModel.markStopped(server_id, runningNames);
+  await ServiceModel.markStopped(normalizedServerId, runningNames);
 
   let upserted = 0;
   const insertedMetrics = [];
-  for (const svc of services) {
+  for (const svc of normalizedServices) {
     const row = await ServiceModel.upsert({
-      server_id,
+      server_id: normalizedServerId,
       name: svc.name,
-      service_identifier: svc.service_identifier ?? null,
-      command: svc.command ? svc.command.slice(0, 500) : null,
-      process_id: svc.process_id ?? null,
-      technology: svc.technology ?? null,
+      service_identifier: svc.service_identifier,
+      command: svc.command,
+      process_id: svc.process_id,
+      technology: svc.technology,
     });
 
     if (svc.cpu_usage != null || svc.memory_usage != null) {
       const metric = await ServiceMetricModel.insert({
         service_id: row.service_id,
-        cpu_usage: svc.cpu_usage ?? null,
-        memory_usage: svc.memory_usage ?? null,
+        cpu_usage: svc.cpu_usage,
+        memory_usage: svc.memory_usage,
       });
       insertedMetrics.push(metric);
     }
     upserted++;
   }
 
+  await markServerSeen(normalizedServerId);
   return { upserted, metrics: insertedMetrics };
 };
+
+async function ensureServerExists(server_id) {
+  const { rows } = await pool.query(
+    `SELECT server_id FROM servers WHERE server_id = $1`,
+    [server_id],
+  );
+  if (!rows[0]) {
+    throw new ApiError(404, `Server ${server_id} not found`);
+  }
+}
+
+async function markServerSeen(server_id) {
+  await pool.query(
+    `UPDATE servers
+     SET agent_status = 'ACTIVE',
+         last_discovered_at = NOW(),
+         updated_at = NOW()
+     WHERE server_id = $1`,
+    [server_id],
+  );
+}
 
 // Stale agent sweep
 exports.sweepStaleAgents = async (threshold_minutes = 10) => {
@@ -144,4 +193,113 @@ function deriveServerStatus(cpu, mem, disk) {
   if (c > 90 || m > 90 || d > 90) return "CRITICAL";
   if (c > 70 || m > 70 || d > 80) return "WARNING";
   return "HEALTHY";
+}
+
+function normalizeServerMetrics(metrics) {
+  return {
+    cpu_usage: normalizePercent(metrics.cpu_usage, "cpu_usage"),
+    memory_usage: normalizePercent(metrics.memory_usage, "memory_usage"),
+    disk_usage: normalizePercent(metrics.disk_usage, "disk_usage"),
+    thread_count: normalizeNonNegativeInt(metrics.thread_count, "thread_count", {
+      required: false,
+      max: 10_000_000,
+    }),
+  };
+}
+
+function normalizeServiceDiscoveryEntry(raw, index) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new ApiError(400, `services[${index}] must be an object`);
+  }
+
+  const name = normalizeRequiredString(raw.name, `services[${index}].name`, 255);
+
+  return {
+    name,
+    service_identifier: normalizeOptionalString(
+      raw.service_identifier,
+      `services[${index}].service_identifier`,
+      255,
+    ),
+    command: normalizeOptionalString(raw.command, `services[${index}].command`, 500),
+    process_id: normalizeNonNegativeInt(raw.process_id, `services[${index}].process_id`, {
+      required: false,
+      max: 4_194_304,
+    }),
+    technology: normalizeOptionalString(raw.technology, `services[${index}].technology`, 100),
+    cpu_usage: normalizeNumberInRange(raw.cpu_usage, `services[${index}].cpu_usage`, {
+      required: false,
+      min: 0,
+      max: 1000,
+    }),
+    memory_usage: normalizePercent(raw.memory_usage, `services[${index}].memory_usage`, {
+      required: false,
+    }),
+  };
+}
+
+function normalizePositiveInt(value, field) {
+  const parsed = normalizeNonNegativeInt(value, field, { required: true, max: 2_147_483_647 });
+  if (parsed <= 0) {
+    throw new ApiError(400, `${field} must be a positive integer`);
+  }
+  return parsed;
+}
+
+function normalizePercent(value, field, options = {}) {
+  return normalizeNumberInRange(value, field, {
+    required: options.required !== false,
+    min: 0,
+    max: 100,
+  });
+}
+
+function normalizeNumberInRange(value, field, { required = true, min, max }) {
+  if (value === null || value === undefined || value === "") {
+    if (!required) return null;
+    throw new ApiError(400, `${field} is required`);
+  }
+
+  const number = Number(value);
+  if (!Number.isFinite(number)) {
+    throw new ApiError(400, `${field} must be a finite number`);
+  }
+  if (number < min || number > max) {
+    throw new ApiError(400, `${field} must be between ${min} and ${max}`);
+  }
+  return Number(number.toFixed(4));
+}
+
+function normalizeNonNegativeInt(value, field, { required = true, max }) {
+  if (value === null || value === undefined || value === "") {
+    if (!required) return null;
+    throw new ApiError(400, `${field} is required`);
+  }
+
+  const number = Number(value);
+  if (!Number.isInteger(number) || number < 0 || number > max) {
+    throw new ApiError(400, `${field} must be an integer between 0 and ${max}`);
+  }
+  return number;
+}
+
+function normalizeRequiredString(value, field, maxLength) {
+  const text = String(value ?? "").trim();
+  if (!text) {
+    throw new ApiError(400, `${field} is required`);
+  }
+  if (text.length > maxLength) {
+    throw new ApiError(400, `${field} cannot exceed ${maxLength} characters`);
+  }
+  return text;
+}
+
+function normalizeOptionalString(value, field, maxLength) {
+  if (value === null || value === undefined) return null;
+  const text = String(value).trim();
+  if (!text) return null;
+  if (text.length > maxLength) {
+    throw new ApiError(400, `${field} cannot exceed ${maxLength} characters`);
+  }
+  return text;
 }

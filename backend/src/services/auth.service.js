@@ -4,7 +4,7 @@ const db = require('../config/db');
 const env = require('../config/env');
 const crypto = require('crypto');
 
-async function signupUser({ email, password, role = 'USER' }) {
+async function signupUser({ email, password, role = 'engineer' }) {
   const hashed = await bcrypt.hash(password, 10);
 
   const result = await db.query(
@@ -14,7 +14,25 @@ async function signupUser({ email, password, role = 'USER' }) {
     [email, hashed, role]
   );
 
-  return result.rows[0];
+  const user = result.rows[0];
+
+  const accessToken = jwt.sign(
+    { userId: user.id, role: user.role, email: user.email },
+    env.jwt.secret,
+    { expiresIn: env.jwt.expiresIn }
+  );
+
+  const refreshToken = jwt.sign(
+    { userId: user.id, role: user.role, email: user.email },
+    env.jwt.refreshSecret,
+    { expiresIn: env.jwt.refreshExpiresIn }
+  );
+
+  return {
+    accessToken,
+    refreshToken,
+    user,
+  };
 }
 
 async function loginUser({ email, password }) {
@@ -30,18 +48,26 @@ async function loginUser({ email, password }) {
   if (!match) throw new Error('Invalid credentials');
 
   const accessToken = jwt.sign(
-    { userId: user.id, role: user.role },
+    { userId: user.id, role: user.role, email: user.email },
     env.jwt.secret,
     { expiresIn: env.jwt.expiresIn }
   );
 
   const refreshToken = jwt.sign(
-    { userId: user.id },
+    { userId: user.id, role: user.role, email: user.email },
     env.jwt.refreshSecret,
     { expiresIn: env.jwt.refreshExpiresIn }
   );
 
-  return { accessToken, refreshToken };
+  return {
+    accessToken,
+    refreshToken,
+    user: {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    },
+  };
 }
 
 async function generateResetToken(email) {

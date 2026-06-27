@@ -1,52 +1,42 @@
 const nodemailer = require('nodemailer');
 const env = require('../config/env');
 
-function getTransporter() {
-  if (!env.EMAIL_HOST || !env.EMAIL_USER || !env.EMAIL_PASS) {
-    throw new Error(
-      'Email is not configured. Set EMAIL_HOST, EMAIL_USER, and EMAIL_PASS to enable password reset emails.',
-    );
-  }
+const emailPort = Number(env.EMAIL_PORT);
+const useSecure = emailPort === 465;
 
-  return nodemailer.createTransport({
-    host: env.EMAIL_HOST,
-    port: env.EMAIL_PORT,
-    secure: false,
-    auth: {
-      user: env.EMAIL_USER,
-      pass: env.EMAIL_PASS,
-    },
-    tls: {
-      rejectUnauthorized: false,
-    },
-  });
-}
+const transporter = nodemailer.createTransport({
+  host: env.EMAIL_HOST,
+  port: emailPort,
+  secure: useSecure,
+  requireTLS: !useSecure,
+  auth: {
+    user: env.EMAIL_USER,
+    pass: env.EMAIL_PASS,
+  },
+});
+
+transporter.verify(function (error) {
+  if (error) {
+    console.error('SMTP VERIFY ERROR:', error);
+  } else {
+    console.log('SMTP READY');
+  }
+});
 
 async function sendResetEmail(email, token) {
-  const resetLink = `${env.FRONTEND_URL}/reset-password?token=${token}`;
-  const transporter = getTransporter();
+  const frontendUrl = env.FRONTEND_URL.trim().replace(/\/$/, '');
+  const resetLink = `${frontendUrl}/reset-password?token=${token}`;
 
-  console.log("Sending email to:", email);
-  console.log("Reset link:", resetLink);
-
-  try {
-    await transporter.sendMail({
-      from: `"CloudSight" <${env.EMAIL_USER}>`,
-      to: email,
-      subject: 'Password Reset',
-      html: `
-        <p>You requested a password reset.</p>
-        <p><a href="${resetLink}">Reset Password</a></p>
-        <p>This link expires in 24 hours.</p>
-      `,
-    });
-
-    console.log("Email sent successfully");
-
-  } catch (err) {
-    console.error("Email sending failed:", err);
-    throw err;
-  }
+  await transporter.sendMail({
+    from: `"CloudSight" <${env.EMAIL_USER}>`,
+    to: email,
+    subject: 'Password Reset',
+    html: `
+      <p>You requested a password reset.</p>
+      <p><a href="${resetLink}">Reset Password</a></p>
+      <p>This link expires in 24 hours.</p>
+    `,
+  });
 }
 
 module.exports = {

@@ -42,14 +42,16 @@ function replacePath(path: string) {
 }
 
 function AppContent() {
-  const { isAuthenticated, isLoading, login, signup, logout, user } = useAuth();
-  const [authView, setAuthView] = useState<'login' | 'signup' | 'forgot-password' | 'reset-password'>('login');
-  const { isAuthenticated, login, logout, hasRole } = useAuth();
+  const { isAuthenticated, isLoading, login, signup, logout, user, hasRole } = useAuth();
   const [authView, setAuthView] = useState<AuthView>(() => {
     return authPathToView[window.location.pathname] ?? 'login';
   });
-  const [pathname, setPathname] = useState(() => window.location.pathname);
   const { currentPage, selectedAnomalyId, selectedServiceId, handleNavigate } = useNavigation();
+
+  function showAuthView(view: AuthView, path: string) {
+    setAuthView(view);
+    replacePath(path);
+  }
 
   const params = new URLSearchParams(window.location.search);
   const token = params.get('token');
@@ -95,7 +97,7 @@ function AppContent() {
 
   if (pageIsAdminOnly && !hasRole(['admin'])) {
     return (
-      <MainLayout currentPage={currentPage} onNavigate={handleNavigate} onLogout={logout}>
+      <MainLayout currentPage={currentPage} onNavigate={handleNavigate} onLogout={logout} currentUser={user}>
         <div className="rounded-3xl border border-red-500/20 bg-nebula-navy-dark p-12 text-slate-100 shadow-xl shadow-red-500/20">
           <h1 className="text-3xl font-semibold text-white mb-4">Access Denied</h1>
           <p className="text-slate-400 mb-6">You do not have permission to access this page.</p>

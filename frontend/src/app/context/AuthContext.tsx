@@ -103,27 +103,19 @@ const refreshProfile = async () => {
     refreshToken: string;
     user: UserProfile;
   }) => {
-const login = (authData: {
-  accessToken: string;
-  refreshToken: string;
-  user: UserProfile;
-}) => {
-  localStorage.setItem("accessToken", authData.accessToken);
-  localStorage.setItem("refreshToken", authData.refreshToken);
-  localStorage.setItem("user", JSON.stringify(authData.user));
+    localStorage.setItem("accessToken", authData.accessToken);
+    localStorage.setItem("refreshToken", authData.refreshToken);
+    localStorage.setItem("user", JSON.stringify(authData.user));
 
-  setUser(authData.user);
-  setIsAuthenticated(isUsableAccessToken(authData.accessToken));
-};
+    setUser(authData.user);
+    setIsAuthenticated(isUsableAccessToken(authData.accessToken));
   };
 
   const signup = () => {};
 
   const logout = () => {
-const logout = () => {
-  clearAuth();
-  window.location.href = "/login";
-};
+    clearAuth();
+    window.location.href = "/login";
   };
 
   const hasRole = (roles: UserRole[]) => {

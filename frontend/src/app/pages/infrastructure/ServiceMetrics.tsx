@@ -122,9 +122,13 @@ function ServiceMetricChart({
   color: string;
   unit: string;
   timeRange: TimeRange;
-  data: Array<Record<string, number | string>>;
+  data: Array<Record<string, number | string | null>>;
   dataKey: 'cpu_usage' | 'memory_usage' | 'disk_usage' | 'thread_count';
 }) {
+  const prefix = dataKey.split('_')[0];
+  const upperKey = `${prefix}_upper_bound`;
+  const lowerKey = `${prefix}_lower_bound`;
+
   return (
     <Card className="bg-nebula-navy-light border-nebula-navy-lighter">
       <CardContent className="p-6">
@@ -171,12 +175,31 @@ function ServiceMetricChart({
                 fontSize: '12px'
               }}
             />
+            {/* Baseline Bounds */}
+            <Area
+              type="monotone"
+              dataKey={upperKey}
+              stroke="none"
+              fill={color}
+              fillOpacity={0.15}
+              name="Normal Range (Upper)"
+              isAnimationActive={false}
+            />
+            <Area
+              type="monotone"
+              dataKey={lowerKey}
+              stroke="none"
+              fill="#0F172A" // matches card background to clip the bottom
+              fillOpacity={1}
+              name="Normal Range (Lower)"
+              isAnimationActive={false}
+            />
             <Area
               type="monotone"
               dataKey={dataKey}
               stroke={color}
               strokeWidth={2}
-              fill={`url(#gradient-${title})`}
+              fill="none"
             />
           </ComposedChart>
         </ResponsiveContainer>
@@ -189,6 +212,7 @@ export function ServiceMetrics({ serviceId, onNavigate }: ServiceMetricsProps) {
   const [timeRange, setTimeRange] = useState<TimeRange>('1h');
   const [service, setService] = useState<Service | null>(null);
   const [metrics, setMetrics] = useState<ServiceMetric[]>([]);
+  const [baselines, setBaselines] = useState<any[]>([]);
   const [isLoadingService, setIsLoadingService] = useState(false);
   const [isLoadingMetrics, setIsLoadingMetrics] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -246,6 +270,17 @@ export function ServiceMetrics({ serviceId, onNavigate }: ServiceMetricsProps) {
         if (!ignore) {
           setMetrics(data);
         }
+        
+        if (timeRange === '15m' || timeRange === '1h') {
+          try {
+             const bData = await serviceMetricService.getServiceBaselines(serviceId, rangeConfig.limit);
+             if (!ignore) setBaselines(bData);
+          } catch (bErr) {
+             console.warn("Failed to load service baselines", bErr);
+          }
+        } else {
+          if (!ignore) setBaselines([]);
+        }
       } catch (loadError) {
         if (!ignore) {
           console.error('Failed to load service metrics', loadError);
@@ -284,13 +319,43 @@ export function ServiceMetrics({ serviceId, onNavigate }: ServiceMetricsProps) {
     });
   }, [latestMetric, timeRange]);
 
-  const chartData = metrics.map((metric) => ({
-    timestamp: new Date(metric.recorded_at).getTime(),
-    cpu_usage: Number(metric.cpu_usage) || 0,
-    memory_usage: Number(metric.memory_usage) || 0,
-    disk_usage: Number(metric.disk_usage) || 0,
-    thread_count: Number(metric.thread_count) || 0,
-  }));
+  const getBounds = (metricName: string, timestamp: number) => {
+    for (const b of baselines) {
+      if (b.cpu_baseline === undefined && b.baseline !== undefined) {
+         if (b.metric_name === metricName && Math.abs(new Date(b.recorded_at).getTime() - timestamp) < 60000) {
+           return b;
+         }
+      } else {
+         if (Math.abs(new Date(b.recorded_at).getTime() - timestamp) < 60000) {
+           return b;
+         }
+      }
+    }
+    return null;
+  };
+
+  const chartData = metrics.map((metric) => {
+    const ts = new Date(metric.recorded_at).getTime();
+    const cpuBounds = getBounds('cpu_avg', ts);
+    const memBounds = getBounds('memory_avg', ts);
+    const diskBounds = getBounds('disk_avg', ts);
+    const threadBounds = getBounds('thread_count_avg', ts);
+    return {
+      timestamp: ts,
+      cpu_usage: Number(metric.cpu_usage) || 0,
+      memory_usage: Number(metric.memory_usage) || 0,
+      disk_usage: Number(metric.disk_usage) || 0,
+      thread_count: Number(metric.thread_count) || 0,
+      cpu_lower_bound: cpuBounds?.lower_bound ?? cpuBounds?.cpu_lower ?? null,
+      cpu_upper_bound: cpuBounds?.upper_bound ?? cpuBounds?.cpu_upper ?? null,
+      memory_lower_bound: memBounds?.lower_bound ?? null,
+      memory_upper_bound: memBounds?.upper_bound ?? null,
+      disk_lower_bound: diskBounds?.lower_bound ?? null,
+      disk_upper_bound: diskBounds?.upper_bound ?? null,
+      thread_lower_bound: threadBounds?.lower_bound ?? null,
+      thread_upper_bound: threadBounds?.upper_bound ?? null,
+    };
+  });
 
   const latestCpu = chartData.length ? chartData[chartData.length - 1].cpu_usage : 0;
   const latestMemory = chartData.length ? chartData[chartData.length - 1].memory_usage : 0;

@@ -17,7 +17,20 @@ exports.heartbeat = async (server_id) => {
     [normalizedServerId],
   );
   if (!rows[0]) throw new ApiError(404, `Server ${normalizedServerId} not found`);
-  return rows[0];
+
+  // Fetch active log configs for this server
+  const { rows: logConfigs } = await pool.query(
+    `SELECT lc.service_id, s.name as service_name, lc.log_path
+     FROM log_configs lc
+     JOIN services s ON s.service_id = lc.service_id
+     WHERE s.server_id = $1 AND lc.is_enabled = TRUE`,
+    [normalizedServerId],
+  );
+
+  return {
+    ...rows[0],
+    log_configs: logConfigs,
+  };
 };
 
 // Server metrics
@@ -303,3 +316,43 @@ function normalizeOptionalString(value, field, maxLength) {
   }
   return text;
 }
+
+exports.ingestLogs = async (server_id, logs) => {
+  const normalizedServerId = normalizePositiveInt(server_id, "server_id");
+  await ensureServerExists(normalizedServerId);
+
+  if (!Array.isArray(logs)) {
+    throw new ApiError(400, "logs must be an array");
+  }
+
+  if (logs.length === 0) return 0;
+
+  let inserted = 0;
+  for (const log of logs) {
+    const { service_id, timestamp, level, message } = log;
+    if (!service_id || !level || !message) continue;
+
+    await pool.query(
+      `INSERT INTO logs (server_id, service_id, timestamp, level, message)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [
+        normalizedServerId,
+        Number(service_id),
+        timestamp ? new Date(timestamp) : new Date(),
+        level.toLowerCase(),
+        message
+      ]
+    );
+    inserted++;
+  }
+
+  try {
+    const { getIO } = require("../socket");
+    const io = getIO();
+    io.emit("live_log", { server_id: normalizedServerId, logs_count: inserted });
+  } catch (err) {
+    logger.error({ msg: "Socket emit failed for logs", error: err.message });
+  }
+
+  return inserted;
+};

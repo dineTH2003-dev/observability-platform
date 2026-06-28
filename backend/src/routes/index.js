@@ -17,6 +17,7 @@ router.use("/services", authenticate, require("./service.routes"));
 router.use("/agent", authenticate, require("./agent.routes"));
 router.use("/reports", authenticate, authorize(['admin']), require("./reports.routes"));
 router.use("/reports", authenticate, authorize(['admin']), require("./report.routes"));
+router.use("/notifications", authenticate, require("./notification.routes"));
 router.use("/incidents", authenticate, require("./incident.routes"));
 router.use("/anomalies", authenticate, require("./anomaly.routes"));
 router.use("/ml", authenticate, require("./ml.routes"));

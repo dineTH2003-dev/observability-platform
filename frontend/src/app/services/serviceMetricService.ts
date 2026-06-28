@@ -12,5 +12,9 @@ export const serviceMetricService = {
   async getServiceMetrics(serviceId: number, timeRange = '1h', limit = 60): Promise<ServiceMetric[]> {
     const response = await api.get<{ success: boolean; data: ServiceMetric[] }>(`/metrics/service/${serviceId}?timeRange=${timeRange}&limit=${limit}`);
     return response.data;
+  },
+  async getServiceBaselines(serviceId: number, minutes = 60) {
+    const response = await api.get<{ success: boolean; data: any[] }>(`/metrics/service/${serviceId}/baselines?minutes=${minutes}`);
+    return response.data;
   }
 };

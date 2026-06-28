@@ -7,17 +7,19 @@ from typing import Any
 import pandas as pd
 
 from app.backend_client import BackendClient
-from app.db import get_conn
+from app.db import get_conn, save_metric_baselines
 from app.detectors.ensemble import choose_best_detection
 from app.detectors.hard_rules import detect_server_hard_rules, detect_service_hard_rules
 from app.detectors.isolation_forest import detect_with_isolation_model
 from app.detectors.rolling_baseline import detect_server_rolling_baseline, detect_service_rolling_baseline
+from app.detectors.log_anomaly import detect_log_anomalies
 from app.detectors.telemetry import detect_stale_telemetry
 from app.detectors.trend import detect_server_trends
 from app.detectors.types import Detection
 from app.features.rollups import backfill_server_rollups, backfill_service_rollups
 from app.features.server_features import SERVER_FEATURE_COLUMNS, build_server_features, load_server_rollups
 from app.features.service_features import SERVICE_FEATURE_COLUMNS, build_service_features, load_service_rollups
+from app.features.log_features import build_log_features, load_log_rollups
 from app.registry import load_models
 
 
@@ -38,7 +40,7 @@ def main() -> None:
         server_stale_minutes=args.server_stale_minutes,
         service_stale_minutes=args.service_stale_minutes,
         max_telemetry_entities=args.max_telemetry_entities,
-        raise_post_errors=True,
+        raise_post_errors=False,
     )
 
     print(f"posted={result['posted']}")
@@ -77,6 +79,7 @@ def score_once(
 
         server_features = build_server_features(load_server_rollups(conn, minutes=max(minutes, 180)))
         service_features = build_service_features(load_service_rollups(conn, minutes=max(minutes, 360)))
+        log_features = build_log_features(load_log_rollups(conn, minutes=max(minutes, 360)))
 
         if include_telemetry:
             telemetry_detections = detect_stale_telemetry(
@@ -122,6 +125,12 @@ def score_once(
                 result=result,
                 raise_post_errors=raise_post_errors,
             )
+            
+        if not dry_run:
+            baselines = _extract_baselines(row_dict, ["cpu", "memory", "disk", "thread_count"])
+            with get_conn() as write_conn:
+                save_metric_baselines(write_conn, "server", int(row_dict["server_id"]), row_dict["window_start"].isoformat(), baselines)
+                write_conn.commit()
 
     for row in _latest_rows(service_features, "service_id", minutes):
         detections = []
@@ -139,6 +148,27 @@ def score_once(
             )
             if detection:
                 detections.append(detection)
+
+        best = choose_best_detection(detections)
+        if best:
+            _emit_detection(
+                best,
+                client=client,
+                dry_run=dry_run,
+                result=result,
+                raise_post_errors=raise_post_errors,
+            )
+            
+        if not dry_run:
+            baselines = _extract_baselines(row_dict, ["cpu", "memory"])
+            with get_conn() as write_conn:
+                save_metric_baselines(write_conn, "service", int(row_dict["service_id"]), row_dict["window_start"].isoformat(), baselines)
+                write_conn.commit()
+
+    for row in _latest_rows(log_features, "service_id", minutes):
+        detections = []
+        row_dict = row.to_dict()
+        detections.extend(detect_log_anomalies(row_dict))
 
         best = choose_best_detection(detections)
         if best:
@@ -186,6 +216,21 @@ def _latest_rows(frame, id_col: str, minutes: int):
     if recent.empty:
         recent = frame
     return [row for _, row in recent.sort_values("window_start").groupby(id_col).tail(1).iterrows()]
+
+
+def _extract_baselines(row: dict, metrics: list[str]) -> list[dict]:
+    baselines = []
+    for m in metrics:
+        baseline = row.get(f"{m}_baseline_1h")
+        iqr = row.get(f"{m}_iqr_1h")
+        if baseline is not None and not pd.isna(baseline) and iqr is not None and not pd.isna(iqr):
+            baselines.append({
+                "metric_name": f"{m}_avg",
+                "baseline": baseline,
+                "lower_bound": max(0.0, baseline - (4.0 * iqr)),
+                "upper_bound": baseline + (4.0 * iqr)
+            })
+    return baselines
 
 
 if __name__ == "__main__":

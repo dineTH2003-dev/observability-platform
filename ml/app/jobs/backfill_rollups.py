@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 
 from app.db import get_conn
-from app.features.rollups import backfill_server_rollups, backfill_service_rollups
+from app.features.rollups import backfill_server_rollups, backfill_service_rollups, backfill_log_rollups
 
 
 def main() -> None:
@@ -14,10 +14,12 @@ def main() -> None:
     with get_conn() as conn:
         server_rows = backfill_server_rollups(conn, hours=args.hours)
         service_rows = backfill_service_rollups(conn, hours=args.hours)
+        log_rows = backfill_log_rollups(conn, hours=args.hours)
         conn.commit()
 
     print(f"server_rollups_upserted={server_rows}")
     print(f"service_rollups_upserted={service_rows}")
+    print(f"log_rollups_upserted={log_rows}")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FileText, Search, Download, X, Copy, Check } from 'lucide-react';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -10,25 +10,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select';
+import { logService } from '../../services/logService';
+import { serviceService } from '../../services/serviceService';
+import { hostService } from '../../services/hostService';
 
 interface LogEntry {
-  id: number;
+  id: string | number;
   timestamp: string;
   level: 'error' | 'warning' | 'info';
   service: string;
   host: string;
   message: string;
-  traceId?: string;
-  requestId?: string;
-  userId?: string;
   source?: string;
-  container?: string;
-  pod?: string;
-  namespace?: string;
-  statusCode?: number;
-  duration?: number;
-  tags?: string[];
-  stackTrace?: string;
   metadata?: Record<string, any>;
 }
 
@@ -40,156 +33,68 @@ export function Logs() {
   const [selectedLog, setSelectedLog] = useState<LogEntry | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
-  const logs: LogEntry[] = [
-    {
-      id: 1,
-      timestamp: '2025-01-16 21:12:43',
-      level: 'error',
-      service: 'snmp-agent',
-      host: 'server-01',
-      message: 'SNMP trap (SNMPv2-MIB::coldStart) reported from 10.89.0.19',
-      traceId: 'trace-8f9e2d3c-1a4b-5e6f-7890-abcdef123456',
-      requestId: 'req-abc123def456',
-      source: '/var/log/snmp/agent.log',
-      container: 'snmp-agent-container',
-      pod: 'snmp-agent-78d9f8-xt5kp',
-      namespace: 'monitoring',
-      tags: ['snmp', 'trap', 'network'],
-      stackTrace: 'SNMPTrapHandler.process(SNMPTrapHandler.java:145)\n    at SNMPAgent.handleTrap(SNMPAgent.java:89)\n    at SNMPService.run(SNMPService.java:234)',
-      metadata: {
-        'trap.oid': 'SNMPv2-MIB::coldStart',
-        'source.ip': '10.89.0.19',
-        'community': 'public'
-      }
-    },
-    {
-      id: 2,
-      timestamp: '2025-01-16 21:12:41',
-      level: 'warning',
-      service: 'snmp-agent',
-      host: 'server-02',
-      message: 'SNMP trap (CISCO-SMI::ciscoMgmt) reported from 10.69.0.3',
-      traceId: 'trace-9e8d7c6b-2a3b-4c5d-6789-fedcba987654',
-      requestId: 'req-xyz789ghi012',
-      source: '/var/log/snmp/agent.log',
-      container: 'snmp-agent-container',
-      pod: 'snmp-agent-78d9f8-xt5kp',
-      namespace: 'monitoring',
-      tags: ['snmp', 'cisco', 'network'],
-      metadata: {
-        'trap.oid': 'CISCO-SMI::ciscoMgmt',
-        'source.ip': '10.69.0.3',
-        'device.type': 'cisco-switch'
-      }
-    },
-    {
-      id: 3,
-      timestamp: '2025-01-16 21:12:39',
-      level: 'info',
-      service: 'kube-controller',
-      host: 'master-01',
-      message: 'ClusterRoleBinding system:controller:token-cleaner updated',
-      traceId: 'trace-1a2b3c4d-5e6f-7890-abcd-ef1234567890',
-      requestId: 'req-k8s-update-001',
-      source: '/var/log/kubernetes/controller.log',
-      container: 'kube-controller-manager',
-      pod: 'kube-controller-manager-master-01',
-      namespace: 'kube-system',
-      tags: ['kubernetes', 'rbac', 'controller'],
-      metadata: {
-        'resource.type': 'ClusterRoleBinding',
-        'resource.name': 'system:controller:token-cleaner',
-        'action': 'update'
-      }
-    },
-    {
-      id: 4,
-      timestamp: '2025-01-16 21:12:35',
-      level: 'error',
-      service: 'payment-service',
-      host: 'server-03',
-      message: 'Database connection timeout after 30 seconds',
-      traceId: 'trace-5f6e7d8c-9a0b-1c2d-3e4f-567890abcdef',
-      requestId: 'req-payment-tx-9876',
-      userId: 'user-45678',
-      source: '/var/log/payment/service.log',
-      container: 'payment-api',
-      pod: 'payment-service-9d8f7-k2m9p',
-      namespace: 'production',
-      statusCode: 500,
-      duration: 30245,
-      tags: ['database', 'timeout', 'critical'],
-      stackTrace: 'java.sql.SQLException: Connection timeout\n    at DatabasePool.getConnection(DatabasePool.java:156)\n    at PaymentService.processTransaction(PaymentService.java:89)\n    at PaymentController.handlePayment(PaymentController.java:45)',
-      metadata: {
-        'db.host': 'postgres-primary.db.svc.cluster.local',
-        'db.port': '5432',
-        'db.name': 'payments',
-        'connection.pool.size': '50',
-        'active.connections': '50'
-      }
-    },
-    {
-      id: 5,
-      timestamp: '2025-01-16 21:12:30',
-      level: 'warning',
-      service: 'kube-controller',
-      host: 'master-01',
-      message: 'Pod scheduling delayed due to resource constraints',
-      traceId: 'trace-7g8h9i0j-1k2l-3m4n-5o6p-7q8r9s0t1u2v',
-      requestId: 'req-schedule-pod-234',
-      source: '/var/log/kubernetes/scheduler.log',
-      container: 'kube-scheduler',
-      pod: 'kube-scheduler-master-01',
-      namespace: 'kube-system',
-      duration: 5420,
-      tags: ['kubernetes', 'scheduling', 'resources'],
-      metadata: {
-        'pod.name': 'analytics-worker-5f6g7h8',
-        'pod.namespace': 'analytics',
-        'required.cpu': '2000m',
-        'required.memory': '4Gi',
-        'available.nodes': '3'
-      }
-    },
-    {
-      id: 6,
-      timestamp: '2025-01-16 21:12:25',
-      level: 'info',
-      service: 'payment-service',
-      host: 'server-01',
-      message: 'Successfully processed 1250 transactions',
-      traceId: 'trace-2b3c4d5e-6f7g-8h9i-0j1k-2l3m4n5o6p7q',
-      requestId: 'req-batch-process-445',
-      source: '/var/log/payment/batch.log',
-      container: 'payment-batch-processor',
-      pod: 'payment-batch-7h8i9-p3q4r',
-      namespace: 'production',
-      statusCode: 200,
-      duration: 12350,
-      tags: ['batch', 'success', 'transactions'],
-      metadata: {
-        'batch.id': 'batch-2025-01-16-001',
-        'transactions.total': '1250',
-        'transactions.successful': '1248',
-        'transactions.failed': '2',
-        'total.amount': '$125,340.50'
-      }
-    },
-  ];
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [servicesList, setServicesList] = useState<string[]>([]);
+  const [hostsList, setHostsList] = useState<string[]>([]);
 
-  // Get unique services and hosts for filter dropdowns
-  const uniqueServices = Array.from(new Set(logs.map(log => log.service))).sort();
-  const uniqueHosts = Array.from(new Set(logs.map(log => log.host))).sort();
+  // Load filter options (services and hosts) on mount
+  useEffect(() => {
+    async function loadFilterOptions() {
+      try {
+        const [allServices, allHosts] = await Promise.all([
+          serviceService.getAll(),
+          hostService.getAll(),
+        ]);
+        setServicesList(Array.from(new Set(allServices.map((s) => s.name))).sort());
+        setHostsList(Array.from(new Set(allHosts.map((h) => h.hostname))).sort());
+      } catch (err) {
+        console.error('Failed to load filter options:', err);
+      }
+    }
+    loadFilterOptions();
+  }, []);
 
-  const filteredLogs = logs.filter(log => {
-    const matchesSearch = log.message.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         log.service.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         log.host.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesLevel = levelFilter === 'all' || log.level === levelFilter;
-    const matchesService = serviceFilter === 'all' || log.service === serviceFilter;
-    const matchesHost = hostFilter === 'all' || log.host === hostFilter;
-    return matchesSearch && matchesLevel && matchesService && matchesHost;
-  });
+  // Fetch logs whenever filters or search query changes
+  useEffect(() => {
+    let active = true;
+    async function getLogs() {
+      setLoading(true);
+      try {
+        const fetched = await logService.fetchLogs({
+          level: levelFilter,
+          service: serviceFilter,
+          host: hostFilter,
+          search: searchQuery,
+        });
+        if (active) {
+          const mapped: LogEntry[] = fetched.map((l) => ({
+            id: l.id,
+            timestamp: new Date(l.timestamp).toLocaleString(),
+            level: l.level as 'error' | 'warning' | 'info',
+            service: l.service,
+            host: l.host,
+            message: l.message,
+            metadata: l.metadata,
+          }));
+          setLogs(mapped);
+        }
+      } catch (err) {
+        console.error('Failed to fetch logs:', err);
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
+
+    const timer = setTimeout(() => {
+      getLogs();
+    }, 300);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [levelFilter, serviceFilter, hostFilter, searchQuery]);
 
   const getLevelColor = (level: string) => {
     switch (level) {
@@ -210,12 +115,34 @@ export function Logs() {
     setTimeout(() => setCopiedField(null), 2000);
   };
 
+  const handleExportLogs = () => {
+    if (logs.length === 0) return;
+    const headers = ['Time', 'Level', 'Service', 'Host', 'Message'];
+    const rows = logs.map((log) => [
+      log.timestamp,
+      log.level,
+      log.service,
+      log.host,
+      log.message.replace(/"/g, '""'),
+    ]);
+    const csvContent =
+      'data:text/csv;charset=utf-8,' +
+      [headers.join(','), ...rows.map((e) => `"${e.join('","')}"`)].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `nebula_logs_${new Date().toISOString()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="space-y-6 relative">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-semibold text-white">Logs and Events</h1>
-        <p className="text-slate-400 text-sm mt-1">Explore your log data and Kubernetes events</p>
+        <p className="text-slate-400 text-sm mt-1">Explore your log data and system events</p>
       </div>
 
       {/* Search and Filters */}
@@ -266,7 +193,7 @@ export function Logs() {
                 </SelectTrigger>
                 <SelectContent className="bg-nebula-navy-light border-nebula-navy-lighter text-white">
                   <SelectItem value="all">All Services</SelectItem>
-                  {uniqueServices.map((service) => (
+                  {servicesList.map((service) => (
                     <SelectItem key={service} value={service}>
                       {service}
                     </SelectItem>
@@ -287,7 +214,7 @@ export function Logs() {
                 </SelectTrigger>
                 <SelectContent className="bg-nebula-navy-light border-nebula-navy-lighter text-white">
                   <SelectItem value="all">All Hosts</SelectItem>
-                  {uniqueHosts.map((host) => (
+                  {hostsList.map((host) => (
                     <SelectItem key={host} value={host}>
                       {host}
                     </SelectItem>
@@ -302,12 +229,14 @@ export function Logs() {
       {/* Results Summary */}
       <div className="flex items-center justify-between">
         <p className="text-slate-400 text-sm">
-          Showing {filteredLogs.length} of {logs.length} logs
+          {loading ? 'Fetching logs...' : `Showing ${logs.length} logs`}
         </p>
         <Button
           variant="outline"
           size="sm"
-          className="border-nebula-navy-lighter text-slate-300 hover:bg-nebula-navy-dark hover:text-white"
+          onClick={handleExportLogs}
+          disabled={logs.length === 0 || loading}
+          className="border-nebula-navy-lighter text-slate-300 hover:bg-nebula-navy-dark hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Download className="size-4 mr-2" />
           Export Logs
@@ -339,7 +268,17 @@ export function Logs() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-nebula-navy-lighter">
-                {filteredLogs.length === 0 ? (
+                {loading ? (
+                  [...Array(5)].map((_, i) => (
+                    <tr key={i} className="animate-pulse border-b border-nebula-navy-lighter/30">
+                      <td className="px-6 py-4"><div className="h-4 bg-slate-700/50 rounded w-24"></div></td>
+                      <td className="px-6 py-4"><div className="h-4 bg-slate-700/50 rounded w-16"></div></td>
+                      <td className="px-6 py-4"><div className="h-4 bg-slate-700/50 rounded w-20"></div></td>
+                      <td className="px-6 py-4"><div className="h-4 bg-slate-700/50 rounded w-20"></div></td>
+                      <td className="px-6 py-4"><div className="h-4 bg-slate-700/50 rounded w-80"></div></td>
+                    </tr>
+                  ))
+                ) : logs.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-6 py-12 text-center">
                       <FileText className="size-12 text-slate-600 mx-auto mb-3" />
@@ -347,25 +286,27 @@ export function Logs() {
                     </td>
                   </tr>
                 ) : (
-                  filteredLogs.map((log) => (
+                  logs.map((log) => (
                     <tr 
                       key={log.id} 
                       className="hover:bg-nebula-navy-dark transition-colors cursor-pointer"
                       onClick={() => setSelectedLog(log)}
                     >
-                      <td className="px-6 py-4 text-slate-300 text-sm">{log.timestamp}</td>
+                      <td className="px-6 py-4 text-slate-300 text-sm whitespace-nowrap">{log.timestamp}</td>
                       <td className="px-6 py-4">
                         <span className={`px-3 py-1 rounded text-xs font-medium uppercase ${getLevelColor(log.level)}`}>
                           {log.level}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-white text-sm">{log.service}</td>
-                      <td className="px-6 py-4 text-slate-300 text-sm">{log.host}</td>
+                      <td className="px-6 py-4 text-white text-sm whitespace-nowrap">{log.service}</td>
+                      <td className="px-6 py-4 text-slate-300 text-sm whitespace-nowrap">{log.host}</td>
                       <td className="px-6 py-4 text-white text-sm">
-                        {log.message}
-                        <button className="ml-2 text-blue-400 hover:text-blue-300 text-xs">
-                          Click to view details
-                        </button>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="line-clamp-2 break-all">{log.message}</span>
+                          <span className="text-blue-400 hover:text-blue-300 text-xs shrink-0 font-medium">
+                            View Details
+                          </span>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -472,52 +413,33 @@ export function Logs() {
                       )}
                     </button>
                   </div>
-                  <p className="text-sm text-white leading-relaxed">{selectedLog.message}</p>
+                  <p className="text-sm text-white leading-relaxed break-all font-mono whitespace-pre-wrap">{selectedLog.message}</p>
                 </CardContent>
               </Card>
 
-              {/* Source */}
-              {selectedLog.source && (
+              {/* Metadata */}
+              {selectedLog.metadata && Object.keys(selectedLog.metadata).length > 0 && (
                 <Card className="bg-nebula-navy-dark border-nebula-navy-lighter">
                   <CardContent className="p-4 space-y-3">
-                    <h3 className="text-sm font-semibold text-white mb-3">Source</h3>
-                    <div>
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs text-white font-mono break-all">{selectedLog.source}</p>
-                        <button
-                          onClick={() => copyToClipboard(selectedLog.source!)}
-                          className="ml-2 text-slate-400 hover:text-white flex-shrink-0"
-                        >
-                          {copiedField === selectedLog.source ? (
-                            <Check className="size-4 text-green-400" />
-                          ) : (
-                            <Copy className="size-4" />
-                          )}
-                        </button>
+                    <h3 className="text-sm font-semibold text-white mb-3">Metadata</h3>
+                    {Object.entries(selectedLog.metadata).map(([key, val]) => (
+                      <div key={key}>
+                        <p className="text-xs text-slate-400 mb-1">{key}</p>
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm text-white font-mono break-all">{JSON.stringify(val)}</p>
+                          <button
+                            onClick={() => copyToClipboard(JSON.stringify(val))}
+                            className="ml-2 text-slate-400 hover:text-white flex-shrink-0"
+                          >
+                            {copiedField === JSON.stringify(val) ? (
+                              <Check className="size-4 text-green-400" />
+                            ) : (
+                              <Copy className="size-4" />
+                            )}
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Source IP from Metadata */}
-              {selectedLog.metadata?.['source.ip'] && (
-                <Card className="bg-nebula-navy-dark border-nebula-navy-lighter">
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between mb-2">
-                      <p className="text-xs text-slate-400">Source IP</p>
-                      <button
-                        onClick={() => copyToClipboard(selectedLog.metadata!['source.ip'])}
-                        className="text-slate-400 hover:text-white"
-                      >
-                        {copiedField === selectedLog.metadata?.['source.ip'] ? (
-                          <Check className="size-4 text-green-400" />
-                        ) : (
-                          <Copy className="size-4" />
-                        )}
-                      </button>
-                    </div>
-                    <p className="text-sm text-white font-mono">{selectedLog.metadata['source.ip']}</p>
+                    ))}
                   </CardContent>
                 </Card>
               )}

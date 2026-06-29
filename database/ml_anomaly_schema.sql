@@ -128,6 +128,33 @@ CREATE TABLE IF NOT EXISTS service_metric_rollups_5m (
 CREATE INDEX IF NOT EXISTS idx_service_rollups_5m_ts
   ON service_metric_rollups_5m(service_id, window_start DESC);
 
+CREATE TABLE IF NOT EXISTS log_metric_rollups_5m (
+  service_id       INT NOT NULL REFERENCES services(service_id) ON DELETE CASCADE,
+  window_start     TIMESTAMPTZ NOT NULL,
+  window_end       TIMESTAMPTZ NOT NULL,
+  total_count      INT NOT NULL DEFAULT 0,
+  error_count      INT NOT NULL DEFAULT 0,
+  warning_count    INT NOT NULL DEFAULT 0,
+  info_count       INT NOT NULL DEFAULT 0,
+  debug_count      INT NOT NULL DEFAULT 0,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (service_id, window_start)
+);
+
+CREATE INDEX IF NOT EXISTS idx_log_rollups_5m_ts
+  ON log_metric_rollups_5m(service_id, window_start DESC);
+
+CREATE TABLE IF NOT EXISTS metric_baselines (
+  entity_type      VARCHAR(30) NOT NULL,
+  entity_id        INT NOT NULL,
+  metric_name      VARCHAR(50) NOT NULL,
+  window_start     TIMESTAMPTZ NOT NULL,
+  baseline         NUMERIC(12, 4),
+  lower_bound      NUMERIC(12, 4),
+  upper_bound      NUMERIC(12, 4),
+  PRIMARY KEY (entity_type, entity_id, metric_name, window_start)
+);
+
 -- ============================================================
 --  3. ML details linked to the existing anomalies table
 -- ============================================================

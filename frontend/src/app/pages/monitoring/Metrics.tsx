@@ -21,6 +21,7 @@ export function Metrics() {
   const [hosts, setHosts] = useState<Host[]>([]);
   const [selectedHostId, setSelectedHostId] = useState<string>('');
   const [metrics, setMetrics] = useState<ServerMetric[]>([]);
+  const [baselines, setBaselines] = useState<any[]>([]);
 
   const latestMetric = useLiveMetrics(selectedHostId ? parseInt(selectedHostId) : undefined);
 
@@ -45,6 +46,13 @@ export function Metrics() {
       try {
         const fetchedMetrics = await metricService.getServerMetrics(parseInt(selectedHostId), 60);
         setMetrics(fetchedMetrics);
+        
+        try {
+          const fetchedBaselines = await metricService.getServerBaselines(parseInt(selectedHostId), 60);
+          setBaselines(fetchedBaselines);
+        } catch (baselineErr) {
+          console.warn("Failed to load baselines", baselineErr);
+        }
       } catch (err) {
         console.error("Failed to load metrics", err);
       }
@@ -74,9 +82,38 @@ export function Metrics() {
   const mapData = (key: keyof ServerMetric) => {
     return metrics.map((m) => {
       const val = Number(m[key]) || 0;
+      
+      // Find matching baseline based on closest minute
+      const recordTime = new Date(m.recorded_at).getTime();
+      let matchedBaseline = null;
+      
+      for (const b of baselines) {
+        if (b.cpu_baseline === undefined && b.baseline !== undefined) {
+          // If we are using the new format
+          const mappedKey = key.replace('_usage', '_avg').replace('thread_count', 'thread_count_avg');
+          if (b.metric_name === mappedKey) {
+             const bTime = new Date(b.recorded_at).getTime();
+             if (Math.abs(bTime - recordTime) < 60000) {
+               matchedBaseline = b;
+               break;
+             }
+          }
+        } else {
+          // Legacy format
+          const bTime = new Date(b.recorded_at).getTime();
+          if (Math.abs(bTime - recordTime) < 60000) {
+            matchedBaseline = b;
+            break;
+          }
+        }
+      }
+
       return {
         time: new Date(m.recorded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         actual: val,
+        baseline: matchedBaseline?.cpu_baseline ?? matchedBaseline?.baseline ?? null,
+        lower_bound: matchedBaseline?.cpu_lower ?? matchedBaseline?.lower_bound ?? null,
+        upper_bound: matchedBaseline?.cpu_upper ?? matchedBaseline?.upper_bound ?? null,
       };
     });
   };
@@ -130,13 +167,33 @@ export function Metrics() {
                 }}
               />
               
-              {/* Actual Metric Line with Area */}
+              {/* Baseline Bounds */}
+              <Area
+                type="monotone"
+                dataKey="upper_bound"
+                stroke="none"
+                fill={color}
+                fillOpacity={0.15}
+                name="Normal Range (Upper)"
+                isAnimationActive={false}
+              />
+              <Area
+                type="monotone"
+                dataKey="lower_bound"
+                stroke="none"
+                fill="#0F172A" // matches card background to clip the bottom
+                fillOpacity={1}
+                name="Normal Range (Lower)"
+                isAnimationActive={false}
+              />
+              
+              {/* Actual Metric Line */}
               <Area 
                 type="monotone" 
                 dataKey="actual" 
                 stroke={color}
                 strokeWidth={2}
-                fill={`url(#gradient-${title})`}
+                fill="none"
                 name="Current"
               />
             </ComposedChart>

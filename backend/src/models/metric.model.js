@@ -61,3 +61,40 @@ exports.getAggregatedServerMetrics = async (limit = 20) => {
   const { rows } = await pool.query(query, [limit]);
   return rows.reverse();
 };
+
+// Get baseline bounds from ML anomalies
+exports.getServerBaselines = async (serverId, minutes = 60) => {
+  const query = `
+    SELECT 
+      window_start as recorded_at,
+      baseline as cpu_baseline,
+      lower_bound as cpu_lower,
+      upper_bound as cpu_upper,
+      metric_name
+    FROM metric_baselines
+    WHERE entity_type = 'server' 
+      AND entity_id = $1
+      AND window_start >= (SELECT MAX(recorded_at) FROM server_metrics WHERE server_id = $1) - ($2 || ' minutes')::INTERVAL
+    ORDER BY window_start DESC
+  `;
+  const { rows } = await pool.query(query, [serverId, minutes]);
+  return rows.reverse();
+};
+
+exports.getServiceBaselines = async (serviceId, minutes = 60) => {
+  const query = `
+    SELECT 
+      window_start as recorded_at,
+      baseline as cpu_baseline,
+      lower_bound as cpu_lower,
+      upper_bound as cpu_upper,
+      metric_name
+    FROM metric_baselines
+    WHERE entity_type = 'service'
+      AND entity_id = $1
+      AND window_start >= (SELECT MAX(recorded_at) FROM service_metrics WHERE service_id = $1) - ($2 || ' minutes')::INTERVAL
+    ORDER BY window_start DESC
+  `;
+  const { rows } = await pool.query(query, [serviceId, minutes]);
+  return rows.reverse();
+};

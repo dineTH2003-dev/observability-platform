@@ -117,3 +117,39 @@ def backfill_service_rollups(conn, *, hours: int = 24) -> int:
         (hours,),
     )
     return result.rowcount or 0
+
+
+def backfill_log_rollups(conn, *, hours: int = 24) -> int:
+    result = conn.execute(
+        """
+        WITH src AS (
+          SELECT
+            service_id,
+            to_timestamp(floor(extract(epoch from timestamp) / 300) * 300) AS window_start,
+            to_timestamp(floor(extract(epoch from timestamp) / 300) * 300) + INTERVAL '5 minutes' AS window_end,
+            COUNT(*)::int AS total_count,
+            COUNT(*) FILTER (WHERE level = 'error')::int AS error_count,
+            COUNT(*) FILTER (WHERE level = 'warn' OR level = 'warning')::int AS warning_count,
+            COUNT(*) FILTER (WHERE level = 'info')::int AS info_count,
+            COUNT(*) FILTER (WHERE level = 'debug')::int AS debug_count
+          FROM logs
+          WHERE timestamp >= NOW() - (%s || ' hours')::INTERVAL
+          GROUP BY service_id, to_timestamp(floor(extract(epoch from timestamp) / 300) * 300)
+        )
+        INSERT INTO log_metric_rollups_5m
+          (service_id, window_start, window_end, total_count, error_count, warning_count, info_count, debug_count)
+        SELECT
+          service_id, window_start, window_end, total_count, error_count, warning_count, info_count, debug_count
+        FROM src
+        ON CONFLICT (service_id, window_start)
+        DO UPDATE SET
+          window_end = EXCLUDED.window_end,
+          total_count = EXCLUDED.total_count,
+          error_count = EXCLUDED.error_count,
+          warning_count = EXCLUDED.warning_count,
+          info_count = EXCLUDED.info_count,
+          debug_count = EXCLUDED.debug_count
+        """,
+        (hours,),
+    )
+    return result.rowcount or 0

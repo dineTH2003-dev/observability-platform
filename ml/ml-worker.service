@@ -1,0 +1,14 @@
+[Unit]
+Description=Observability Platform - ML Anomaly Worker
+After=network.target
+
+[Service]
+Type=simple
+User=dineth
+WorkingDirectory=/home/dineth/dev/observability-platform/ml
+ExecStart=/home/dineth/dev/observability-platform/ml/start_worker.sh
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

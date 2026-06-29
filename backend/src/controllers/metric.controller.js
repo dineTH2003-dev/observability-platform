@@ -25,3 +25,19 @@ exports.getServiceMetrics = asyncHandler(async (req, res) => {
 
   res.json({ success: true, data });
 });
+
+// GET /api/metrics/server/:id/baselines
+exports.getServerBaselines = asyncHandler(async (req, res) => {
+  const serverId = req.params.id;
+  const minutes = req.query.minutes ? parseInt(req.query.minutes) : 60;
+  const data = await MetricModel.getServerBaselines(serverId, minutes);
+  res.json({ success: true, data });
+});
+
+// GET /api/metrics/service/:id/baselines
+exports.getServiceBaselines = asyncHandler(async (req, res) => {
+  const serviceId = req.params.id;
+  const minutes = req.query.minutes ? parseInt(req.query.minutes) : 60;
+  const data = await MetricModel.getServiceBaselines(serviceId, minutes);
+  res.json({ success: true, data });
+});

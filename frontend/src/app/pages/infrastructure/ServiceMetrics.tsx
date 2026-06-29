@@ -5,8 +5,6 @@ import {
   Cpu,
   HardDrive,
   Loader2,
-  TrendingDown,
-  TrendingUp,
   Wrench,
 } from 'lucide-react';
 import { Card, CardContent } from '../../components/ui/card';
@@ -22,7 +20,6 @@ import {
 import {
   ComposedChart,
   Area,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -101,11 +98,6 @@ function getSelectedRangeConfig(timeRange: TimeRange) {
   return TIME_RANGE_OPTIONS.find((option) => option.value === timeRange) ?? TIME_RANGE_OPTIONS[1];
 }
 
-function average(values: number[]) {
-  if (!values.length) return 0;
-  return values.reduce((sum, value) => sum + value, 0) / values.length;
-}
-
 function formatPercent(value: number) {
   return `${value.toFixed(1)}%`;
 }
@@ -122,7 +114,7 @@ function ServiceMetricChart({
   color: string;
   unit: string;
   timeRange: TimeRange;
-  data: Array<Record<string, number | string | null>>;
+  data: Array<Record<string, number | string | null | number[]>>;
   dataKey: 'cpu_usage' | 'memory_usage' | 'disk_usage' | 'thread_count';
 }) {
   const prefix = dataKey.split('_')[0];

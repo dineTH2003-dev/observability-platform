@@ -73,7 +73,6 @@ export function Incidents() {
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [selectedEngineer, setSelectedEngineer] = useState('');
   const [engineers, setEngineers] = useState<Engineer[]>([]);
-  const [loading, setLoading] = useState(true);
 
   // Load incidents and engineers from the real API on mount
   const [incidents, setIncidents] = useState<any[]>([]);
@@ -88,8 +87,6 @@ export function Incidents() {
       setEngineers(rawEngineers);
     } catch (err) {
       console.error('Failed to load incidents:', err);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -401,7 +398,7 @@ export function Incidents() {
                       Triggered Anomalies
                     </h4>
                     <div className="space-y-2">
-                      {selectedIncident.anomalies.map((anomaly, index) => (
+                      {selectedIncident.anomalies.map((anomaly: any, index: number) => (
                         <div key={index} className="p-2 bg-nebula-navy-light rounded text-sm text-slate-300">
                           • {anomaly}
                         </div>
@@ -457,7 +454,7 @@ export function Incidents() {
                       Activity Timeline
                     </h4>
                     <div className="space-y-3">
-                      {selectedIncident.timeline.map((item, index) => (
+                      {selectedIncident.timeline.map((item: any, index: number) => (
                         <div key={index} className="flex items-start gap-3">
                           <div className="w-2 h-2 bg-nebula-purple rounded-full mt-2"></div>
                           <div className="flex-1">

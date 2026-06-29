@@ -7,7 +7,6 @@ import {
   BarChart3,
   AlertTriangle,
   AlertOctagon,
-  Settings,
   Bell,
   Ticket,
   UserRound,

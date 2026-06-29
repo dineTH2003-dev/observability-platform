@@ -13,7 +13,6 @@ type PasswordField = keyof PasswordChangePayload;
 interface AccountSettingsProps {
   disabled: boolean;
   errors: Partial<Record<PasswordField, string>>;
-  isEditing: boolean;
   isSaving: boolean;
   values: PasswordChangePayload;
   onChange: (field: PasswordField, value: string) => void;
@@ -23,7 +22,6 @@ interface AccountSettingsProps {
 export function AccountSettings({
   disabled,
   errors,
-  isEditing,
   isSaving,
   values,
   onChange,

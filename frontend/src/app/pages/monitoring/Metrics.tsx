@@ -82,24 +82,14 @@ export function Metrics() {
   const mapData = (key: keyof ServerMetric) => {
     return metrics.map((m) => {
       const val = Number(m[key]) || 0;
-      
+
       // Find matching baseline based on closest minute
       const recordTime = new Date(m.recorded_at).getTime();
       let matchedBaseline = null;
-      
+
       for (const b of baselines) {
-        if (b.cpu_baseline === undefined && b.baseline !== undefined) {
-          // If we are using the new format
-          const mappedKey = key.replace('_usage', '_avg').replace('thread_count', 'thread_count_avg');
-          if (b.metric_name === mappedKey) {
-             const bTime = new Date(b.recorded_at).getTime();
-             if (Math.abs(bTime - recordTime) < 60000) {
-               matchedBaseline = b;
-               break;
-             }
-          }
-        } else {
-          // Legacy format
+        const mappedKey = key.replace('_usage', '_avg').replace('thread_count', 'thread_count_avg');
+        if (b.metric_name === mappedKey) {
           const bTime = new Date(b.recorded_at).getTime();
           if (Math.abs(bTime - recordTime) < 60000) {
             matchedBaseline = b;
@@ -108,12 +98,19 @@ export function Metrics() {
         }
       }
 
+      const lower = matchedBaseline?.cpu_lower ?? matchedBaseline?.lower_bound ?? null;
+      const upper = matchedBaseline?.cpu_upper ?? matchedBaseline?.upper_bound ?? null;
+      const anomaly = (lower !== null && val < lower) || (upper !== null && val > upper) ? val : null;
+      const range = (lower !== null && upper !== null) ? [lower, upper] : null;
+
       return {
         time: new Date(m.recorded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         actual: val,
         baseline: matchedBaseline?.cpu_baseline ?? matchedBaseline?.baseline ?? null,
-        lower_bound: matchedBaseline?.cpu_lower ?? matchedBaseline?.lower_bound ?? null,
-        upper_bound: matchedBaseline?.cpu_upper ?? matchedBaseline?.upper_bound ?? null,
+        lower_bound: lower,
+        upper_bound: upper,
+        range: range,
+        anomaly_actual: anomaly,
       };
     });
   };
@@ -167,26 +164,17 @@ export function Metrics() {
                 }}
               />
               
-              {/* Baseline Bounds */}
+              {/* Baseline Bounds (Clean Floating Range) */}
               <Area
                 type="monotone"
-                dataKey="upper_bound"
+                dataKey="range"
                 stroke="none"
                 fill={color}
                 fillOpacity={0.15}
-                name="Normal Range (Upper)"
+                name="Normal Range"
                 isAnimationActive={false}
               />
-              <Area
-                type="monotone"
-                dataKey="lower_bound"
-                stroke="none"
-                fill="#0F172A" // matches card background to clip the bottom
-                fillOpacity={1}
-                name="Normal Range (Lower)"
-                isAnimationActive={false}
-              />
-              
+
               {/* Actual Metric Line */}
               <Area 
                 type="monotone" 

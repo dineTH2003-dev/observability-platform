@@ -40,7 +40,7 @@ def main() -> None:
                 server_stale_minutes=args.server_stale_minutes,
                 service_stale_minutes=args.service_stale_minutes,
                 max_telemetry_entities=args.max_telemetry_entities,
-                raise_post_errors=False,
+                raise_post_errors=True,
             )
             print(
                 "ml_worker_tick "

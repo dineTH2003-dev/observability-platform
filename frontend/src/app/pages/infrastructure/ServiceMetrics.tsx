@@ -20,6 +20,7 @@ import {
 import {
   ComposedChart,
   Area,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -117,9 +118,9 @@ function ServiceMetricChart({
   data: Array<Record<string, number | string | null | number[]>>;
   dataKey: 'cpu_usage' | 'memory_usage' | 'disk_usage' | 'thread_count';
 }) {
-  const prefix = dataKey.split('_')[0];
-  const upperKey = `${prefix}_upper_bound`;
-  const lowerKey = `${prefix}_lower_bound`;
+  const prefix = dataKey.split('_')[0]; // 'cpu'
+  const rangeKey = `${prefix}_range`; // 'cpu_range'
+  const anomalyKey = `${prefix}_anomaly`; // 'cpu_anomaly'
 
   return (
     <Card className="bg-nebula-navy-light border-nebula-navy-lighter">
@@ -170,28 +171,34 @@ function ServiceMetricChart({
             {/* Baseline Bounds */}
             <Area
               type="monotone"
-              dataKey={upperKey}
+              dataKey={rangeKey}
               stroke="none"
               fill={color}
               fillOpacity={0.15}
-              name="Normal Range (Upper)"
+              name="Normal Range"
               isAnimationActive={false}
             />
-            <Area
-              type="monotone"
-              dataKey={lowerKey}
-              stroke="none"
-              fill="#0F172A" // matches card background to clip the bottom
-              fillOpacity={1}
-              name="Normal Range (Lower)"
-              isAnimationActive={false}
-            />
+
+            {/* Actual Metric Line */}
             <Area
               type="monotone"
               dataKey={dataKey}
               stroke={color}
               strokeWidth={2}
               fill="none"
+              name="Current"
+            />
+
+            {/* Anomaly Line (Red Spikes) */}
+            <Line
+              type="monotone"
+              dataKey={anomalyKey}
+              stroke="#EF4444"
+              strokeWidth={2}
+              dot={{ r: 4, stroke: '#EF4444', fill: '#EF4444' }}
+              connectNulls={false}
+              isAnimationActive={false}
+              name="Anomaly"
             />
           </ComposedChart>
         </ResponsiveContainer>
@@ -313,11 +320,7 @@ export function ServiceMetrics({ serviceId, onNavigate }: ServiceMetricsProps) {
 
   const getBounds = (metricName: string, timestamp: number) => {
     for (const b of baselines) {
-      if (b.cpu_baseline === undefined && b.baseline !== undefined) {
-         if (b.metric_name === metricName && Math.abs(new Date(b.recorded_at).getTime() - timestamp) < 60000) {
-           return b;
-         }
-      } else {
+      if (b.metric_name === metricName) {
          if (Math.abs(new Date(b.recorded_at).getTime() - timestamp) < 60000) {
            return b;
          }
@@ -332,20 +335,35 @@ export function ServiceMetrics({ serviceId, onNavigate }: ServiceMetricsProps) {
     const memBounds = getBounds('memory_avg', ts);
     const diskBounds = getBounds('disk_avg', ts);
     const threadBounds = getBounds('thread_count_avg', ts);
+
+    const cpuLower = cpuBounds?.lower_bound ?? cpuBounds?.cpu_lower ?? null;
+    const cpuUpper = cpuBounds?.upper_bound ?? cpuBounds?.cpu_upper ?? null;
+    const memLower = memBounds?.lower_bound ?? memBounds?.cpu_lower ?? null;
+    const memUpper = memBounds?.upper_bound ?? memBounds?.cpu_upper ?? null;
+    const diskLower = diskBounds?.lower_bound ?? diskBounds?.cpu_lower ?? null;
+    const diskUpper = diskBounds?.upper_bound ?? diskBounds?.cpu_upper ?? null;
+    const threadLower = threadBounds?.lower_bound ?? threadBounds?.cpu_lower ?? null;
+    const threadUpper = threadBounds?.upper_bound ?? threadBounds?.cpu_upper ?? null;
+
+    const cpuUsage = Number(metric.cpu_usage) || 0;
+    const memUsage = Number(metric.memory_usage) || 0;
+    const diskUsage = Number(metric.disk_usage) || 0;
+    const threadCount = Number(metric.thread_count) || 0;
+
     return {
       timestamp: ts,
-      cpu_usage: Number(metric.cpu_usage) || 0,
-      memory_usage: Number(metric.memory_usage) || 0,
-      disk_usage: Number(metric.disk_usage) || 0,
-      thread_count: Number(metric.thread_count) || 0,
-      cpu_lower_bound: cpuBounds?.lower_bound ?? cpuBounds?.cpu_lower ?? null,
-      cpu_upper_bound: cpuBounds?.upper_bound ?? cpuBounds?.cpu_upper ?? null,
-      memory_lower_bound: memBounds?.lower_bound ?? null,
-      memory_upper_bound: memBounds?.upper_bound ?? null,
-      disk_lower_bound: diskBounds?.lower_bound ?? null,
-      disk_upper_bound: diskBounds?.upper_bound ?? null,
-      thread_lower_bound: threadBounds?.lower_bound ?? null,
-      thread_upper_bound: threadBounds?.upper_bound ?? null,
+      cpu_usage: cpuUsage,
+      memory_usage: memUsage,
+      disk_usage: diskUsage,
+      thread_count: threadCount,
+      cpu_range: (cpuLower !== null && cpuUpper !== null) ? [cpuLower, cpuUpper] : null,
+      memory_range: (memLower !== null && memUpper !== null) ? [memLower, memUpper] : null,
+      disk_range: (diskLower !== null && diskUpper !== null) ? [diskLower, diskUpper] : null,
+      thread_range: (threadLower !== null && threadUpper !== null) ? [threadLower, threadUpper] : null,
+      cpu_anomaly: (cpuLower !== null && cpuUsage < cpuLower) || (cpuUpper !== null && cpuUsage > cpuUpper) ? cpuUsage : null,
+      memory_anomaly: (memLower !== null && memUsage < memLower) || (memUpper !== null && memUsage > memUpper) ? memUsage : null,
+      disk_anomaly: (diskLower !== null && diskUsage < diskLower) || (diskUpper !== null && diskUsage > diskUpper) ? diskUsage : null,
+      thread_anomaly: (threadLower !== null && threadCount < threadLower) || (threadUpper !== null && threadCount > threadUpper) ? threadCount : null,
     };
   });
 

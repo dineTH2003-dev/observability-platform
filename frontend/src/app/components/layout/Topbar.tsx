@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Menu,
   LayoutGrid,
@@ -18,6 +18,8 @@ import {
 import { NotificationDropdown } from '../ui/NotificationDropdown';
 import type { Notification } from '../ui/NotificationDropdown';
 import type { UserProfile } from '../../types/user';
+import { useSocket } from '../../context/SocketContext';
+import { fetchNotifications, markAsRead } from '../../../api/notificationApi';
 
 interface TopbarProps {
   currentPage: string;
@@ -28,68 +30,113 @@ interface TopbarProps {
 }
 
 export function Topbar({ currentPage, onNavigate, onLogout, onToggleSidebar, currentUser }: TopbarProps) {
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: '1',
-      type: 'anomaly_detected',
-      title: 'Critical Anomaly Detected',
-      message: 'High CPU usage detected on prod-db-01. Current usage: 95%. Immediate attention required.',
-      timestamp: '2 minutes ago',
-      read: false,
-      severity: 'critical',
-      from: 'System',
-      to: 'Admin'
-    },
-    {
-      id: '2',
-      type: 'anomaly_assigned',
-      title: 'Anomaly Assigned to You',
-      message: 'Admin Sarah Chen has assigned you to investigate memory leak issue in API Gateway service.',
-      timestamp: '15 minutes ago',
-      read: false,
-      severity: 'high',
-      from: 'Sarah Chen (Admin)',
-      to: 'You'
-    },
-    {
-      id: '3',
-      type: 'anomaly_acknowledged',
-      title: 'Developer Acknowledged Anomaly',
-      message: 'Mike Johnson acknowledged the database connection pool exhaustion anomaly and is investigating.',
-      timestamp: '1 hour ago',
-      read: false,
-      severity: 'medium',
-      from: 'Mike Johnson (Developer)',
-      to: 'Admin'
-    },
-    {
-      id: '4',
-      type: 'anomaly_resolved',
-      title: 'Anomaly Resolved',
-      message: 'Alex Kumar successfully resolved the cache invalidation issue. Root cause: Redis configuration mismatch.',
-      timestamp: '2 hours ago',
-      read: true,
-      severity: 'medium',
-      from: 'Alex Kumar (Developer)',
-      to: 'Admin'
-    },
-    {
-      id: '5',
-      type: 'alert_rule',
-      title: 'Alert Rule Triggered: High Error Rate',
-      message: 'Error rate exceeded threshold (>5%) for Payment Gateway. Current rate: 8.3%. Alert rule: "Payment Service Health"',
-      timestamp: '3 hours ago',
-      read: true,
-      severity: 'high',
-      from: 'Alert System',
-      to: 'Admin'
-    },
-  ]);
+  const { socket, isConnected } = useSocket();
+  const [notifications, setNotifications] = useState<Notification[]>([]);
 
-  const handleMarkAsRead = (id: string) => {
-    setNotifications(notifications.map(n => 
-      n.id === id ? { ...n, read: true } : n
-    ));
+  function formatRelativeTime(dateString: string): string {
+    try {
+      const date = new Date(dateString);
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffSec = Math.floor(diffMs / 1000);
+      const diffMin = Math.floor(diffSec / 60);
+      const diffHr = Math.floor(diffMin / 60);
+      const diffDays = Math.floor(diffHr / 24);
+
+      if (diffSec < 60) return 'just now';
+      if (diffMin < 60) return `${diffMin}m ago`;
+      if (diffHr < 24) return `${diffHr}h ago`;
+      if (diffDays === 1) return 'yesterday';
+      return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    } catch {
+      return 'some time ago';
+    }
+  }
+
+  function mapDbToUiNotification(n: any): Notification {
+    let fromLabel = 'System';
+    if (n.sender_user_id) {
+      fromLabel = n.sender_email || 'User';
+    }
+    const timestamp = formatRelativeTime(n.created_at);
+
+    return {
+      id: String(n.notification_id),
+      type: n.notification_type as any,
+      title: n.title,
+      message: n.message,
+      timestamp: timestamp,
+      read: n.is_read,
+      severity: n.severity || 'medium',
+      from: fromLabel,
+      to: 'You'
+    };
+  }
+
+  const loadNotifications = async () => {
+    try {
+      const res = await fetchNotifications({ limit: 50 });
+      if (res && res.notifications) {
+        const mapped = res.notifications.map(mapDbToUiNotification);
+        setNotifications(mapped);
+      }
+    } catch (err) {
+      console.error('Error fetching notifications:', err);
+    }
+  };
+
+  // Register user on socket connection & load notifications
+  useEffect(() => {
+    if (currentUser) {
+      loadNotifications();
+    }
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (socket && isConnected && currentUser) {
+      socket.emit('register_user', currentUser.id);
+    }
+  }, [socket, isConnected, currentUser]);
+
+  // Listen to live notifications
+  useEffect(() => {
+    if (!socket || !isConnected) return;
+
+    const handleNewNotification = (dbNotif: any) => {
+      const uiNotif = mapDbToUiNotification(dbNotif);
+      setNotifications(prev => [uiNotif, ...prev]);
+
+      // Subtly play notification sound if supported
+      try {
+        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-700.wav');
+        audio.volume = 0.3;
+        audio.play().catch(() => {});
+      } catch (e) {}
+    };
+
+    socket.on('new_notification', handleNewNotification);
+    return () => {
+      socket.off('new_notification', handleNewNotification);
+    };
+  }, [socket, isConnected]);
+
+  // Read notifications in the local dashboard page event
+  useEffect(() => {
+    // Poll or reload notifications when returning to dashboard or current page changes
+    if (currentUser) {
+      loadNotifications();
+    }
+  }, [currentPage]);
+
+  const handleMarkAsRead = async (id: string) => {
+    try {
+      await markAsRead(id);
+      setNotifications(prev =>
+        prev.map(n => (n.id === id ? { ...n, read: true } : n))
+      );
+    } catch (err) {
+      console.error('Error marking notification as read:', err);
+    }
   };
 
   const handleViewAll = () => {

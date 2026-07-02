@@ -27,6 +27,9 @@ router.use("/metrics", authenticate, require("./metric.routes"));
 router.use("/dashboard", authenticate, require("./dashboard.routes"));
 router.use("/profile", require("./profile.routes"));
 router.use("/logs", authenticate, require("./log.routes"));
+router.use("/notifications", require("./notification.routes"));
+
+
 
 
 module.exports = router;

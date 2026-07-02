@@ -12,6 +12,12 @@ const port = env.port || 9000;
 // Initialize Socket.io
 initSocket(server);
 
+// Ensure Notifications Table exists
+const NotificationModel = require("./models/notification.model");
+NotificationModel.ensureTable().catch((err) => {
+  console.error("Failed to ensure notifications table:", err);
+});
+
 server.on("error", (err) => {
   if (err.code === "EADDRINUSE") {
     logger.error({

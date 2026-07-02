@@ -25,6 +25,11 @@ const initSocket = (server) => {
       console.log(`[Socket] Client ${socket.id} subscribed to service_${serviceId}`);
     });
 
+    socket.on('register_user', (userId) => {
+      socket.join(`user_${userId}`);
+      console.log(`[Socket] Client ${socket.id} registered for user_${userId}`);
+    });
+
     socket.on('disconnect', () => {
       console.log(`[Socket] Client disconnected: ${socket.id}`);
     });

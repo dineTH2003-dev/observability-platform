@@ -115,6 +115,16 @@ exports.createFromMlDetection = async (payload) => {
 
     await client.query("COMMIT");
 
+    // Trigger Notification Service
+    try {
+      const notificationService = require('./notification.service');
+      notificationService.notifyAnomalyDetected(incident, anomaly).catch(err => {
+        console.error("notifyAnomalyDetected failed:", err.message);
+      });
+    } catch (err) {
+      console.error("Failed to load notificationService:", err.message);
+    }
+
     return {
       anomaly: {
         ...anomaly,

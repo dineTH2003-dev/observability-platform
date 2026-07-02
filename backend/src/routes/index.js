@@ -25,6 +25,7 @@ router.use("/alert-settings", authenticate, authorize(['admin']), require("./ale
 router.use("/metrics", authenticate, require("./metric.routes"));
 router.use("/dashboard", authenticate, require("./dashboard.routes"));
 router.use("/profile", require("./profile.routes"));
+router.use("/notifications", require("./notification.routes"));
 
 
 

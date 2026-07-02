@@ -29,6 +29,12 @@ exports.createIncidentFromAnomaly = async (anomalyData) => {
     `Incident auto-created from ${anomalyData.anomaly_type} anomaly (value: ${anomalyData.metric_value ?? 'N/A'})`
   );
 
+  // Trigger notification
+  const notificationService = require('./notification.service');
+  notificationService.notifyAnomalyDetected(incident, anomaly).catch(err => {
+    console.error('notifyAnomalyDetected failed:', err.message);
+  });
+
   return { incident, anomaly };
 };
 
@@ -84,6 +90,12 @@ exports.assignEngineer = async (incidentId, engineerId, actorId) => {
     [incidentId]
   );
 
+  // Trigger notification
+  const notificationService = require('./notification.service');
+  notificationService.notifyEngineerAssigned(updated, engineerId, actorId).catch(err => {
+    console.error('notifyEngineerAssigned failed:', err.message);
+  });
+
   return updated;
 };
 
@@ -108,6 +120,12 @@ exports.acknowledgeIncident = async (incidentId, actorId) => {
 
   await TimelineModel.addEvent(incidentId, actorId, 'acknowledged', 'Incident acknowledged — engineer is investigating');
 
+  // Trigger notification
+  const notificationService = require('./notification.service');
+  notificationService.notifyAnomalyAcknowledged(updated, actorId).catch(err => {
+    console.error('notifyAnomalyAcknowledged failed:', err.message);
+  });
+
   return updated;
 };
 
@@ -130,6 +148,12 @@ exports.resolveIncident = async (incidentId, actorId) => {
   );
 
   await TimelineModel.addEvent(incidentId, actorId, 'resolved', 'Incident resolved');
+
+  // Trigger notification
+  const notificationService = require('./notification.service');
+  notificationService.notifyAnomalyResolved(updated, actorId).catch(err => {
+    console.error('notifyAnomalyResolved failed:', err.message);
+  });
 
   return updated;
 };

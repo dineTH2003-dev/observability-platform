@@ -46,6 +46,36 @@ CREATE TABLE IF NOT EXISTS password_resets (
   expires_at TIMESTAMP NOT NULL
 );
 
+-- Alert Management
+CREATE TABLE IF NOT EXISTS alerts (
+  id VARCHAR(50) PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  condition TEXT NOT NULL,
+  severity VARCHAR(20) NOT NULL DEFAULT 'medium',
+  duration INT DEFAULT 0,
+  enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  recipients JSONB NOT NULL DEFAULT '[]'::jsonb,
+  scope VARCHAR(50) DEFAULT 'all',
+  cooldown INT DEFAULT 0,
+  send_once BOOLEAN NOT NULL DEFAULT FALSE,
+  threshold NUMERIC(10, 4),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS alert_settings (
+  id INT PRIMARY KEY DEFAULT 1,
+  alert_events JSONB NOT NULL DEFAULT '{}'::jsonb,
+  recipients JSONB NOT NULL DEFAULT '{}'::jsonb,
+  email_channel_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+  email_address VARCHAR(255),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+INSERT INTO alert_settings (id)
+VALUES (1)
+ON CONFLICT (id) DO NOTHING;
+
 --Ticket Management
 
 CREATE TYPE ticket_priority AS ENUM ('low', 'medium', 'high');
@@ -269,6 +299,33 @@ CREATE TABLE IF NOT EXISTS incident_timeline (
   message     TEXT        NOT NULL,
   occurred_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- ============================================================
+--  5. Notifications
+-- ============================================================
+CREATE TABLE IF NOT EXISTS notifications (
+  notification_id SERIAL PRIMARY KEY,
+  recipient_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  sender_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  incident_id UUID REFERENCES incidents(incident_id) ON DELETE SET NULL,
+  anomaly_id UUID REFERENCES anomalies(anomaly_id) ON DELETE SET NULL,
+  title VARCHAR(255) NOT NULL,
+  message TEXT NOT NULL,
+  notification_type VARCHAR(50) NOT NULL,
+  is_read BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  read_at TIMESTAMPTZ,
+  deleted_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_notif_recipient
+  ON notifications(recipient_user_id) WHERE deleted_at IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_notif_unread
+  ON notifications(recipient_user_id, is_read) WHERE deleted_at IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_notif_created
+  ON notifications(created_at DESC) WHERE deleted_at IS NULL;
 
 -- ============================================================
 --  5. Indexes for fast queries

@@ -139,7 +139,7 @@ export function Reports() {
     // Group errors by hour for bar chart
     const grouped: { [key: string]: number } = {};
 
-    reportData.forEach((row) => {
+    reportData.forEach((row: any) => {
       const date = new Date(row.recorded_at);
       const hourKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:00`;
       grouped[hourKey] = (grouped[hourKey] || 0) + 1;

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, FileText, CheckCircle, AlertCircle } from 'lucide-react';
+import { FileText, CheckCircle, AlertCircle } from 'lucide-react';
 import { Dialog, DialogContent } from './dialog';
 import { Button } from './button';
 import { Input } from './input';

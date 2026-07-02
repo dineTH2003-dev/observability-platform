@@ -25,7 +25,21 @@ exports.deleteService = async (id) => {
 exports.saveLogConfig = async (service_id, { log_path, is_enabled }) => {
   const svc = await ServiceModel.findById(service_id);
   if (!svc) throw new ApiError(404, "Service not found");
-  if (!log_path) throw new ApiError(400, "log_path is required");
+
+  if (!log_path) {
+    if (is_enabled) {
+      throw new ApiError(400, "log_path is required to enable log analysis");
+    }
+    const existing = await LogConfigModel.findByServiceId(service_id);
+    if (existing) {
+      return LogConfigModel.upsertForService(service_id, {
+        log_path: existing.log_path,
+        is_enabled: false,
+      });
+    }
+    return { service_id, is_enabled: false };
+  }
+
   return LogConfigModel.upsertForService(service_id, { log_path, is_enabled });
 };
 

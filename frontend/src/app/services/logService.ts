@@ -1,9 +1,10 @@
-/**
- * Log Service
- * Handles log-related API calls
- */
-
 import { api } from './api';
+
+interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  message?: string;
+}
 
 export interface Log {
   id: string;
@@ -22,25 +23,24 @@ export const logService = {
     host?: string;
     search?: string;
   }): Promise<Log[]> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve([]);
-      }, 500);
-    });
+    let url = '/logs';
+    if (filters) {
+      const params = new URLSearchParams();
+      if (filters.level && filters.level !== 'all') params.append('level', filters.level);
+      if (filters.service && filters.service !== 'all') params.append('service', filters.service);
+      if (filters.host && filters.host !== 'all') params.append('host', filters.host);
+      if (filters.search) params.append('search', filters.search);
+      const query = params.toString();
+      if (query) {
+        url += `?${query}`;
+      }
+    }
+    const res = await api.get<ApiResponse<Log[]>>(url);
+    return res.data;
   },
 
   async getLogById(id: string): Promise<Log> {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          id,
-          timestamp: new Date().toISOString(),
-          level: 'info',
-          service: 'mock-service',
-          host: 'mock-host',
-          message: 'Mock log message',
-        });
-      }, 500);
-    });
+    const res = await api.get<ApiResponse<Log>>(`/logs/${id}`);
+    return res.data;
   },
 };

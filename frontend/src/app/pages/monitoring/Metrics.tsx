@@ -21,6 +21,7 @@ export function Metrics() {
   const [hosts, setHosts] = useState<Host[]>([]);
   const [selectedHostId, setSelectedHostId] = useState<string>('');
   const [metrics, setMetrics] = useState<ServerMetric[]>([]);
+  const [baselines, setBaselines] = useState<any[]>([]);
 
   const latestMetric = useLiveMetrics(selectedHostId ? parseInt(selectedHostId) : undefined);
 
@@ -45,6 +46,13 @@ export function Metrics() {
       try {
         const fetchedMetrics = await metricService.getServerMetrics(parseInt(selectedHostId), 60);
         setMetrics(fetchedMetrics);
+        
+        try {
+          const fetchedBaselines = await metricService.getServerBaselines(parseInt(selectedHostId), 60);
+          setBaselines(fetchedBaselines);
+        } catch (baselineErr) {
+          console.warn("Failed to load baselines", baselineErr);
+        }
       } catch (err) {
         console.error("Failed to load metrics", err);
       }
@@ -74,9 +82,35 @@ export function Metrics() {
   const mapData = (key: keyof ServerMetric) => {
     return metrics.map((m) => {
       const val = Number(m[key]) || 0;
+
+      // Find matching baseline based on closest minute
+      const recordTime = new Date(m.recorded_at).getTime();
+      let matchedBaseline = null;
+
+      for (const b of baselines) {
+        const mappedKey = key.replace('_usage', '_avg').replace('thread_count', 'thread_count_avg');
+        if (b.metric_name === mappedKey) {
+          const bTime = new Date(b.recorded_at).getTime();
+          if (Math.abs(bTime - recordTime) < 60000) {
+            matchedBaseline = b;
+            break;
+          }
+        }
+      }
+
+      const lower = matchedBaseline?.cpu_lower ?? matchedBaseline?.lower_bound ?? null;
+      const upper = matchedBaseline?.cpu_upper ?? matchedBaseline?.upper_bound ?? null;
+      const anomaly = (lower !== null && val < lower) || (upper !== null && val > upper) ? val : null;
+      const range = (lower !== null && upper !== null) ? [lower, upper] : null;
+
       return {
         time: new Date(m.recorded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         actual: val,
+        baseline: matchedBaseline?.cpu_baseline ?? matchedBaseline?.baseline ?? null,
+        lower_bound: lower,
+        upper_bound: upper,
+        range: range,
+        anomaly_actual: anomaly,
       };
     });
   };
@@ -130,13 +164,24 @@ export function Metrics() {
                 }}
               />
               
-              {/* Actual Metric Line with Area */}
+              {/* Baseline Bounds (Clean Floating Range) */}
+              <Area
+                type="monotone"
+                dataKey="range"
+                stroke="none"
+                fill={color}
+                fillOpacity={0.15}
+                name="Normal Range"
+                isAnimationActive={false}
+              />
+
+              {/* Actual Metric Line */}
               <Area 
                 type="monotone" 
                 dataKey="actual" 
                 stroke={color}
                 strokeWidth={2}
-                fill={`url(#gradient-${title})`}
+                fill="none"
                 name="Current"
               />
             </ComposedChart>

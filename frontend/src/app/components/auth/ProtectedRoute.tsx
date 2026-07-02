@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { useAuthContext, type UserRole } from '../../context/AuthContext';
 import { AccessDenied } from '../../pages/accessDenied/AccessDenied';
 
@@ -14,7 +14,7 @@ export function ProtectedRoute({ allowedRoles, children }: ProtectedRouteProps) 
     return <AccessDenied />;
   }
 
-  if (!allowedRoles.includes(user.role)) {
+  if (!allowedRoles.includes(user.role as UserRole)) {
     return <AccessDenied />;
   }
 

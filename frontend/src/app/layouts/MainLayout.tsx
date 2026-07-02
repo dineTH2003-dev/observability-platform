@@ -1,4 +1,5 @@
-import { useState, ReactNode } from 'react';
+import { useState } from 'react';
+import type { ReactNode } from 'react';
 import { Sidebar } from '../components/layout/Sidebar';
 import { Topbar } from '../components/layout/Topbar';
 import type { UserProfile } from '../types/user';

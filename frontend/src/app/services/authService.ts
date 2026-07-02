@@ -35,7 +35,7 @@ export const authService = {
     return Promise.resolve();
   },
 
-  async resetPassword(email: string): Promise<void> {
+  async resetPassword(_email: string): Promise<void> {
     return Promise.resolve();
   },
 };

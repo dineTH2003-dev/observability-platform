@@ -5,5 +5,6 @@ const controller = require("../controllers/agent.controller");
 router.post("/heartbeat", controller.heartbeat);
 router.post("/metrics",   controller.ingestMetrics);
 router.post("/services",  controller.ingestServices);
+router.post("/logs",      controller.ingestLogs);
 
 module.exports = router;

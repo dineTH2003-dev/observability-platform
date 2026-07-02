@@ -286,7 +286,6 @@ export function Profile({ onLogout }: ProfilePageProps) {
         <AccountSettings
           disabled={isSaving}
           errors={passwordErrors}
-          isEditing={isEditing}
           isSaving={isSaving}
           values={passwordValues}
           onChange={handlePasswordChange}

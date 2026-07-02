@@ -98,3 +98,26 @@ exports.ingestServices = asyncHandler(async (req, res) => {
 
   res.json({ success: true, data: result });
 });
+
+// POST /api/agent/logs  { server_id, logs: [{ service_id, timestamp, level, message }] }
+exports.ingestLogs = asyncHandler(async (req, res) => {
+  const { server_id, logs } = req.body;
+  if (!server_id)
+    return res
+      .status(400)
+      .json({ success: false, message: "server_id is required" });
+  if (!Array.isArray(logs))
+    return res
+      .status(400)
+      .json({ success: false, message: "logs must be an array" });
+
+  req.log("info", {
+    msg: "Agent logs ingestion",
+    server_id,
+    count: logs.length,
+  });
+
+  const count = await AgentService.ingestLogs(Number(server_id), logs);
+
+  res.json({ success: true, count });
+});

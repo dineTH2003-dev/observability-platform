@@ -47,7 +47,7 @@ class ApiClient:
         try:
             r = self._s.post(url, json=body, timeout=self.timeout)
             r.raise_for_status()
-            return True
+            return r.json()
         except requests.ConnectionError:
             get_logger("api").warning("Cannot reach %s", url)
         except requests.Timeout:
@@ -56,7 +56,7 @@ class ApiClient:
             get_logger("api").error("HTTP %s from %s", e.response.status_code, url)
         except Exception as e:
             get_logger("api").error("Error posting to %s: %s", url, e)
-        return False
+        return None
 
     def heartbeat(self):
         return self._post("/api/agent/heartbeat", {"server_id": self.server_id})
@@ -79,5 +79,14 @@ class ApiClient:
             {
                 "server_id": self.server_id,
                 "services": services,
+            },
+        )
+
+    def send_logs(self, logs):
+        return self._post(
+            "/api/agent/logs",
+            {
+                "server_id": self.server_id,
+                "logs": logs,
             },
         )

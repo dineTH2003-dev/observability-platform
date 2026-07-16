@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Bell, CheckCircle, AlertCircle, UserPlus, CheckCheck, Filter, Search, Trash2, Check, ArrowLeft } from 'lucide-react';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -11,6 +11,12 @@ import {
   SelectValue,
 } from '../../components/ui/select';
 import type { Notification } from '../../components/ui/NotificationDropdown';
+import {
+  fetchNotifications,
+  markAsRead as markNotificationAsRead,
+  markAllAsRead as markAllNotificationsAsRead,
+  deleteNotification as deleteNotificationApi,
+} from '../../../api/notificationApi';
 
 interface NotificationsPageProps {
   onNavigate?: (page: string) => void;
@@ -20,118 +26,64 @@ export function NotificationsPage({ onNavigate }: NotificationsPageProps = {}) {
   const [filter, setFilter] = useState<'all' | 'unread' | 'read'>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: '1',
-      type: 'anomaly_detected',
-      title: 'Critical Anomaly Detected',
-      message: 'High CPU usage detected on prod-db-01. Current usage: 95%. Immediate attention required.',
-      timestamp: '2 minutes ago',
-      read: false,
-      severity: 'critical',
-      from: 'System',
-      to: 'Admin'
-    },
-    {
-      id: '2',
-      type: 'anomaly_assigned',
-      title: 'Anomaly Assigned to You',
-      message: 'Admin Sarah Chen has assigned you to investigate memory leak issue in API Gateway service.',
-      timestamp: '15 minutes ago',
-      read: false,
-      severity: 'high',
-      from: 'Sarah Chen (Admin)',
-      to: 'You'
-    },
-    {
-      id: '3',
-      type: 'anomaly_acknowledged',
-      title: 'Developer Acknowledged Anomaly',
-      message: 'Mike Johnson acknowledged the database connection pool exhaustion anomaly and is investigating.',
-      timestamp: '1 hour ago',
-      read: false,
-      severity: 'medium',
-      from: 'Mike Johnson (Developer)',
-      to: 'Admin'
-    },
-    {
-      id: '4',
-      type: 'anomaly_resolved',
-      title: 'Anomaly Resolved',
-      message: 'Alex Kumar successfully resolved the cache invalidation issue. Root cause: Redis configuration mismatch.',
-      timestamp: '2 hours ago',
-      read: true,
-      severity: 'medium',
-      from: 'Alex Kumar (Developer)',
-      to: 'Admin'
-    },
-    {
-      id: '5',
-      type: 'alert_rule',
-      title: 'Alert Rule Triggered: High Error Rate',
-      message: 'Error rate exceeded threshold (>5%) for Payment Gateway. Current rate: 8.3%. Alert rule: "Payment Service Health"',
-      timestamp: '3 hours ago',
-      read: true,
-      severity: 'high',
-      from: 'Alert System',
-      to: 'Admin'
-    },
-    {
-      id: '6',
-      type: 'anomaly_detected',
-      title: 'Anomaly Detected: Network Latency',
-      message: 'Network latency spike detected on prod-web-01. Average latency: 850ms (normal: 120ms).',
-      timestamp: '4 hours ago',
-      read: true,
-      severity: 'medium',
-      from: 'System',
-      to: 'Admin'
-    },
-    {
-      id: '7',
-      type: 'anomaly_assigned',
-      title: 'New Assignment: Disk Space Issue',
-      message: 'You have been assigned to investigate disk space usage anomaly on staging-db-02.',
-      timestamp: '5 hours ago',
-      read: true,
-      severity: 'low',
-      from: 'Sarah Chen (Admin)',
-      to: 'You'
-    },
-    {
-      id: '8',
-      type: 'alert_rule',
-      title: 'Alert Rule Triggered: Response Time',
-      message: 'API response time exceeded 2s threshold. Current average: 3.2s. Alert rule: "API Performance Monitor"',
-      timestamp: '6 hours ago',
-      read: true,
-      severity: 'medium',
-      from: 'Alert System',
-      to: 'Admin'
-    },
-    {
-      id: '9',
-      type: 'anomaly_resolved',
-      title: 'Anomaly Resolved: Database Deadlock',
-      message: 'Emma Davis resolved database deadlock issue by optimizing transaction isolation levels.',
-      timestamp: '8 hours ago',
-      read: true,
-      severity: 'high',
-      from: 'Emma Davis (Developer)',
-      to: 'Admin'
-    },
-    {
-      id: '10',
-      type: 'anomaly_acknowledged',
-      title: 'Developer Acknowledged Assignment',
-      message: 'Chris Taylor acknowledged the service mesh connectivity anomaly and started investigation.',
-      timestamp: '10 hours ago',
-      read: true,
-      severity: 'low',
-      from: 'Chris Taylor (Developer)',
-      to: 'Admin'
-    },
-  ]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+
+  const formatRelativeTime = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffSec = Math.floor(diffMs / 1000);
+      const diffMin = Math.floor(diffSec / 60);
+      const diffHr = Math.floor(diffMin / 60);
+      const diffDays = Math.floor(diffHr / 24);
+
+      if (diffSec < 60) return 'just now';
+      if (diffMin < 60) return `${diffMin} minutes ago`;
+      if (diffHr < 24) return `${diffHr} hours ago`;
+      if (diffDays === 1) return 'yesterday';
+      return date.toLocaleString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+      });
+    } catch {
+      return dateString;
+    }
+  };
+
+  const mapDbToUiNotification = (n: any): Notification => {
+    const fromLabel = n.sender_user_id ? n.sender_email || 'User' : 'System';
+    const severity = n.severity || (n.notification_type === 'alert_rule' ? 'high' : 'medium');
+    return {
+      id: String(n.notification_id),
+      type: n.notification_type as Notification['type'],
+      title: n.title,
+      message: n.message,
+      timestamp: n.created_at ? formatRelativeTime(n.created_at) : 'some time ago',
+      read: Boolean(n.is_read),
+      severity,
+      from: fromLabel,
+      to: 'You',
+    };
+  };
+
+  const loadNotifications = useCallback(async () => {
+    try {
+      const res = await fetchNotifications({ limit: 50 });
+      if (res?.notifications) {
+        setNotifications(res.notifications.map(mapDbToUiNotification));
+      }
+    } catch (err) {
+      console.error('Failed to load notifications:', err);
+      setNotifications([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadNotifications();
+  }, [loadNotifications]);
 
   const getNotificationIcon = (type: Notification['type']) => {
     switch (type) {
@@ -182,17 +134,35 @@ export function NotificationsPage({ onNavigate }: NotificationsPageProps = {}) {
     }
   };
 
-  const handleMarkAsRead = (id: string) => {
-    setNotifications(notifications.map(n => 
+  const handleMarkAsRead = async (id: string) => {
+    try {
+      await markNotificationAsRead(id);
+    } catch (err) {
+      console.error('Failed to mark notification as read:', err);
+    }
+
+    setNotifications(notifications.map(n =>
       n.id === id ? { ...n, read: true } : n
     ));
   };
 
-  const handleMarkAllAsRead = () => {
+  const handleMarkAllAsRead = async () => {
+    try {
+      await markAllNotificationsAsRead();
+    } catch (err) {
+      console.error('Failed to mark all notifications as read:', err);
+    }
+
     setNotifications(notifications.map(n => ({ ...n, read: true })));
   };
 
-  const handleDeleteNotification = (id: string) => {
+  const handleDeleteNotification = async (id: string) => {
+    try {
+      await deleteNotificationApi(id);
+    } catch (err) {
+      console.error('Failed to delete notification:', err);
+    }
+
     setNotifications(notifications.filter(n => n.id !== id));
   };
 

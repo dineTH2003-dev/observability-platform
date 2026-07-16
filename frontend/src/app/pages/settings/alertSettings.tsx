@@ -15,6 +15,14 @@ import {
 import type { AlertRule } from '../../types/alert';
 import { AlertRuleList } from '../../components/AlertRuleList';
 import { AlertRuleModal } from '../../components/AlertRuleModal';
+import {
+  fetchAlertRules as apiFetchAlertRules,
+  fetchAlertSettings as apiFetchAlertSettings,
+  saveAlertSettings as apiSaveAlertSettings,
+  createAlertRule,
+  updateAlertRule,
+  deleteAlertRule,
+} from '../../../api/alertApi';
 
 export function AlertSettings() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -22,8 +30,6 @@ export function AlertSettings() {
   const [alertRules, setAlertRules] = useState<AlertRule[]>([]);
   const [saveSettingsError, setSaveSettingsError] = useState<string | null>(null);
   const [saveSettingsSuccess, setSaveSettingsSuccess] = useState(false);
-
-  const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '/api';
 
   const [alertEvents, setAlertEvents] = useState({
     incidentCreated: true,
@@ -41,26 +47,20 @@ export function AlertSettings() {
 
   const fetchSettings = async () => {
     try {
-      const res = await fetch(`${API_BASE}/alert-settings`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data) {
-          setAlertEvents(data.alertEvents || {});
-          setRecipients(data.recipients || {});
-        }
+      const data = await apiFetchAlertSettings();
+      if (data) {
+        setAlertEvents(data.alertEvents || {});
+        setRecipients(data.recipients || {});
       }
     } catch (err) {
       console.error('Failed to load settings', err);
     }
   };
 
-  const fetchAlertRules = async () => {
+  const fetchAlertRulesData = async () => {
     try {
-      const res = await fetch(`${API_BASE}/alerts`);
-      if (res.ok) {
-        const data = await res.json();
-        setAlertRules(Array.isArray(data) ? data : data.data || []);
-      }
+      const data = await apiFetchAlertRules();
+      setAlertRules(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error('Failed to fetch alert rules', err);
     }
@@ -68,24 +68,15 @@ export function AlertSettings() {
 
   useEffect(() => {
     fetchSettings();
-    fetchAlertRules();
+    fetchAlertRulesData();
   }, []);
 
   const handleToggleRule = async (ruleId: string) => {
     try {
       const rule = alertRules.find(r => r.id === ruleId);
       if (!rule) return;
-
-      const res = await fetch(`${API_BASE}/alerts/${ruleId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ enabled: !rule.enabled }),
-      });
-
-      if (res.ok) {
-        const updatedRule = await res.json();
-        setAlertRules(rules => rules.map(r => (r.id === ruleId ? updatedRule : r)));
-      }
+      const updatedRule = await updateAlertRule(ruleId, { enabled: !rule.enabled });
+      setAlertRules(rules => rules.map(r => (r.id === ruleId ? updatedRule : r)));
     } catch (err) {
       console.error('Toggle failed', err);
     }
@@ -93,10 +84,8 @@ export function AlertSettings() {
 
   const handleDeleteRule = async (ruleId: string) => {
     try {
-      const res = await fetch(`${API_BASE}/alerts/${ruleId}`, { method: 'DELETE' });
-      if (res.ok) {
-        setAlertRules(rules => rules.filter(rule => rule.id !== ruleId));
-      }
+      await deleteAlertRule(ruleId);
+      setAlertRules(rules => rules.filter(rule => rule.id !== ruleId));
     } catch (err) {
       console.error('Delete failed', err);
     }
@@ -105,22 +94,10 @@ export function AlertSettings() {
   const handleSaveRulePayload = async (payload: Partial<AlertRule>): Promise<boolean> => {
     try {
       if (editingRule) {
-        const res = await fetch(`${API_BASE}/alerts/${editingRule.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        if (!res.ok) return false;
-        const updatedRule = await res.json();
+        const updatedRule = await updateAlertRule(editingRule.id, payload);
         setAlertRules(prev => prev.map(r => r.id === editingRule.id ? updatedRule : r));
       } else {
-        const res = await fetch(`${API_BASE}/alerts`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-        if (!res.ok) return false;
-        const createdRule = await res.json();
+        const createdRule = await createAlertRule(payload);
         setAlertRules(prev => [...prev, createdRule]);
       }
       return true;
@@ -145,21 +122,12 @@ export function AlertSettings() {
     }
 
     try {
-      const res = await fetch(`${API_BASE}/alert-settings`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ alertEvents, recipients }),
-      });
-
-      if (res.ok) {
-        setSaveSettingsSuccess(true);
-        setTimeout(() => setSaveSettingsSuccess(false), 3000);
-      } else {
-        setSaveSettingsError("Failed to save settings. Please try again.");
-      }
+      await apiSaveAlertSettings({ alertEvents, recipients });
+      setSaveSettingsSuccess(true);
+      setTimeout(() => setSaveSettingsSuccess(false), 3000);
     } catch (err) {
       console.error('Save failed', err);
-      setSaveSettingsError("Network error. Failed to save settings.");
+      setSaveSettingsError("Failed to save settings. Please try again.");
     }
   };
 

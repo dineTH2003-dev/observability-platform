@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from '../../components/ui/select';
 import { FileText, Download } from 'lucide-react';
+import api from '../../../api/api';
 import { hostService } from '../../services/hostService';
 import { serviceService } from '../../services/serviceService';
 import type { Host } from '../../types/host';
@@ -27,7 +28,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 
-type ReportType = 'server' | 'service' | 'error' | null;
+type ReportType = 'infrastructure' | 'performance' | 'incident' | 'reliability' | null;
 
 export function Reports() {
   const [reportType, setReportType] = useState<ReportType>(null);
@@ -38,14 +39,11 @@ export function Reports() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // New states for dynamic scope
   const [hosts, setHosts] = useState<Host[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [selectedServerId, setSelectedServerId] = useState<string>('');
   const [selectedServiceId, setSelectedServiceId] = useState<string>('');
-  const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '/api';
 
-  // Fetch hosts and services on mount
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -62,160 +60,134 @@ export function Reports() {
     fetchData();
   }, []);
 
-  // Reset selected IDs when reportType changes
   useEffect(() => {
     setSelectedServerId('');
     setSelectedServiceId('');
   }, [reportType]);
 
-  // Calculate summary statistics
   const calculateSummary = () => {
-    if (!reportData || reportData.length === 0) return null;
+    if (!reportData) return null;
 
-    const summary: any = {
-      totalRecords: reportData.length,
-      latestTimestamp: null,
-    };
-
-    if (reportType === 'error') {
-      return summary; // Only show total count for error reports
+    if (reportType === 'infrastructure') {
+      const records = Array.isArray(reportData) ? reportData : [];
+      let cpuValues = records.map((r: any) => Number(r.cpu || 0));
+      let memValues = records.map((r: any) => Number(r.memory || 0));
+      return {
+        totalRecords: records.length,
+        avgCpu: (cpuValues.reduce((a, b) => a + b, 0) / (cpuValues.length || 1)).toFixed(2),
+        avgMemory: (memValues.reduce((a, b) => a + b, 0) / (memValues.length || 1)).toFixed(2),
+      };
     }
 
-    // Calculate CPU and memory stats for service/server reports
-    let cpuValues: number[] = [];
-    let memoryValues: number[] = [];
-    let latestTime: string | null = null;
-
-    reportData.forEach((row: any) => {
-      if (row.cpu_usage !== null && row.cpu_usage !== undefined) {
-        cpuValues.push(parseFloat(row.cpu_usage));
-      }
-      if (row.memory_usage !== null && row.memory_usage !== undefined) {
-        memoryValues.push(parseFloat(row.memory_usage));
-      }
-      if (row.recorded_at) {
-        latestTime = row.recorded_at;
-      }
-    });
-
-    if (cpuValues.length > 0) {
-      summary.avgCpu = (cpuValues.reduce((a, b) => a + b, 0) / cpuValues.length).toFixed(2);
-      summary.maxCpu = Math.max(...cpuValues).toFixed(2);
-      summary.minCpu = Math.min(...cpuValues).toFixed(2);
+    if (reportType === 'performance') {
+      const records = Array.isArray(reportData) ? reportData : [];
+      let cpuValues = records.map((r: any) => Number(r.cpu || 0));
+      let memValues = records.map((r: any) => Number(r.memory || 0));
+      return {
+        totalRecords: records.length,
+        avgResponseTime: "N/A", // Not currently collected
+        avgErrorRate: "N/A", // Not currently collected
+        avgCpu: (cpuValues.reduce((a, b) => a + b, 0) / (cpuValues.length || 1)).toFixed(2),
+        avgMemory: (memValues.reduce((a, b) => a + b, 0) / (memValues.length || 1)).toFixed(2),
+      };
     }
 
-    if (memoryValues.length > 0) {
-      summary.avgMemory = (memoryValues.reduce((a, b) => a + b, 0) / memoryValues.length).toFixed(2);
-      summary.maxMemory = Math.max(...memoryValues).toFixed(2);
-      summary.minMemory = Math.min(...memoryValues).toFixed(2);
+    if (reportType === 'incident') {
+      const totalAnomalies = reportData.anomalies?.length || 0;
+      const totalIncidents = reportData.incidents?.length || 0;
+      return { totalAnomalies, totalIncidents };
     }
 
-    if (latestTime) {
-      summary.latestTimestamp = new Date(latestTime).toLocaleString();
+    if (reportType === 'reliability') {
+      return {
+        uptime: reportData.uptime_percentage,
+        mttd: reportData.mttd_seconds,
+        mttr: reportData.mttr_seconds,
+        downtime: reportData.critical_downtime_seconds,
+      };
     }
 
-    return summary;
+    return null;
   };
 
-  // Prepare chart data for server/service reports
-  const prepareChartData = () => {
-    if (!reportData || reportData.length === 0 || reportType === 'error') return [];
-
-    // Sort by recorded_at ascending for time series
-    const sortedData = [...reportData].sort((a, b) => new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime());
-
-    return sortedData.map((row) => ({
-      time: new Date(row.recorded_at).toLocaleString(),
-      cpu: row.cpu_usage ? parseFloat(row.cpu_usage) : 0,
-      memory: row.memory_usage ? parseFloat(row.memory_usage) : 0,
-      timestamp: row.recorded_at,
+  const prepareInfraChartData = () => {
+    if (!Array.isArray(reportData)) return [];
+    return reportData.map((row) => ({
+      time: new Date(row.time).toLocaleString(),
+      cpu: row.cpu ? parseFloat(row.cpu) : 0,
+      memory: row.memory ? parseFloat(row.memory) : 0,
     }));
   };
 
-  // Prepare chart data for error reports
-  const prepareErrorChartData = () => {
-    if (!reportData || reportData.length === 0 || reportType !== 'error') return [];
-
-    // Group errors by hour for bar chart
-    const grouped: { [key: string]: number } = {};
-
-    reportData.forEach((row: any) => {
-      const date = new Date(row.recorded_at);
-      const hourKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:00`;
-      grouped[hourKey] = (grouped[hourKey] || 0) + 1;
-    });
-
-    return Object.entries(grouped)
-      .sort(([a], [b]) => new Date(a).getTime() - new Date(b).getTime())
-      .map(([time, count]) => ({
-        time,
-        errors: count,
-      }));
+  const preparePerformanceChartData = () => {
+    if (!Array.isArray(reportData)) return [];
+    return reportData.map((row) => ({
+      time: new Date(row.time).toLocaleString(),
+      cpu: row.cpu ? parseFloat(row.cpu) : 0,
+      memory: row.memory ? parseFloat(row.memory) : 0,
+    }));
   };
 
+  const prepareIncidentChartData = () => {
+    if (!reportData || !reportData.incidents) return [];
+    const grouped: { [key: string]: number } = {};
+    reportData.incidents.forEach((row: any) => {
+      const date = new Date(row.time).toLocaleDateString();
+      grouped[date] = (grouped[date] || 0) + 1;
+    });
+    return Object.entries(grouped).map(([time, count]) => ({ time, count }));
+  };
 
-  const isGenerateDisabled = !fromDate || !toDate || fromDate > toDate || !reportType || (reportType === 'server' && !selectedServerId);
+  const isGenerateDisabled = !fromDate || !toDate || fromDate > toDate || !reportType || (reportType === 'infrastructure' && !selectedServerId);
 
   const buildReportQuery = () => {
     const params = new URLSearchParams();
-
     if (reportType) params.append('type', reportType);
     if (fromDate) params.append('from', fromDate);
     if (toDate) params.append('to', toDate);
 
     let scopeId = null;
-    if (reportType === 'server') {
+    if (reportType === 'infrastructure') {
       scopeId = selectedServerId;
-    } else if (reportType === 'service') {
+    } else if (reportType === 'performance') {
       scopeId = selectedServiceId && selectedServiceId !== 'global' ? selectedServiceId : null;
-    } // for error, scopeId remains null
+    }
 
     if (scopeId !== null) params.append('scopeId', scopeId);
-
     return params.toString();
-  };
-
-  const parseError = async (response: Response) => {
-    const contentType = response.headers.get('content-type') || '';
-    if (contentType.includes('application/json')) {
-      const json = await response.json().catch(() => null);
-      return json?.message || JSON.stringify(json) || response.statusText;
-    }
-    return response.text().catch(() => response.statusText);
   };
 
   const handleGenerateReport = async () => {
     setError('');
     if (isGenerateDisabled) return;
-
     setLoading(true);
     setReportGenerated(false);
 
     try {
       const query = buildReportQuery();
-      const response = await fetch(`${API_BASE}/reports?${query}`, {
-        method: 'GET',
-      });
+      // Use shared api axios instance — automatically attaches JWT via interceptor
+      const result = await api.get(`/reports?${query}`);
+      const rawData = result.data?.data;
 
-      if (!response.ok) {
-        const msg = await parseError(response);
-        throw new Error(msg || 'Failed to fetch report');
-      }
-
-      const result = await response.json();
-      const rows = Array.isArray(result.data) ? result.data : [];
-
-      if (rows.length === 0) {
-        setError('No records found for selected range');
-        setReportData(null);
+      // For some reports data is an object, for others it's an array
+      if (!rawData || (Array.isArray(rawData) && rawData.length === 0)) {
+        if (reportType === 'incident' && (rawData?.anomalies?.length > 0 || rawData?.incidents?.length > 0)) {
+          setReportData(rawData);
+        } else if (reportType === 'reliability' && rawData) {
+          setReportData(rawData);
+        } else {
+          setError('No records found for the selected date range.');
+          setReportData(null);
+        }
       } else {
-        setReportData(rows);
+        setReportData(rawData);
       }
 
       setReportGenerated(true);
     } catch (err: any) {
       console.error(err);
-      setError(err.message || 'Something went wrong');
+      const msg = err.response?.data?.message || err.message || 'Something went wrong';
+      setError(msg);
       setReportData(null);
       setReportGenerated(true);
     } finally {
@@ -227,38 +199,31 @@ export function Reports() {
     setError('');
     try {
       const query = buildReportQuery();
-      const response = await fetch(`${API_BASE}/reports/download?${query}`, {
-        method: 'GET',
-      });
+      // POST to the authenticated PDF route — JWT auto-attached by api interceptor
+      const response = await api.post(`/reports/export/pdf?${query}`, {}, { responseType: 'blob' });
 
-      if (!response.ok) {
-        const msg = await parseError(response);
-        throw new Error(msg || 'Failed to download PDF');
-      }
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
       const a = document.createElement('a');
       a.href = url;
-      a.download = `report-${reportType}-${fromDate}-to-${toDate}.pdf`;
+      a.download = `cloudsight-report-${reportType}-${fromDate}-to-${toDate}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
+      window.URL.revokeObjectURL(url);
     } catch (err: any) {
       console.error(err);
-      setError(err.message || 'PDF download failed');
+      const msg = err.response?.data?.message || err.message || 'PDF download failed';
+      setError(msg);
     }
   };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-2xl font-semibold text-white">Reports</h1>
-        <p className="text-slate-400 text-sm mt-1">Generate time-based summaries and analytics</p>
+        <p className="text-slate-400 text-sm mt-1">Generate operational insights</p>
       </div>
 
-      {/* Report Generator Panel */}
       <Card className="bg-nebula-navy-light border-nebula-navy-lighter">
         <CardContent className="p-6">
           <div className="flex items-center gap-2 mb-6">
@@ -267,7 +232,6 @@ export function Reports() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-            {/* Report Type */}
             <div>
               <Label className="text-slate-300 mb-2 block text-sm">Report Type</Label>
               <Select value={reportType || undefined} onValueChange={(value) => setReportType(value as ReportType)}>
@@ -275,17 +239,17 @@ export function Reports() {
                   <SelectValue placeholder="Select report type" />
                 </SelectTrigger>
                 <SelectContent className="bg-nebula-navy-light border-nebula-navy-lighter text-white">
-                  <SelectItem value="server">Server Report</SelectItem>
-                  <SelectItem value="service">Service Report</SelectItem>
-                  <SelectItem value="error">Error Report</SelectItem>
+                  <SelectItem value="infrastructure">Infrastructure Health Report</SelectItem>
+                  <SelectItem value="performance">Service Performance Report</SelectItem>
+                  <SelectItem value="incident">Incident & Anomaly Report</SelectItem>
+                  <SelectItem value="reliability">System Reliability Report</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            {/* Scope */}
             <div>
               <Label className="text-slate-300 mb-2 block text-sm">Scope</Label>
-              {reportType === 'server' ? (
+              {reportType === 'infrastructure' ? (
                 hosts.length > 0 ? (
                   <Select value={selectedServerId || undefined} onValueChange={setSelectedServerId}>
                     <SelectTrigger className="bg-nebula-navy-dark border-nebula-navy-lighter text-white">
@@ -302,7 +266,7 @@ export function Reports() {
                 ) : (
                   <div className="text-slate-400 text-sm">Loading servers...</div>
                 )
-              ) : reportType === 'service' ? (
+              ) : reportType === 'performance' ? (
                 services.length > 0 ? (
                   <Select value={selectedServiceId || undefined} onValueChange={setSelectedServiceId}>
                     <SelectTrigger className="bg-nebula-navy-dark border-nebula-navy-lighter text-white">
@@ -325,250 +289,137 @@ export function Reports() {
               )}
             </div>
 
-            {/* From Date */}
             <div>
               <Label className="text-slate-300 mb-2 block text-sm">From Date</Label>
-              <input
-                type="date"
-                value={fromDate}
-                onChange={(e) => setFromDate(e.target.value)}
-                className="w-full bg-nebula-navy-dark border-nebula-navy-lighter text-white px-3 py-2 rounded"
-              />
+              <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="w-full bg-nebula-navy-dark border-nebula-navy-lighter text-white px-3 py-2 rounded" />
             </div>
 
-            {/* To Date */}
             <div>
               <Label className="text-slate-300 mb-2 block text-sm">To Date</Label>
-              <input
-                type="date"
-                value={toDate}
-                onChange={(e) => setToDate(e.target.value)}
-                className="w-full bg-nebula-navy-dark border-nebula-navy-lighter text-white px-3 py-2 rounded"
-              />
+              <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="w-full bg-nebula-navy-dark border-nebula-navy-lighter text-white px-3 py-2 rounded" />
             </div>
 
-            {/* Generate Button */}
             <div className="flex items-end">
-              <Button
-                onClick={handleGenerateReport}
-                disabled={isGenerateDisabled || loading}
-                className="w-full bg-gradient-to-r from-nebula-purple to-nebula-blue text-white disabled:opacity-50"
-              >
+              <Button onClick={handleGenerateReport} disabled={isGenerateDisabled || loading} className="w-full bg-gradient-to-r from-nebula-purple to-nebula-blue text-white disabled:opacity-50">
                 {loading ? 'Generating...' : 'Generate Report'}
               </Button>
             </div>
           </div>
-
-          {/* Date validation */}
-          {fromDate && toDate && fromDate > toDate && (
-            <p className="text-red-400 text-sm mt-2">From Date cannot be after To Date</p>
-          )}
-
-          {/* Error */}
+          {fromDate && toDate && fromDate > toDate && <p className="text-red-400 text-sm mt-2">From Date cannot be after To Date</p>}
           {error && <p className="text-red-400 text-sm mt-2">{error}</p>}
         </CardContent>
       </Card>
 
-      {/* Parameters line */}
-      {reportGenerated && (
-        <div className="text-sm text-slate-400 mb-4">
-          Parameters: <strong>Type:</strong> {reportType}, <strong>Scope:</strong> {reportType === 'server' ? (hosts.find(h => h.server_id.toString() === selectedServerId)?.hostname || 'N/A') : reportType === 'service' ? (selectedServiceId ? services.find(s => s.service_id.toString() === selectedServiceId)?.name : 'Global') : 'Global'}, <strong>From:</strong> {fromDate}, <strong>To:</strong> {toDate}
-        </div>
-      )}
-
-      {/* Report Output */}
-      {reportGenerated && (
+      {reportGenerated && reportData && (
         <div className="space-y-6">
-          {reportData && reportData.length > 0 && (() => {
+          {(() => {
             const summary = calculateSummary();
+            if (!summary) return null;
+
             return (
-              <>
-                {/* Summary Cards */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <Card className="bg-nebula-navy-light border-nebula-navy-lighter">
-                    <CardContent className="p-4">
-                      <div className="text-slate-400 text-xs mb-1">Total Records</div>
-                      <div className="text-white text-2xl font-semibold">{summary?.totalRecords || 0}</div>
-                    </CardContent>
-                  </Card>
-
-                  {reportType !== 'error' && summary?.avgCpu && (
-                    <Card className="bg-nebula-navy-light border-nebula-navy-lighter">
-                      <CardContent className="p-4">
-                        <div className="text-slate-400 text-xs mb-1">Avg CPU</div>
-                        <div className="text-white text-2xl font-semibold">{summary.avgCpu}%</div>
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  {reportType !== 'error' && summary?.maxCpu && (
-                    <Card className="bg-nebula-navy-light border-nebula-navy-lighter">
-                      <CardContent className="p-4">
-                        <div className="text-slate-400 text-xs mb-1">Peak CPU</div>
-                        <div className="text-white text-2xl font-semibold">{summary.maxCpu}%</div>
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  {reportType !== 'error' && summary?.avgMemory && (
-                    <Card className="bg-nebula-navy-light border-nebula-navy-lighter">
-                      <CardContent className="p-4">
-                        <div className="text-slate-400 text-xs mb-1">Avg Memory</div>
-                        <div className="text-white text-2xl font-semibold">{summary.avgMemory}%</div>
-                      </CardContent>
-                    </Card>
-                  )}
-                </div>
-              </>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {reportType === 'infrastructure' && (
+                  <>
+                    <Card className="bg-nebula-navy-light border-nebula-navy-lighter"><CardContent className="p-4"><div className="text-slate-400 text-xs mb-1">Total Records</div><div className="text-white text-2xl font-semibold">{summary.totalRecords}</div></CardContent></Card>
+                    <Card className="bg-nebula-navy-light border-nebula-navy-lighter"><CardContent className="p-4"><div className="text-slate-400 text-xs mb-1">Avg CPU</div><div className="text-white text-2xl font-semibold">{summary.avgCpu}%</div></CardContent></Card>
+                    <Card className="bg-nebula-navy-light border-nebula-navy-lighter"><CardContent className="p-4"><div className="text-slate-400 text-xs mb-1">Avg Memory</div><div className="text-white text-2xl font-semibold">{summary.avgMemory}%</div></CardContent></Card>
+                  </>
+                )}
+                {reportType === 'performance' && (
+                  <>
+                    <Card className="bg-nebula-navy-light border-nebula-navy-lighter"><CardContent className="p-4"><div className="text-slate-400 text-xs mb-1">Total Records</div><div className="text-white text-2xl font-semibold">{summary.totalRecords}</div></CardContent></Card>
+                    <Card className="bg-nebula-navy-light border-nebula-navy-lighter"><CardContent className="p-4"><div className="text-slate-400 text-xs mb-1">Avg CPU</div><div className="text-white text-2xl font-semibold">{summary.avgCpu}%</div></CardContent></Card>
+                    <Card className="bg-nebula-navy-light border-nebula-navy-lighter"><CardContent className="p-4"><div className="text-slate-400 text-xs mb-1">Avg Memory</div><div className="text-white text-2xl font-semibold">{summary.avgMemory}%</div></CardContent></Card>
+                  </>
+                )}
+                {reportType === 'incident' && (
+                  <>
+                    <Card className="bg-nebula-navy-light border-nebula-navy-lighter"><CardContent className="p-4"><div className="text-slate-400 text-xs mb-1">Total Anomalies</div><div className="text-white text-2xl font-semibold">{summary.totalAnomalies}</div></CardContent></Card>
+                    <Card className="bg-nebula-navy-light border-nebula-navy-lighter"><CardContent className="p-4"><div className="text-slate-400 text-xs mb-1">Total Incidents</div><div className="text-white text-2xl font-semibold">{summary.totalIncidents}</div></CardContent></Card>
+                  </>
+                )}
+                {reportType === 'reliability' && (
+                  <>
+                    <Card className="bg-nebula-navy-light border-nebula-navy-lighter"><CardContent className="p-4"><div className="text-slate-400 text-xs mb-1">System Uptime</div><div className="text-white text-2xl font-semibold">{summary.uptime}%</div></CardContent></Card>
+                    <Card className="bg-nebula-navy-light border-nebula-navy-lighter"><CardContent className="p-4"><div className="text-slate-400 text-xs mb-1">MTTD (Seconds)</div><div className="text-white text-2xl font-semibold">{Number(summary.mttd).toFixed(0)}s</div></CardContent></Card>
+                    <Card className="bg-nebula-navy-light border-nebula-navy-lighter"><CardContent className="p-4"><div className="text-slate-400 text-xs mb-1">MTTR (Seconds)</div><div className="text-white text-2xl font-semibold">{Number(summary.mttr).toFixed(0)}s</div></CardContent></Card>
+                    <Card className="bg-nebula-navy-light border-nebula-navy-lighter"><CardContent className="p-4"><div className="text-slate-400 text-xs mb-1">Downtime (Seconds)</div><div className="text-white text-2xl font-semibold">{Number(summary.downtime).toFixed(0)}s</div></CardContent></Card>
+                  </>
+                )}
+              </div>
             );
           })()}
 
-          {/* Charts and Analytics */}
           <Card className="bg-nebula-navy-light border-nebula-navy-lighter">
             <CardContent className="p-6">
               <div className="mb-6">
-                <h2 className="text-xl font-semibold text-white mb-2">Report Analytics Overview</h2>
-                <p className="text-slate-400 text-sm">Visual summary of system performance trends and operational insights.</p>
+                <h2 className="text-xl font-semibold text-white mb-2">Analytics Overview</h2>
               </div>
-
-              {loading ? (
-                <div className="text-center text-slate-400 py-8">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-nebula-cyan mx-auto mb-4"></div>
-                  Loading charts...
+              
+              {reportType === 'infrastructure' && (
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-lg font-semibold text-white mb-4">Resource Utilization Trend</h3>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <LineChart data={prepareInfraChartData()}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                        <XAxis dataKey="time" stroke="#9CA3AF" fontSize={12} />
+                        <YAxis stroke="#9CA3AF" fontSize={12} />
+                        <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#fff' }} />
+                        <Legend />
+                        <Line type="monotone" dataKey="cpu" stroke="#06b6d4" name="CPU (%)" dot={false} />
+                        <Line type="monotone" dataKey="memory" stroke="#8b5cf6" name="Memory (%)" dot={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
                 </div>
-              ) : reportData && reportData.length > 0 ? (
-                <>
-                  {/* Charts */}
-                  {reportType !== 'error' ? (
-                    <div className="space-y-6">
-                      {/* CPU Usage Chart */}
-                      <div>
-                        <h3 className="text-lg font-semibold text-white mb-4">CPU Usage Over Time</h3>
-                        <ResponsiveContainer width="100%" height={300}>
-                          <LineChart data={prepareChartData()}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                            <XAxis
-                              dataKey="time"
-                              stroke="#9CA3AF"
-                              fontSize={12}
-                              tick={{ fill: '#9CA3AF' }}
-                            />
-                            <YAxis
-                              stroke="#9CA3AF"
-                              fontSize={12}
-                              tick={{ fill: '#9CA3AF' }}
-                              label={{ value: 'CPU %', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fill: '#9CA3AF' } }}
-                            />
-                            <Tooltip
-                              contentStyle={{
-                                backgroundColor: '#1e293b',
-                                border: '1px solid #334155',
-                                borderRadius: '6px',
-                                color: '#ffffff',
-                              }}
-                            />
-                            <Legend />
-                            <Line
-                              type="monotone"
-                              dataKey="cpu"
-                              stroke="#06b6d4"
-                              strokeWidth={2}
-                              name="CPU Usage (%)"
-                              dot={{ fill: '#06b6d4', strokeWidth: 2, r: 4 }}
-                            />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      </div>
-
-                      {/* Memory Usage Chart */}
-                      <div>
-                        <h3 className="text-lg font-semibold text-white mb-4">Memory Usage Over Time</h3>
-                        <ResponsiveContainer width="100%" height={300}>
-                          <LineChart data={prepareChartData()}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                            <XAxis
-                              dataKey="time"
-                              stroke="#9CA3AF"
-                              fontSize={12}
-                              tick={{ fill: '#9CA3AF' }}
-                            />
-                            <YAxis
-                              stroke="#9CA3AF"
-                              fontSize={12}
-                              tick={{ fill: '#9CA3AF' }}
-                              label={{ value: 'Memory %', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fill: '#9CA3AF' } }}
-                            />
-                            <Tooltip
-                              contentStyle={{
-                                backgroundColor: '#1e293b',
-                                border: '1px solid #334155',
-                                borderRadius: '6px',
-                                color: '#ffffff',
-                              }}
-                            />
-                            <Legend />
-                            <Line
-                              type="monotone"
-                              dataKey="memory"
-                              stroke="#8b5cf6"
-                              strokeWidth={2}
-                              name="Memory Usage (%)"
-                              dot={{ fill: '#8b5cf6', strokeWidth: 2, r: 4 }}
-                            />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </div>
-                  ) : (
-                    <div>
-                      <h3 className="text-lg font-semibold text-white mb-4">Error Occurrences Over Time</h3>
-                      <ResponsiveContainer width="100%" height={300}>
-                        <BarChart data={prepareErrorChartData()}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                          <XAxis
-                            dataKey="time"
-                            stroke="#9CA3AF"
-                            fontSize={12}
-                            tick={{ fill: '#9CA3AF' }}
-                          />
-                          <YAxis
-                            stroke="#9CA3AF"
-                            fontSize={12}
-                            tick={{ fill: '#9CA3AF' }}
-                            label={{ value: 'Error Count', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fill: '#9CA3AF' } }}
-                          />
-                          <Tooltip
-                            contentStyle={{
-                              backgroundColor: '#1e293b',
-                              border: '1px solid #334155',
-                              borderRadius: '6px',
-                              color: '#ffffff',
-                            }}
-                          />
-                          <Legend />
-                          <Bar
-                            dataKey="errors"
-                            fill="#ef4444"
-                            name="Error Count"
-                          />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  )}
-
-                  {/* Export PDF Button */}
-                  <Button
-                    variant="outline"
-                    className="mt-6 border-nebula-navy-lighter text-white hover:bg-nebula-navy-lighter"
-                    onClick={handleDownloadPDF}
-                  >
-                    <Download className="size-4 mr-2" />
-                    Export PDF (All {reportData.length} Records)
-                  </Button>
-                </>
-              ) : (
-                <p className="text-red-400 text-center py-8">No records for the selected range</p>
               )}
+              
+              {reportType === 'performance' && (
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-lg font-semibold text-white mb-4">Service Resource Utilization (APM Data Unavailable)</h3>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <LineChart data={preparePerformanceChartData()}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                        <XAxis dataKey="time" stroke="#9CA3AF" fontSize={12} />
+                        <YAxis stroke="#9CA3AF" fontSize={12} />
+                        <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#fff' }} />
+                        <Legend />
+                        <Line type="monotone" dataKey="cpu" stroke="#06b6d4" name="CPU (%)" dot={false} />
+                        <Line type="monotone" dataKey="memory" stroke="#8b5cf6" name="Memory (%)" dot={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
+
+              {reportType === 'incident' && (
+                <div>
+                  <h3 className="text-lg font-semibold text-white mb-4">Incidents Over Time</h3>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart data={prepareIncidentChartData()}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
+                      <XAxis dataKey="time" stroke="#9CA3AF" fontSize={12} />
+                      <YAxis stroke="#9CA3AF" fontSize={12} />
+                      <Tooltip contentStyle={{ backgroundColor: '#1e293b', border: '1px solid #334155', color: '#fff' }} />
+                      <Legend />
+                      <Bar dataKey="count" fill="#ef4444" name="Incidents" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+              
+              {reportType === 'reliability' && (
+                <div className="text-slate-400 text-center py-8">
+                  Data rendered in summary cards above.
+                </div>
+              )}
+
+              <Button variant="outline" className="mt-6 border-nebula-navy-lighter text-white hover:bg-nebula-navy-lighter" onClick={handleDownloadPDF}>
+                <Download className="size-4 mr-2" />
+                Export PDF
+              </Button>
             </CardContent>
           </Card>
         </div>

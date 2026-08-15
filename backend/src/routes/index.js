@@ -22,7 +22,7 @@ router.use("/incidents", authenticate, require("./incident.routes"));
 router.use("/anomalies", authenticate, require("./anomaly.routes"));
 router.use("/ml", require("./ml.routes"));
 router.use("/alerts", authenticate, require("./alert.routes"));
-router.use("/alert-settings", authenticate, authorize(['admin']), require("./alertSettings.routes"));
+router.use("/alert-settings", authenticate, require("./alertSettings.routes"));
 router.use("/metrics", authenticate, require("./metric.routes"));
 router.use("/dashboard", authenticate, require("./dashboard.routes"));
 router.use("/profile", require("./profile.routes"));

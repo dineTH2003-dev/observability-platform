@@ -2,49 +2,7 @@ const db = require('../config/db');
 const logger = require('../config/logger');
 
 // ─────────────────────────────────────────────────────────────
-//  AUTO-CREATE — called once on server startup
-// ─────────────────────────────────────────────────────────────
-exports.ensureTable = async () => {
-  // Check if legacy table exists (which has 'recipient_id' column instead of 'recipient_user_id')
-  const { rows } = await db.query(`
-    SELECT column_name 
-    FROM information_schema.columns 
-    WHERE table_name = 'notifications' AND column_name = 'recipient_id'
-  `);
-  
-  if (rows.length > 0) {
-    logger.info({ msg: 'Dropping legacy notifications table' });
-    await db.query(`DROP TABLE IF EXISTS notifications CASCADE`);
-  }
-
-  await db.query(`
-    CREATE TABLE IF NOT EXISTS notifications (
-      notification_id   SERIAL PRIMARY KEY,
-      recipient_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      sender_user_id    UUID REFERENCES users(id) ON DELETE SET NULL,
-      incident_id       UUID REFERENCES incidents(incident_id) ON DELETE SET NULL,
-      anomaly_id        UUID REFERENCES anomalies(anomaly_id) ON DELETE SET NULL,
-      title             VARCHAR(255) NOT NULL,
-      message           TEXT NOT NULL,
-      notification_type VARCHAR(50) NOT NULL,
-      is_read           BOOLEAN DEFAULT FALSE,
-      created_at        TIMESTAMPTZ DEFAULT NOW(),
-      read_at           TIMESTAMPTZ DEFAULT NULL,
-      deleted_at        TIMESTAMPTZ DEFAULT NULL
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_notif_recipient
-      ON notifications(recipient_user_id) WHERE deleted_at IS NULL;
-
-    CREATE INDEX IF NOT EXISTS idx_notif_unread
-      ON notifications(recipient_user_id, is_read) WHERE deleted_at IS NULL;
-
-    CREATE INDEX IF NOT EXISTS idx_notif_created
-      ON notifications(created_at DESC) WHERE deleted_at IS NULL;
-  `);
-  logger.info({ msg: 'Notifications table ready' });
-};
-
+//  CREATE — insert a single notification row
 // ─────────────────────────────────────────────────────────────
 //  CREATE — insert a single notification row
 // ─────────────────────────────────────────────────────────────

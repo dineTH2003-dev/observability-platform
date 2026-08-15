@@ -25,6 +25,10 @@ const toggleAlert = async (id, enabled) => {
   return await alertModel.toggleAlert(id, enabled);
 };
 
+const updateAlert = async (id, data) => {
+  return await alertModel.updateAlert(id, data);
+};
+
 const deleteAlert = async (id) => {
   return await alertModel.deleteAlert(id);
 };
@@ -42,6 +46,7 @@ module.exports = {
   getAllAlerts,
   createAlert,
   toggleAlert,
+  updateAlert,
   deleteAlert,
   getAlertSettings,
   updateAlertSettings,

@@ -7,37 +7,14 @@ CREATE TYPE service_status_enum AS ENUM ('RUNNING', 'STOPPED', 'ERROR', 'UNKNOWN
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 
-    FROM pg_type 
-    WHERE typname = 'user_role_enum'
-    ) THEN
-    CREATE TYPE user_role_enum AS ENUM ('admin', 'engineer');
-  END IF;
-END$$;
-
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   email VARCHAR(50) UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
-  role user_role_enum NOT NULL DEFAULT 'engineer',
+  role VARCHAR(20) DEFAULT 'engineer',
   is_active BOOLEAN DEFAULT true,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-
-ALTER TABLE users
-  ADD COLUMN IF NOT EXISTS first_name VARCHAR(50),
-  ADD COLUMN IF NOT EXISTS last_name VARCHAR(50),
-  ADD COLUMN IF NOT EXISTS phone VARCHAR(30),
-  ADD COLUMN IF NOT EXISTS department VARCHAR(100),
-  ADD COLUMN IF NOT EXISTS location VARCHAR(100),
-  ADD COLUMN IF NOT EXISTS bio VARCHAR(300),
-  ADD COLUMN IF NOT EXISTS avatar_url TEXT,
-  ADD COLUMN IF NOT EXISTS profile_image BYTEA,
-  ADD COLUMN IF NOT EXISTS profile_image_type VARCHAR(50),
-  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
 
 CREATE TABLE IF NOT EXISTS password_resets (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -157,16 +134,37 @@ CREATE TABLE log_configs (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE (service_id) -- one config per service; enables upsert
 );
+CREATE TABLE LogEntry (
+    log_entry_id INT AUTO_INCREMENT PRIMARY KEY,
+    log_config_id INT NOT NULL,
+    raw_line TEXT NOT NULL,
+    timestamp DATETIME NOT NULL,
+    log_level VARCHAR(20) NOT NULL,
+    message TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
--- logs
-CREATE TABLE IF NOT EXISTS logs (
-    id SERIAL PRIMARY KEY,
-    server_id INT NOT NULL REFERENCES servers(server_id) ON DELETE CASCADE,
-    service_id INT NOT NULL REFERENCES services(service_id) ON DELETE CASCADE,
-    timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    level VARCHAR(20) NOT NULL,
-    message TEXT NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    CONSTRAINT fk_logentry_logconfig
+        FOREIGN KEY (log_config_id)
+        REFERENCES LogConfig(log_config_id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE
+);
+
+CREATE TABLE LogAnalytics (
+    log_analytics_id INT AUTO_INCREMENT PRIMARY KEY,
+    log_entry_id INT NOT NULL UNIQUE,
+    info_count INT NOT NULL DEFAULT 0,
+    warn_count INT NOT NULL DEFAULT 0,
+    error_count INT NOT NULL DEFAULT 0,
+    fatal_count INT NOT NULL DEFAULT 0,
+    total INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_loganalytics_logentry
+        FOREIGN KEY (log_entry_id)
+        REFERENCES LogEntry(log_entry_id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE
 );
 
 -- ============================================================
@@ -179,8 +177,6 @@ CREATE INDEX idx_servers_agent ON servers(agent_status);
 
 -- server_metrics  (DESC so "get latest for server X" is a fast index scan)
 CREATE INDEX idx_server_metrics_server_ts ON server_metrics(server_id, recorded_at DESC);
--- Dashboard-wide time windows cannot use the server_id-leading index above.
-CREATE INDEX idx_server_metrics_recorded_at ON server_metrics(recorded_at DESC);
 
 -- applications
 CREATE INDEX idx_applications_server ON applications(server_id);
@@ -195,11 +191,7 @@ CREATE INDEX idx_services_status ON services(status);
 
 -- filter by RUNNING/STOPPED
 -- service_metrics
-CREATE INDEX idx_service_metrics_service_ts ON service_metrics(service_id, recorded_at DESC);
-
--- logs
-CREATE INDEX idx_logs_timestamp ON logs(timestamp DESC);
-CREATE INDEX idx_logs_service_id ON logs(service_id);-- ============================================================
+CREATE INDEX idx_service_metrics_service_ts ON service_metrics(service_id, recorded_at DESC);-- ============================================================
 --  INCIDENT MANAGEMENT TABLES
 --  Run: sudo -u postgres psql -d observability_db -f database/incident_schema.sql
 --  Safe to run: does NOT modify any existing tables
@@ -276,7 +268,6 @@ CREATE TABLE IF NOT EXISTS incident_timeline (
 CREATE INDEX idx_anomalies_status      ON anomalies(status);
 CREATE INDEX idx_anomalies_incident    ON anomalies(incident_id);
 CREATE INDEX idx_anomalies_server      ON anomalies(server_id);
-CREATE INDEX idx_anomalies_detected_at ON anomalies(detected_at DESC);
 CREATE INDEX idx_incidents_status      ON incidents(status);
 CREATE INDEX idx_incidents_assigned    ON incidents(assigned_to);
 CREATE INDEX idx_timeline_incident_ts  ON incident_timeline(incident_id, occurred_at ASC);

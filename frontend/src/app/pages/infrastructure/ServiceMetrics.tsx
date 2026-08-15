@@ -5,8 +5,6 @@ import {
   Cpu,
   HardDrive,
   Loader2,
-  TrendingDown,
-  TrendingUp,
   Wrench,
 } from 'lucide-react';
 import { Card, CardContent } from '../../components/ui/card';
@@ -101,11 +99,6 @@ function getSelectedRangeConfig(timeRange: TimeRange) {
   return TIME_RANGE_OPTIONS.find((option) => option.value === timeRange) ?? TIME_RANGE_OPTIONS[1];
 }
 
-function average(values: number[]) {
-  if (!values.length) return 0;
-  return values.reduce((sum, value) => sum + value, 0) / values.length;
-}
-
 function formatPercent(value: number) {
   return `${value.toFixed(1)}%`;
 }
@@ -122,9 +115,13 @@ function ServiceMetricChart({
   color: string;
   unit: string;
   timeRange: TimeRange;
-  data: Array<Record<string, number | string>>;
+  data: Array<Record<string, number | string | null | number[]>>;
   dataKey: 'cpu_usage' | 'memory_usage' | 'disk_usage' | 'thread_count';
 }) {
+  const prefix = dataKey.split('_')[0]; // 'cpu'
+  const rangeKey = `${prefix}_range`; // 'cpu_range'
+  const anomalyKey = `${prefix}_anomaly`; // 'cpu_anomaly'
+
   return (
     <Card className="bg-nebula-navy-light border-nebula-navy-lighter">
       <CardContent className="p-6">
@@ -171,12 +168,37 @@ function ServiceMetricChart({
                 fontSize: '12px'
               }}
             />
+            {/* Baseline Bounds */}
+            <Area
+              type="monotone"
+              dataKey={rangeKey}
+              stroke="none"
+              fill={color}
+              fillOpacity={0.15}
+              name="Normal Range"
+              isAnimationActive={false}
+            />
+
+            {/* Actual Metric Line */}
             <Area
               type="monotone"
               dataKey={dataKey}
               stroke={color}
               strokeWidth={2}
-              fill={`url(#gradient-${title})`}
+              fill="none"
+              name="Current"
+            />
+
+            {/* Anomaly Line (Red Spikes) */}
+            <Line
+              type="monotone"
+              dataKey={anomalyKey}
+              stroke="#EF4444"
+              strokeWidth={2}
+              dot={{ r: 4, stroke: '#EF4444', fill: '#EF4444' }}
+              connectNulls={false}
+              isAnimationActive={false}
+              name="Anomaly"
             />
           </ComposedChart>
         </ResponsiveContainer>
@@ -189,6 +211,7 @@ export function ServiceMetrics({ serviceId, onNavigate }: ServiceMetricsProps) {
   const [timeRange, setTimeRange] = useState<TimeRange>('1h');
   const [service, setService] = useState<Service | null>(null);
   const [metrics, setMetrics] = useState<ServiceMetric[]>([]);
+  const [baselines, setBaselines] = useState<any[]>([]);
   const [isLoadingService, setIsLoadingService] = useState(false);
   const [isLoadingMetrics, setIsLoadingMetrics] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -246,6 +269,17 @@ export function ServiceMetrics({ serviceId, onNavigate }: ServiceMetricsProps) {
         if (!ignore) {
           setMetrics(data);
         }
+        
+        if (timeRange === '15m' || timeRange === '1h') {
+          try {
+             const bData = await serviceMetricService.getServiceBaselines(serviceId, rangeConfig.limit);
+             if (!ignore) setBaselines(bData);
+          } catch (bErr) {
+             console.warn("Failed to load service baselines", bErr);
+          }
+        } else {
+          if (!ignore) setBaselines([]);
+        }
       } catch (loadError) {
         if (!ignore) {
           console.error('Failed to load service metrics', loadError);
@@ -284,13 +318,54 @@ export function ServiceMetrics({ serviceId, onNavigate }: ServiceMetricsProps) {
     });
   }, [latestMetric, timeRange]);
 
-  const chartData = metrics.map((metric) => ({
-    timestamp: new Date(metric.recorded_at).getTime(),
-    cpu_usage: Number(metric.cpu_usage) || 0,
-    memory_usage: Number(metric.memory_usage) || 0,
-    disk_usage: Number(metric.disk_usage) || 0,
-    thread_count: Number(metric.thread_count) || 0,
-  }));
+  const getBounds = (metricName: string, timestamp: number) => {
+    for (const b of baselines) {
+      if (b.metric_name === metricName) {
+         if (Math.abs(new Date(b.recorded_at).getTime() - timestamp) < 60000) {
+           return b;
+         }
+      }
+    }
+    return null;
+  };
+
+  const chartData = metrics.map((metric) => {
+    const ts = new Date(metric.recorded_at).getTime();
+    const cpuBounds = getBounds('cpu_avg', ts);
+    const memBounds = getBounds('memory_avg', ts);
+    const diskBounds = getBounds('disk_avg', ts);
+    const threadBounds = getBounds('thread_count_avg', ts);
+
+    const cpuLower = cpuBounds?.lower_bound ?? cpuBounds?.cpu_lower ?? null;
+    const cpuUpper = cpuBounds?.upper_bound ?? cpuBounds?.cpu_upper ?? null;
+    const memLower = memBounds?.lower_bound ?? memBounds?.cpu_lower ?? null;
+    const memUpper = memBounds?.upper_bound ?? memBounds?.cpu_upper ?? null;
+    const diskLower = diskBounds?.lower_bound ?? diskBounds?.cpu_lower ?? null;
+    const diskUpper = diskBounds?.upper_bound ?? diskBounds?.cpu_upper ?? null;
+    const threadLower = threadBounds?.lower_bound ?? threadBounds?.cpu_lower ?? null;
+    const threadUpper = threadBounds?.upper_bound ?? threadBounds?.cpu_upper ?? null;
+
+    const cpuUsage = Number(metric.cpu_usage) || 0;
+    const memUsage = Number(metric.memory_usage) || 0;
+    const diskUsage = Number(metric.disk_usage) || 0;
+    const threadCount = Number(metric.thread_count) || 0;
+
+    return {
+      timestamp: ts,
+      cpu_usage: cpuUsage,
+      memory_usage: memUsage,
+      disk_usage: diskUsage,
+      thread_count: threadCount,
+      cpu_range: (cpuLower !== null && cpuUpper !== null) ? [cpuLower, cpuUpper] : null,
+      memory_range: (memLower !== null && memUpper !== null) ? [memLower, memUpper] : null,
+      disk_range: (diskLower !== null && diskUpper !== null) ? [diskLower, diskUpper] : null,
+      thread_range: (threadLower !== null && threadUpper !== null) ? [threadLower, threadUpper] : null,
+      cpu_anomaly: (cpuLower !== null && cpuUsage < cpuLower) || (cpuUpper !== null && cpuUsage > cpuUpper) ? cpuUsage : null,
+      memory_anomaly: (memLower !== null && memUsage < memLower) || (memUpper !== null && memUsage > memUpper) ? memUsage : null,
+      disk_anomaly: (diskLower !== null && diskUsage < diskLower) || (diskUpper !== null && diskUsage > diskUpper) ? diskUsage : null,
+      thread_anomaly: (threadLower !== null && threadCount < threadLower) || (threadUpper !== null && threadCount > threadUpper) ? threadCount : null,
+    };
+  });
 
   const latestCpu = chartData.length ? chartData[chartData.length - 1].cpu_usage : 0;
   const latestMemory = chartData.length ? chartData[chartData.length - 1].memory_usage : 0;

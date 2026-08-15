@@ -4,7 +4,9 @@ import argparse
 import time
 from datetime import datetime, timezone
 
+from app.features.rollups import backfill_server_rollups, backfill_service_rollups, backfill_log_rollups
 from app.jobs.score_realtime import score_once
+from app.db import get_conn
 
 
 def main() -> None:
@@ -25,6 +27,12 @@ def main() -> None:
     while True:
         started = datetime.now(timezone.utc)
         try:
+            with get_conn() as conn:
+                backfill_server_rollups(conn, hours=24)
+                backfill_service_rollups(conn, hours=24)
+                backfill_log_rollups(conn, hours=24)
+                conn.commit()
+
             result = score_once(
                 minutes=args.minutes,
                 dry_run=args.dry_run,
@@ -32,7 +40,7 @@ def main() -> None:
                 server_stale_minutes=args.server_stale_minutes,
                 service_stale_minutes=args.service_stale_minutes,
                 max_telemetry_entities=args.max_telemetry_entities,
-                raise_post_errors=False,
+                raise_post_errors=True,
             )
             print(
                 "ml_worker_tick "

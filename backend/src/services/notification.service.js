@@ -35,19 +35,19 @@ function emitToUser(userId, notification) {
 async function broadcastNotifications(recipientIds, template) {
   const rows = recipientIds.map((rid) => ({
     ...template,
-    recipient_id: rid,
+    recipient_user_id: rid,
   }));
 
   const created = await NotificationModel.createMany(rows);
 
   for (const notif of created) {
-    emitToUser(notif.recipient_id, notif);
+    emitToUser(notif.recipient_user_id, notif);
   }
   return created;
 }
 
 // ─────────────────────────────────────────────────────────────
-//  EVENT TRIGGERS — called from incident.service.js
+//  EVENT TRIGGERS
 // ─────────────────────────────────────────────────────────────
 
 /**
@@ -58,19 +58,34 @@ exports.notifyAnomalyDetected = async (incident, anomaly) => {
     const adminIds = await getAdminIds();
     if (!adminIds.length) return;
 
+    const title = incident ? incident.title : anomaly.title;
+    const severity = anomaly.severity || (incident ? incident.severity : 'medium');
+    const incidentId = incident ? incident.incident_id : null;
+    const anomalyId = anomaly ? anomaly.anomaly_id : null;
+
+    let entityName = 'System';
+    if (anomaly) {
+      if (anomaly.server_id) {
+        const { rows } = await db.query(`SELECT hostname FROM servers WHERE server_id = $1`, [anomaly.server_id]);
+        if (rows[0]?.hostname) entityName = rows[0].hostname;
+      } else if (anomaly.service_id) {
+        const { rows } = await db.query(`SELECT name FROM services WHERE service_id = $1`, [anomaly.service_id]);
+        if (rows[0]?.name) entityName = rows[0].name;
+      } else if (anomaly.application_id) {
+        const { rows } = await db.query(`SELECT name FROM applications WHERE application_id = $1`, [anomaly.application_id]);
+        if (rows[0]?.name) entityName = rows[0].name;
+      }
+    }
+
+    const message = `New anomaly detected on ${entityName}. Immediate attention may be required.`;
+
     await broadcastNotifications(adminIds, {
-      type:        'anomaly_detected',
-      title:       `Anomaly Detected: ${incident.title}`,
-      message:     `A ${anomaly.severity || 'medium'} severity ${anomaly.anomaly_type} anomaly was detected. ${anomaly.description || ''}`.trim(),
-      severity:    anomaly.severity || incident.severity || 'medium',
-      actor_id:    null,
-      incident_id: incident.incident_id,
-      metadata:    {
-        anomaly_id:   anomaly.anomaly_id,
-        anomaly_type: anomaly.anomaly_type,
-        metric_value: anomaly.metric_value,
-        threshold:    anomaly.threshold,
-      },
+      notification_type: 'anomaly_detected',
+      title:             `Anomaly Detected: ${title}`,
+      message:           message,
+      sender_user_id:    null,
+      incident_id:       incidentId,
+      anomaly_id:        anomalyId,
     });
   } catch (err) {
     logger.error({ msg: 'notifyAnomalyDetected failed', error: err.message });
@@ -78,23 +93,21 @@ exports.notifyAnomalyDetected = async (incident, anomaly) => {
 };
 
 /**
- * Engineer assigned → notify the assigned engineer
+ * Engineer/Developer assigned → notify the assigned developer
  */
 exports.notifyEngineerAssigned = async (incident, engineerId, actorId) => {
   try {
-    // Look up actor email for the message
-    const { rows } = await db.query(`SELECT email FROM users WHERE id = $1`, [actorId]);
-    const actorEmail = rows[0]?.email || 'An admin';
+    // Look up actor email/name for context
+    const { rows } = await db.query(`SELECT email, first_name, last_name FROM users WHERE id = $1`, [actorId]);
+    const actorEmail = rows[0] ? `${rows[0].first_name || ''} ${rows[0].last_name || ''}`.trim() || rows[0].email : 'An admin';
 
     const notif = await NotificationModel.create({
-      type:        'anomaly_assigned',
-      title:       `Assigned to You: ${incident.title}`,
-      message:     `${actorEmail} assigned you to investigate this incident.`,
-      severity:    incident.severity || 'medium',
-      recipient_id: engineerId,
-      actor_id:    actorId,
-      incident_id: incident.incident_id,
-      metadata:    { assigned_by: actorEmail },
+      notification_type: 'anomaly_assigned',
+      title:             `Assigned to You: ${incident.title}`,
+      message:           `You have been assigned Incident INC-${incident.incident_number}.`,
+      recipient_user_id: engineerId,
+      sender_user_id:    actorId,
+      incident_id:       incident.incident_id,
     });
 
     emitToUser(engineerId, notif);
@@ -104,24 +117,27 @@ exports.notifyEngineerAssigned = async (incident, engineerId, actorId) => {
 };
 
 /**
- * Anomaly acknowledged → notify all admins
+ * Incident acknowledged → notify all admins
  */
 exports.notifyAnomalyAcknowledged = async (incident, actorId) => {
   try {
     const adminIds = await getAdminIds();
     if (!adminIds.length) return;
 
-    const { rows } = await db.query(`SELECT email FROM users WHERE id = $1`, [actorId]);
-    const actorEmail = rows[0]?.email || 'An engineer';
+    const { rows } = await db.query(`SELECT email, first_name, last_name FROM users WHERE id = $1`, [actorId]);
+    const actor = rows[0];
+    let actorName = actor ? `${actor.first_name || ''} ${actor.last_name || ''}`.trim() : '';
+    if (!actorName && actor) actorName = actor.email;
+    if (!actorName) actorName = 'An engineer';
+
+    const message = `Incident INC-${incident.incident_number} has been acknowledged by ${actorName}.`;
 
     await broadcastNotifications(adminIds, {
-      type:        'anomaly_acknowledged',
-      title:       `Acknowledged: ${incident.title}`,
-      message:     `${actorEmail} acknowledged and is investigating this incident.`,
-      severity:    incident.severity || 'medium',
-      actor_id:    actorId,
-      incident_id: incident.incident_id,
-      metadata:    { acknowledged_by: actorEmail },
+      notification_type: 'anomaly_acknowledged',
+      title:             `Acknowledged: ${incident.title}`,
+      message:           message,
+      sender_user_id:    actorId,
+      incident_id:       incident.incident_id,
     });
   } catch (err) {
     logger.error({ msg: 'notifyAnomalyAcknowledged failed', error: err.message });
@@ -129,31 +145,21 @@ exports.notifyAnomalyAcknowledged = async (incident, actorId) => {
 };
 
 /**
- * Anomaly resolved → notify all admins + the assigned engineer
+ * Incident resolved → notify all admins
  */
 exports.notifyAnomalyResolved = async (incident, actorId) => {
   try {
     const adminIds = await getAdminIds();
+    if (!adminIds.length) return;
 
-    // Build unique recipient list: admins + assigned engineer (if any)
-    const recipientSet = new Set(adminIds);
-    if (incident.assigned_to) {
-      recipientSet.add(incident.assigned_to);
-    }
+    const message = `Incident INC-${incident.incident_number} has been resolved.`;
 
-    if (!recipientSet.size) return;
-
-    const { rows } = await db.query(`SELECT email FROM users WHERE id = $1`, [actorId]);
-    const actorEmail = rows[0]?.email || 'An engineer';
-
-    await broadcastNotifications([...recipientSet], {
-      type:        'anomaly_resolved',
-      title:       `Resolved: ${incident.title}`,
-      message:     `${actorEmail} resolved this incident.`,
-      severity:    incident.severity || 'medium',
-      actor_id:    actorId,
-      incident_id: incident.incident_id,
-      metadata:    { resolved_by: actorEmail },
+    await broadcastNotifications(adminIds, {
+      notification_type: 'anomaly_resolved',
+      title:             `Resolved: ${incident.title}`,
+      message:           message,
+      sender_user_id:    actorId,
+      incident_id:       incident.incident_id,
     });
   } catch (err) {
     logger.error({ msg: 'notifyAnomalyResolved failed', error: err.message });
@@ -161,7 +167,7 @@ exports.notifyAnomalyResolved = async (incident, actorId) => {
 };
 
 // ─────────────────────────────────────────────────────────────
-//  CRUD — called from notification.controller.js
+//  CRUD
 // ─────────────────────────────────────────────────────────────
 
 exports.getUserNotifications = async (userId, query) => {

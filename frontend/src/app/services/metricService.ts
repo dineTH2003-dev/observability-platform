@@ -12,5 +12,9 @@ export const metricService = {
   async getServerMetrics(serverId: number, limit = 60): Promise<ServerMetric[]> {
     const response = await api.get<{ success: boolean; data: ServerMetric[] }>(`/metrics/server/${serverId}?limit=${limit}`);
     return response.data;
+  },
+  async getServerBaselines(serverId: number, minutes = 60) {
+    const response = await api.get<{ success: boolean; data: any[] }>(`/metrics/server/${serverId}/baselines?minutes=${minutes}`);
+    return response.data;
   }
 };

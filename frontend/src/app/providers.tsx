@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { AuthProvider } from './context/AuthContext';
 
 import { SocketProvider } from './context/SocketContext';

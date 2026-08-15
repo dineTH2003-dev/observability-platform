@@ -1,5 +1,5 @@
 import { NotificationsPage } from './pages/notifications/NotificationsPage';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigation } from './hooks/useNavigation';
 import { MainLayout } from './layouts/MainLayout';
 import { Dashboard } from './pages/dashboard/Dashboard';
@@ -42,7 +42,7 @@ function replacePath(path: string) {
 }
 
 function AppContent() {
-  const { isAuthenticated, isLoading, login, signup, logout, user, hasRole } = useAuth();
+  const { isAuthenticated, isLoading, login, logout, user, hasRole } = useAuth();
   const [authView, setAuthView] = useState<AuthView>(() => {
     return authPathToView[window.location.pathname] ?? 'login';
   });
@@ -77,7 +77,7 @@ function AppContent() {
       <AuthLayout>
         {authView === 'login' && (
           <Login
-            onLogin={login}
+            onLogin={login as any}
             onSwitchToSignup={() => showAuthView('signup', '/signup')}
             onSwitchToForgotPassword={() => showAuthView('forgot-password', '/forgot-password')}
           />
@@ -86,7 +86,7 @@ function AppContent() {
           <ForgotPassword onBackToLogin={() => showAuthView('login', '/login')} />
         )}
         {authView === 'signup' && (
-          <Signup onSignup={login} onSwitchToLogin={() => showAuthView('login', '/login')} />
+          <Signup onSignup={login as any} onSwitchToLogin={() => showAuthView('login', '/login')} />
         )}
       </AuthLayout>
     );

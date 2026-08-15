@@ -1,9 +1,10 @@
 const reportModel = require("../models/report.model");
 
 const REPORT_TYPES = {
-  SERVER: "server",
-  SERVICE: "service",
-  ERROR: "error",
+  INFRASTRUCTURE: "infrastructure",
+  PERFORMANCE: "performance",
+  INCIDENT: "incident",
+  RELIABILITY: "reliability",
 };
 
 const getReport = async ({ type, from, to, scopeId }) => {
@@ -18,28 +19,36 @@ const getReport = async ({ type, from, to, scopeId }) => {
   const start = `${from} 00:00:00`;
   const end = `${to} 23:59:59`;
 
-  // 🖥 SERVER REPORT
-  if (type === REPORT_TYPES.SERVER) {
-    if (!scopeId) throw new Error("serverId (scopeId) required");
-
-    const result = await reportModel.getServerMetrics(scopeId, start, end);
+  if (type === REPORT_TYPES.INFRASTRUCTURE) {
+    const result = await reportModel.getInfrastructureHealthReport(scopeId, start, end);
     return result.rows;
   }
 
-  // ⚙ SERVICE REPORT
-  if (type === REPORT_TYPES.SERVICE) {
-    const result = scopeId
-      ? await reportModel.getServiceMetrics(scopeId, start, end)
-      : await reportModel.getAllServiceMetrics(start, end);
-
+  if (type === REPORT_TYPES.PERFORMANCE) {
+    const result = await reportModel.getServicePerformanceReport(scopeId, start, end);
     return result.rows;
   }
 
-  // 📉 ERROR REPORT
-  if (type === REPORT_TYPES.ERROR) {
-    const result = await reportModel.getAllServiceMetrics(start, end);
+  if (type === REPORT_TYPES.INCIDENT) {
+    const data = await reportModel.getIncidentAnomalyReport(start, end);
+    return data; // Returns an object with { anomalies, incidents }
+  }
 
-    return result.rows.filter((r) => r.error_rate > 0.5);
+  if (type === REPORT_TYPES.RELIABILITY) {
+    const result = await reportModel.getSystemReliabilityReport(start, end);
+    const stats = result.rows[0];
+    
+    // Calculate Uptime Percentage
+    let uptimePercent = 100;
+    if (stats.total_period_seconds > 0) {
+      const downtime = stats.critical_downtime_seconds || 0;
+      uptimePercent = ((stats.total_period_seconds - downtime) / stats.total_period_seconds) * 100;
+    }
+    
+    return {
+      ...stats,
+      uptime_percentage: Math.max(0, uptimePercent).toFixed(4) // Avoid negative uptime
+    };
   }
 
   throw new Error("Invalid report type");

@@ -1,7 +1,7 @@
-import { Server, Box, Activity, AlertTriangle, TrendingUp, Home, DollarSign, Clock, CheckCircle, XCircle, AlertCircle, Users, Lightbulb, Wrench, TrendingDown, Cpu, HardDrive, Network, ArrowRight } from 'lucide-react';
+import { Server, Box, Activity, AlertTriangle, AlertCircle, Wrench, Cpu, HardDrive, Network, ArrowRight } from 'lucide-react';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
-import { ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { ComposedChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 
 interface DashboardProps {
   onNavigate: (page: string, anomalyId?: string) => void;
@@ -11,32 +11,76 @@ import { useState, useEffect } from 'react';
 import { getDashboardSummary, type DashboardSummary } from '../../services/dashboardService';
 import { useLiveMetrics } from '../../hooks/useLiveMetrics';
 
+const DASHBOARD_REFRESH_INTERVAL_MS = 30_000;
+
 export function Dashboard({ onNavigate }: DashboardProps) {
   const [data, setData] = useState<DashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
   const latestMetric = useLiveMetrics();
 
-  const fetchData = async () => {
-    try {
-      const summary = await getDashboardSummary();
-      setData(summary);
-    } catch (err) {
-      console.error("Failed to fetch dashboard summary", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchData();
+    let isMounted = true;
+    let requestInFlight = false;
+
+    const fetchData = async () => {
+      // Do not stack another expensive summary request if the previous poll is slow.
+      if (requestInFlight) return;
+
+      requestInFlight = true;
+      try {
+        const summary = await getDashboardSummary();
+        if (isMounted) setData(summary);
+      } catch (err) {
+        if (isMounted) console.error('Failed to fetch dashboard summary', err);
+      } finally {
+        requestInFlight = false;
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    // Fetch once on entry, then refresh the aggregate data at a bounded rate.
+    void fetchData();
+    const intervalId = window.setInterval(() => void fetchData(), DASHBOARD_REFRESH_INTERVAL_MS);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(intervalId);
+    };
   }, []);
 
-  // Re-fetch dashboard data when a new live metric arrives
+  // Keep the sparklines responsive without re-running the full dashboard summary.
   useEffect(() => {
-    if (latestMetric) {
-      fetchData();
-    }
+    if (!latestMetric) return;
+
+    setData((currentData) => {
+      if (!currentData) return currentData;
+
+      const recordedAt = new Date(latestMetric.recorded_at);
+      if (Number.isNaN(recordedAt.getTime())) return currentData;
+
+      recordedAt.setSeconds(0, 0);
+      const livePoint = {
+        time: recordedAt.toISOString(),
+        avg_cpu: Number(latestMetric.cpu_usage),
+        avg_memory: Number(latestMetric.memory_usage),
+        avg_disk: Number(latestMetric.disk_usage),
+        avg_thread_count: Number(latestMetric.thread_count),
+      };
+      const metricsOverview = [...currentData.metricsOverview];
+      const lastPoint = metricsOverview[metricsOverview.length - 1];
+
+      if (lastPoint && new Date(lastPoint.time).getTime() === recordedAt.getTime()) {
+        metricsOverview[metricsOverview.length - 1] = livePoint;
+      } else {
+        metricsOverview.push(livePoint);
+      }
+
+      return {
+        ...currentData,
+        metricsOverview: metricsOverview.slice(-60),
+      };
+    });
   }, [latestMetric]);
 
   const getSeverityColor = (severity: string) => {
@@ -272,7 +316,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                     {/* Mini Sparkline Chart */}
                     <div className="h-12">
                       <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={metric.data.map((value, i) => ({ value }))}>
+                        <BarChart data={metric.data.map((value) => ({ value }))}>
                           <Bar 
                             dataKey="value" 
                             fill={metric.status === 'elevated' ? '#EAB308' : metric.iconColor.replace('text-', '#')} 

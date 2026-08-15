@@ -23,15 +23,27 @@ const createAlert = async (req, res) => {
   }
 };
 
-// TOGGLE rule
+// TOGGLE or UPDATE rule
 const toggleAlert = async (req, res) => {
   try {
     const { id } = req.params;
-    const { enabled } = req.body;
-    const updatedAlert = await alertService.toggleAlert(id, enabled);
+    const { enabled, ...rest } = req.body;
+
+    // If there are other fields besides `enabled`, do a full update
+    const isFullUpdate = Object.keys(rest).length > 0;
+    let updatedAlert;
+    if (isFullUpdate) {
+      updatedAlert = await alertService.updateAlert(id, req.body);
+    } else {
+      updatedAlert = await alertService.toggleAlert(id, enabled);
+    }
+
+    if (!updatedAlert) {
+      return res.status(404).json({ success: false, message: "Alert rule not found" });
+    }
     res.json(updatedAlert);
   } catch (err) {
-    console.error("❌ Toggle Alert Error:", err.message);
+    console.error("❌ Update Alert Error:", err.message);
     res.status(500).json({ success: false, message: err.message });
   }
 };
@@ -77,10 +89,6 @@ const getAlertSettings = async (req, res) => {
 const updateAlertSettings = async (req, res) => {
   try {
     const row = await alertService.updateAlertSettings(req.body);
-    
-    if (!row) {
-      return res.status(404).json({ success: false, message: "Settings not found" });
-    }
 
     res.json({
       alertEvents: row.alert_events,

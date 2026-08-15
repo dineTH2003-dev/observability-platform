@@ -1,22 +1,8 @@
 const pool = require("../config/db");
 
 exports.getDashboardSummary = async () => {
-  // 1. KPI Counts
-  const { rows: hostStats } = await pool.query(`
-    SELECT
-      COUNT(*)::int AS total_hosts,
-      COUNT(*) FILTER (WHERE server_status = 'HEALTHY')::int AS healthy_hosts,
-      COUNT(*) FILTER (WHERE server_status = 'WARNING')::int AS warning_hosts,
-      COUNT(*) FILTER (WHERE server_status = 'CRITICAL')::int AS critical_hosts
-    FROM servers
-  `);
-  const { rows: appCount } = await pool.query(`SELECT COUNT(*) FROM applications`);
-  const { rows: serviceCount } = await pool.query(`SELECT COUNT(*) FROM services`);
-  const { rows: anomalyCount } = await pool.query(`SELECT COUNT(*) FROM anomalies WHERE status = 'detected'`);
-  const { rows: incidentCount } = await pool.query(`SELECT COUNT(*) FROM incidents WHERE status = 'open'`);
-
-  // 2. Open Incidents
-  const { rows: openIncidents } = await pool.query(`
+  // 1. Open Incidents
+  const openIncidentsPromise = pool.query(`
     SELECT i.incident_id as id, i.incident_number, i.title, i.severity, i.status, 
            i.created_at, u.email as assigned_to
     FROM incidents i
@@ -26,8 +12,8 @@ exports.getDashboardSummary = async () => {
     LIMIT 4
   `);
 
-  // 3. Top Affected Resources
-  const { rows: topAffected } = await pool.query(`
+  // 2. Top Affected Resources
+  const topAffectedPromise = pool.query(`
     SELECT 
       s.hostname as name,
       COUNT(a.anomaly_id) as "anomalyCount",
@@ -51,8 +37,8 @@ exports.getDashboardSummary = async () => {
     LIMIT 5
   `);
 
-  // 4. Metrics Overview
-  const { rows: metricsData } = await pool.query(`
+  // 3. Metrics Overview
+  const metricsDataPromise = pool.query(`
     SELECT 
       date_trunc('minute', recorded_at) as time,
       AVG(cpu_usage) as avg_cpu,
@@ -60,18 +46,18 @@ exports.getDashboardSummary = async () => {
       AVG(disk_usage) as avg_disk,
       AVG(thread_count) as avg_thread_count
     FROM server_metrics
-    WHERE recorded_at >= (SELECT COALESCE(MAX(recorded_at), NOW()) FROM server_metrics) - INTERVAL '1 hour'
+    WHERE recorded_at >= NOW() - INTERVAL '1 hour'
     GROUP BY time
     ORDER BY time ASC
     LIMIT 60
   `);
 
-  // 5. Anomaly Trend
-  const { rows: anomalyTrend } = await pool.query(`
+  // 4. Anomaly Trend
+  const anomalyTrendPromise = pool.query(`
     WITH time_series AS (
       SELECT generate_series(
-        date_trunc('hour', (SELECT COALESCE(MAX(detected_at), NOW()) FROM anomalies) - INTERVAL '24 hours'),
-        date_trunc('hour', (SELECT COALESCE(MAX(detected_at), NOW()) FROM anomalies)),
+        date_trunc('hour', NOW()) - INTERVAL '24 hours',
+        date_trunc('hour', NOW()),
         '4 hours'::interval
       ) as time
     )
@@ -85,8 +71,8 @@ exports.getDashboardSummary = async () => {
     ORDER BY ts.time ASC
   `);
 
-  // Composite System Health Calculation
-  const { rows: healthQuery } = await pool.query(`
+  // 5. KPI and composite system health counts
+  const healthQueryPromise = pool.query(`
     WITH ComponentHealth AS (
       SELECT 
         (SELECT COUNT(*) FROM servers WHERE server_status = 'CRITICAL') as critical_servers,
@@ -97,10 +83,26 @@ exports.getDashboardSummary = async () => {
         (SELECT COUNT(*) FROM applications) as total_apps,
         (SELECT COUNT(*) FROM services WHERE status = 'ERROR') as critical_services,
         (SELECT COUNT(*) FROM services WHERE status = 'STOPPED') as warning_services,
-        (SELECT COUNT(*) FROM services) as total_services
+        (SELECT COUNT(*) FROM services) as total_services,
+        (SELECT COUNT(*) FROM anomalies WHERE status = 'detected') as active_anomalies,
+        (SELECT COUNT(*) FROM incidents WHERE status = 'open') as open_incidents
     )
     SELECT * FROM ComponentHealth;
   `);
+
+  const [
+    { rows: openIncidents },
+    { rows: topAffected },
+    { rows: metricsData },
+    { rows: anomalyTrend },
+    { rows: healthQuery },
+  ] = await Promise.all([
+    openIncidentsPromise,
+    topAffectedPromise,
+    metricsDataPromise,
+    anomalyTrendPromise,
+    healthQueryPromise,
+  ]);
 
   const ch = healthQuery[0];
   const tServers = Number(ch.total_servers) || 0;
@@ -118,8 +120,8 @@ exports.getDashboardSummary = async () => {
   systemHealth -= (warningComponents * 5);   // 5% penalty per warning component
 
   // Deduct points for active issues
-  const activeAnomaliesVal = parseInt(anomalyCount[0].count) || 0;
-  const openIncidentsVal = parseInt(incidentCount[0].count) || 0;
+  const activeAnomaliesVal = Number(ch.active_anomalies) || 0;
+  const openIncidentsVal = Number(ch.open_incidents) || 0;
 
   systemHealth -= (activeAnomaliesVal * 2); // 2% penalty per anomaly
   systemHealth -= (openIncidentsVal * 5);   // 5% penalty per incident
@@ -130,8 +132,8 @@ exports.getDashboardSummary = async () => {
   return {
     kpis: {
       hosts: tServers,
-      applications: parseInt(appCount[0].count),
-      services: parseInt(serviceCount[0].count),
+      applications: tApps,
+      services: tServices,
       activeAnomalies: activeAnomaliesVal,
       openIncidents: openIncidentsVal,
       systemHealth,

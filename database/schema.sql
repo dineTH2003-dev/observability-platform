@@ -7,37 +7,14 @@ CREATE TYPE service_status_enum AS ENUM ('RUNNING', 'STOPPED', 'ERROR', 'UNKNOWN
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 
-    FROM pg_type 
-    WHERE typname = 'user_role_enum'
-    ) THEN
-    CREATE TYPE user_role_enum AS ENUM ('admin', 'engineer');
-  END IF;
-END$$;
-
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   email VARCHAR(50) UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
-  role user_role_enum NOT NULL DEFAULT 'engineer',
+  role VARCHAR(20) DEFAULT 'engineer',
   is_active BOOLEAN DEFAULT true,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-
-ALTER TABLE users
-  ADD COLUMN IF NOT EXISTS first_name VARCHAR(50),
-  ADD COLUMN IF NOT EXISTS last_name VARCHAR(50),
-  ADD COLUMN IF NOT EXISTS phone VARCHAR(30),
-  ADD COLUMN IF NOT EXISTS department VARCHAR(100),
-  ADD COLUMN IF NOT EXISTS location VARCHAR(100),
-  ADD COLUMN IF NOT EXISTS bio VARCHAR(300),
-  ADD COLUMN IF NOT EXISTS avatar_url TEXT,
-  ADD COLUMN IF NOT EXISTS profile_image BYTEA,
-  ADD COLUMN IF NOT EXISTS profile_image_type VARCHAR(50),
-  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
 
 CREATE TABLE IF NOT EXISTS password_resets (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -45,6 +22,36 @@ CREATE TABLE IF NOT EXISTS password_resets (
   token TEXT NOT NULL,
   expires_at TIMESTAMP NOT NULL
 );
+
+-- Alert Management
+CREATE TABLE IF NOT EXISTS alerts (
+  id VARCHAR(50) PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  condition TEXT NOT NULL,
+  severity VARCHAR(20) NOT NULL DEFAULT 'medium',
+  duration INT DEFAULT 0,
+  enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  recipients JSONB NOT NULL DEFAULT '[]'::jsonb,
+  scope VARCHAR(50) DEFAULT 'all',
+  cooldown INT DEFAULT 0,
+  send_once BOOLEAN NOT NULL DEFAULT FALSE,
+  threshold NUMERIC(10, 4),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS alert_settings (
+  id INT PRIMARY KEY DEFAULT 1,
+  alert_events JSONB NOT NULL DEFAULT '{}'::jsonb,
+  recipients JSONB NOT NULL DEFAULT '{}'::jsonb,
+  email_channel_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+  email_address VARCHAR(255),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+INSERT INTO alert_settings (id)
+VALUES (1)
+ON CONFLICT (id) DO NOTHING;
 
 --Ticket Management
 
@@ -157,16 +164,37 @@ CREATE TABLE log_configs (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE (service_id) -- one config per service; enables upsert
 );
+CREATE TABLE LogEntry (
+    log_entry_id INT AUTO_INCREMENT PRIMARY KEY,
+    log_config_id INT NOT NULL,
+    raw_line TEXT NOT NULL,
+    timestamp DATETIME NOT NULL,
+    log_level VARCHAR(20) NOT NULL,
+    message TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 
--- logs
-CREATE TABLE IF NOT EXISTS logs (
-    id SERIAL PRIMARY KEY,
-    server_id INT NOT NULL REFERENCES servers(server_id) ON DELETE CASCADE,
-    service_id INT NOT NULL REFERENCES services(service_id) ON DELETE CASCADE,
-    timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    level VARCHAR(20) NOT NULL,
-    message TEXT NOT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    CONSTRAINT fk_logentry_logconfig
+        FOREIGN KEY (log_config_id)
+        REFERENCES LogConfig(log_config_id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE
+);
+
+CREATE TABLE LogAnalytics (
+    log_analytics_id INT AUTO_INCREMENT PRIMARY KEY,
+    log_entry_id INT NOT NULL UNIQUE,
+    info_count INT NOT NULL DEFAULT 0,
+    warn_count INT NOT NULL DEFAULT 0,
+    error_count INT NOT NULL DEFAULT 0,
+    fatal_count INT NOT NULL DEFAULT 0,
+    total INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_loganalytics_logentry
+        FOREIGN KEY (log_entry_id)
+        REFERENCES LogEntry(log_entry_id)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE
 );
 
 -- ============================================================
@@ -193,11 +221,7 @@ CREATE INDEX idx_services_status ON services(status);
 
 -- filter by RUNNING/STOPPED
 -- service_metrics
-CREATE INDEX idx_service_metrics_service_ts ON service_metrics(service_id, recorded_at DESC);
-
--- logs
-CREATE INDEX idx_logs_timestamp ON logs(timestamp DESC);
-CREATE INDEX idx_logs_service_id ON logs(service_id);-- ============================================================
+CREATE INDEX idx_service_metrics_service_ts ON service_metrics(service_id, recorded_at DESC);-- ============================================================
 --  INCIDENT MANAGEMENT TABLES
 --  Run: sudo -u postgres psql -d observability_db -f database/incident_schema.sql
 --  Safe to run: does NOT modify any existing tables
@@ -267,6 +291,33 @@ CREATE TABLE IF NOT EXISTS incident_timeline (
   message     TEXT        NOT NULL,
   occurred_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- ============================================================
+--  5. Notifications
+-- ============================================================
+CREATE TABLE IF NOT EXISTS notifications (
+  notification_id SERIAL PRIMARY KEY,
+  recipient_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  sender_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  incident_id UUID REFERENCES incidents(incident_id) ON DELETE SET NULL,
+  anomaly_id UUID REFERENCES anomalies(anomaly_id) ON DELETE SET NULL,
+  title VARCHAR(255) NOT NULL,
+  message TEXT NOT NULL,
+  notification_type VARCHAR(50) NOT NULL,
+  is_read BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  read_at TIMESTAMPTZ,
+  deleted_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_notif_recipient
+  ON notifications(recipient_user_id) WHERE deleted_at IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_notif_unread
+  ON notifications(recipient_user_id, is_read) WHERE deleted_at IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_notif_created
+  ON notifications(created_at DESC) WHERE deleted_at IS NULL;
 
 -- ============================================================
 --  5. Indexes for fast queries

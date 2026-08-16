@@ -1,17 +1,11 @@
+import { PASSWORD_RULES } from "../../utils/passwordValidation";
+
 interface PasswordStrengthProps {
   password: string;
 }
 
-const checks = [
-  { key: "length", test: (value: string) => value.length >= 8 },
-  { key: "uppercase", test: (value: string) => /[A-Z]/.test(value) },
-  { key: "lowercase", test: (value: string) => /[a-z]/.test(value) },
-  { key: "number", test: (value: string) => /\d/.test(value) },
-  { key: "special", test: (value: string) => /[^A-Za-z\d]/.test(value) },
-];
-
 export function PasswordStrength({ password }: PasswordStrengthProps) {
-  const completed = password ? checks.filter((check) => check.test(password)).length : 0;
+  const completed = password ? PASSWORD_RULES.filter((check) => check.test(password)).length : 0;
   const { label, width, toneClass } = getStrengthPresentation(password, completed);
 
   return (
@@ -47,10 +41,10 @@ function getStrengthPresentation(password: string, completed: number) {
     };
   }
 
-  if (completed <= 1) {
+  if (completed <= 2) {
     return {
       label: "Very Weak",
-      width: 20,
+      width: Math.round((completed / PASSWORD_RULES.length) * 100),
       toneClass: {
         badge: "border-[#EF4444]/20 bg-[#EF4444]/10 text-[#EF4444]",
         bar: "bg-[#EF4444]",
@@ -58,10 +52,10 @@ function getStrengthPresentation(password: string, completed: number) {
     };
   }
 
-  if (completed === 2) {
+  if (completed <= 4) {
     return {
       label: "Weak",
-      width: 40,
+      width: Math.round((completed / PASSWORD_RULES.length) * 100),
       toneClass: {
         badge: "border-[#F59E0B]/20 bg-[#F59E0B]/10 text-[#F59E0B]",
         bar: "bg-[#F59E0B]",
@@ -69,10 +63,10 @@ function getStrengthPresentation(password: string, completed: number) {
     };
   }
 
-  if (completed === 3) {
+  if (completed <= 5) {
     return {
       label: "Medium",
-      width: 60,
+      width: Math.round((completed / PASSWORD_RULES.length) * 100),
       toneClass: {
         badge: "border-[#EAB308]/20 bg-[#EAB308]/10 text-[#EAB308]",
         bar: "bg-[#EAB308]",
@@ -80,10 +74,10 @@ function getStrengthPresentation(password: string, completed: number) {
     };
   }
 
-  if (completed === 4) {
+  if (completed === 6) {
     return {
       label: "Strong",
-      width: 80,
+      width: Math.round((completed / PASSWORD_RULES.length) * 100),
       toneClass: {
         badge: "border-[#3B82F6]/20 bg-[#3B82F6]/10 text-[#3B82F6]",
         bar: "bg-[#3B82F6]",

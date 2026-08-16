@@ -3,8 +3,17 @@ const jwt = require('jsonwebtoken');
 const db = require('../config/db');
 const env = require('../config/env');
 const crypto = require('crypto');
+const {
+  PASSWORD_VALIDATION_MESSAGE,
+  validatePassword,
+} = require('../utils/passwordValidation');
 
 async function signupUser({ email, password, role = 'engineer' }) {
+  const passwordResult = validatePassword(password);
+  if (!passwordResult.isValid) {
+    throw new Error(PASSWORD_VALIDATION_MESSAGE);
+  }
+
   const hashed = await bcrypt.hash(password, 10);
 
   const result = await db.query(

@@ -1,11 +1,16 @@
 import { useState } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
+import { CheckCircle2, Eye, EyeOff, XCircle } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Checkbox } from '../../components/ui/checkbox';
+import { PasswordStrength } from '../../components/profile/PasswordStrength';
 import logoImage from '../../../assets/logo.png';
 import { authService } from '../../services/authService';
+import {
+  PASSWORD_VALIDATION_MESSAGE,
+  getPasswordValidation,
+} from '../../utils/passwordValidation';
 
 interface SignupProps {
   onSignup: (authData: {
@@ -23,9 +28,18 @@ export function Signup({ onSignup, onSwitchToLogin }: SignupProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [agreeToTerms, setAgreeToTerms] = useState(false);
+  const passwordValidation = getPasswordValidation(password);
+  const hasConfirmPassword = confirmPassword.length > 0;
+  const passwordsMatch = password === confirmPassword;
+  const canSubmit = agreeToTerms && passwordValidation.isValid && hasConfirmPassword && passwordsMatch;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!passwordValidation.isValid) {
+      alert(PASSWORD_VALIDATION_MESSAGE);
+      return;
+    }
 
     if (password !== confirmPassword) {
       alert('Passwords do not match');
@@ -45,10 +59,10 @@ export function Signup({ onSignup, onSwitchToLogin }: SignupProps) {
   };
 
   return (
-    <div className="min-h-screen w-full flex">
+    <div className="min-h-screen w-full flex flex-col md:flex-row bg-nebula-navy-dark">
       {/* Left Panel - Signup Form */}
-      <div className="w-1/2 h-screen bg-nebula-navy-dark flex items-center justify-center">
-        <div className="w-full max-w-md px-12">
+      <div className="w-full md:w-1/2 min-h-screen bg-nebula-navy-dark flex items-center justify-center py-8 lg:py-10">
+        <div className="w-full max-w-md px-6 sm:px-10 md:px-8 lg:px-12">
           {/* Header */}
           <div className="mb-8">
             <h1 className="text-3xl font-semibold text-white mb-2">Create Account</h1>
@@ -84,6 +98,8 @@ export function Signup({ onSignup, onSwitchToLogin }: SignupProps) {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full h-12 pr-12 bg-nebula-navy-light border-nebula-navy-lighter text-white placeholder:text-slate-500"
+                  aria-invalid={password.length > 0 && !passwordValidation.isValid}
+                  required
                 />
 
                 <button
@@ -93,6 +109,27 @@ export function Signup({ onSignup, onSwitchToLogin }: SignupProps) {
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
+              </div>
+              <div className="mt-3 space-y-3">
+                <PasswordStrength password={password} />
+                <div className="grid gap-2 rounded-xl border border-nebula-navy-lighter bg-nebula-navy-light/70 p-3">
+                  <p className="text-xs font-medium text-slate-300">Requirements:</p>
+                  {passwordValidation.results.map((rule) => (
+                    <div
+                      key={rule.key}
+                      className={`flex items-center gap-2 text-xs ${
+                        rule.isValid ? 'text-emerald-400' : 'text-slate-400'
+                      }`}
+                    >
+                      {rule.isValid ? (
+                        <CheckCircle2 className="size-3.5 flex-shrink-0" />
+                      ) : (
+                        <XCircle className="size-3.5 flex-shrink-0" />
+                      )}
+                      <span>{rule.label}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -108,6 +145,8 @@ export function Signup({ onSignup, onSwitchToLogin }: SignupProps) {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className="w-full h-12 pr-12 bg-nebula-navy-light border-nebula-navy-lighter text-white placeholder:text-slate-500"
+                  aria-invalid={hasConfirmPassword && !passwordsMatch}
+                  required
                 />
 
                 <button
@@ -118,6 +157,9 @@ export function Signup({ onSignup, onSwitchToLogin }: SignupProps) {
                   {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
+              <p className={`mt-2 min-h-4 text-xs ${hasConfirmPassword && !passwordsMatch ? 'text-red-400' : 'text-slate-500'}`}>
+                {hasConfirmPassword && !passwordsMatch ? 'Confirm password must match the password.' : ''}
+              </p>
             </div>
 
             <div className="flex items-center space-x-2 pt-2">
@@ -125,7 +167,7 @@ export function Signup({ onSignup, onSwitchToLogin }: SignupProps) {
                 id="terms"
                 checked={agreeToTerms}
                 onCheckedChange={(checked: boolean | 'indeterminate') => setAgreeToTerms(Boolean(checked))}
-                className="border-nebula-navy-lighter data-[state=checked]:bg-cyan-500 data-[state=checked]:border-cyan-500"
+                className="border-nebula-navy-lighter data-[state=checked]:bg-nebula-purple data-[state=checked]:border-nebula-purple"
               />
               <label
                 htmlFor="terms"
@@ -140,8 +182,8 @@ export function Signup({ onSignup, onSwitchToLogin }: SignupProps) {
 
             <Button
               type="submit"
-              className="w-full h-12 bg-gradient-to-r from-cyan-500 via-blue-500 to-blue-600 hover:from-cyan-600 hover:via-blue-600 hover:to-blue-700 text-white font-medium shadow-lg shadow-blue-500/50 mt-6"
-              disabled={!agreeToTerms}
+              className="w-full h-12 bg-gradient-to-r from-nebula-purple to-nebula-blue hover:from-nebula-purple-dark hover:to-nebula-blue text-white font-medium mt-6"
+              disabled={!canSubmit}
             >
               Create Account
             </Button>
@@ -164,7 +206,7 @@ export function Signup({ onSignup, onSwitchToLogin }: SignupProps) {
       </div>
 
       {/* Right Panel - Branding */}
-      <div className="w-1/2 h-screen bg-gradient-to-br from-nebula-purple via-purple-500 to-nebula-pink flex items-center justify-center">
+      <div className="w-full min-h-[280px] md:w-1/2 md:h-screen md:sticky md:top-0 bg-gradient-to-br from-nebula-purple via-purple-500 to-nebula-pink flex items-center justify-center">
         <div className="flex flex-col items-center justify-center gap-6">
           <img
             src={logoImage}

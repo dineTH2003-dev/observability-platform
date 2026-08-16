@@ -49,6 +49,7 @@ async function sendNotificationEmail(to, subject, htmlContent) {
     });
   } catch (err) {
     console.error('Error sending notification email:', err.message);
+    throw err;
   }
 }
 

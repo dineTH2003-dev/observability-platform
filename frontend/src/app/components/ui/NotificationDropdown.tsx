@@ -22,11 +22,13 @@ interface NotificationDropdownProps {
   notifications: Notification[];
   onViewAll: () => void;
   onMarkAsRead: (id: string) => void;
+  onClearAll?: () => void;
 }
 
-export function NotificationDropdown({ notifications, onViewAll, onMarkAsRead }: NotificationDropdownProps) {
-  const unreadCount = notifications.filter(n => !n.read).length;
-  const recentNotifications = notifications.slice(0, 5);
+export function NotificationDropdown({ notifications, onViewAll, onMarkAsRead, onClearAll }: NotificationDropdownProps) {
+  const unreadNotifications = notifications.filter(n => !n.read);
+  const unreadCount = unreadNotifications.length;
+  const recentNotifications = unreadNotifications.slice(0, 5);
 
   const getNotificationIcon = (type: Notification['type']) => {
     switch (type) {
@@ -99,31 +101,41 @@ export function NotificationDropdown({ notifications, onViewAll, onMarkAsRead }:
         className="bg-nebula-navy-light border-nebula-navy-lighter w-80 p-0"
       >
         {/* Header */}
-        <div className="px-4 py-3 border-b border-nebula-navy-lighter">
-          <div className="flex items-center justify-between">
+        <div className="px-4 py-3 border-b border-nebula-navy-lighter flex items-center justify-between">
+          <div className="flex items-center gap-2">
             <h3 className="text-white font-semibold">Notifications</h3>
             {unreadCount > 0 && (
-              <span className="text-xs text-nebula-cyan bg-nebula-cyan/10 px-2 py-1 rounded-full">
+              <span className="text-xs text-nebula-cyan bg-nebula-cyan/10 px-2 py-0.5 rounded-full font-medium">
                 {unreadCount} new
               </span>
             )}
           </div>
+          {unreadCount > 0 && onClearAll && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onClearAll();
+              }}
+              className="text-xs font-medium text-slate-400 hover:text-nebula-pink transition-colors px-2 py-1 rounded hover:bg-nebula-navy-dark"
+            >
+              Clear All
+            </button>
+          )}
         </div>
 
         {/* Notification List */}
         <div className="max-h-[400px] overflow-y-auto">
           {recentNotifications.length === 0 ? (
             <div className="px-4 py-8 text-center">
-              <Bell className="size-12 text-slate-600 mx-auto mb-2" />
-              <p className="text-slate-400 text-sm">No notifications</p>
+              <Bell className="size-10 text-slate-600 mx-auto mb-2 opacity-50" />
+              <p className="text-slate-400 text-sm font-medium">No new notifications</p>
+              <p className="text-slate-500 text-xs mt-1">You're all caught up!</p>
             </div>
           ) : (
             recentNotifications.map((notification) => (
               <div
                 key={notification.id}
-                className={`px-4 py-3 border-b border-nebula-navy-lighter hover:bg-nebula-navy-dark cursor-pointer transition-colors ${
-                  !notification.read ? 'bg-nebula-navy-dark/50' : ''
-                }`}
+                className="px-4 py-3 border-b border-nebula-navy-lighter hover:bg-nebula-navy-dark cursor-pointer transition-colors bg-nebula-navy-dark/50"
                 onClick={() => onMarkAsRead(notification.id)}
               >
                 <div className="flex gap-3">
@@ -132,12 +144,10 @@ export function NotificationDropdown({ notifications, onViewAll, onMarkAsRead }:
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
-                      <p className={`text-sm font-medium ${!notification.read ? 'text-white' : 'text-slate-300'}`}>
+                      <p className="text-sm font-medium text-white">
                         {notification.title}
                       </p>
-                      {!notification.read && (
-                        <span className="w-2 h-2 bg-nebula-pink rounded-full flex-shrink-0 mt-1.5"></span>
-                      )}
+                      <span className="w-2 h-2 bg-nebula-pink rounded-full flex-shrink-0 mt-1.5"></span>
                     </div>
                     <p className="text-xs text-slate-400 mt-1 line-clamp-2">
                       {notification.message}
@@ -158,18 +168,25 @@ export function NotificationDropdown({ notifications, onViewAll, onMarkAsRead }:
         </div>
 
         {/* Footer */}
-        {recentNotifications.length > 0 && (
-          <div className="px-4 py-3 border-t border-nebula-navy-lighter">
-            <Button
-              variant="ghost"
-              className="w-full text-nebula-cyan hover:text-nebula-cyan hover:bg-nebula-cyan/10 justify-between"
-              onClick={onViewAll}
+        <div className="px-4 py-2.5 border-t border-nebula-navy-lighter flex items-center justify-between">
+          {unreadCount > 0 && onClearAll ? (
+            <button
+              onClick={onClearAll}
+              className="text-xs text-slate-400 hover:text-nebula-pink transition-colors font-medium"
             >
-              View all notifications
-              <ArrowRight className="size-4" />
-            </Button>
-          </div>
-        )}
+              Clear All
+            </button>
+          ) : <span />}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-nebula-cyan hover:text-nebula-cyan hover:bg-nebula-cyan/10 text-xs flex items-center gap-1.5 h-8"
+            onClick={onViewAll}
+          >
+            View all notifications
+            <ArrowRight className="size-3.5" />
+          </Button>
+        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   );

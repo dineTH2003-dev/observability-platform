@@ -19,7 +19,7 @@ import { NotificationDropdown } from '../ui/NotificationDropdown';
 import type { Notification } from '../ui/NotificationDropdown';
 import type { UserProfile } from '../../types/user';
 import { useSocket } from '../../context/SocketContext';
-import { fetchNotifications, markAsRead } from '../../../api/notificationApi';
+import { fetchNotifications, markAsRead, markAllAsRead } from '../../../api/notificationApi';
 
 interface TopbarProps {
   currentPage: string;
@@ -139,6 +139,15 @@ export function Topbar({ currentPage, onNavigate, onLogout, onToggleSidebar, cur
     }
   };
 
+  const handleClearAll = async () => {
+    try {
+      await markAllAsRead();
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    } catch (err) {
+      console.error('Error clearing notifications:', err);
+    }
+  };
+
   const handleViewAll = () => {
     onNavigate('notifications');
   };
@@ -181,6 +190,7 @@ export function Topbar({ currentPage, onNavigate, onLogout, onToggleSidebar, cur
         <NotificationDropdown
           notifications={notifications}
           onMarkAsRead={handleMarkAsRead}
+          onClearAll={handleClearAll}
           onViewAll={handleViewAll}
         />
 

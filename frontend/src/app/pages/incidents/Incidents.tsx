@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from '../../components/ui/select';
 import * as incidentApi from '../../../api/incidentApi';
+import { useLiveIncidents } from '../../hooks/useLiveIncidents';
 
 // Shape returned by the backend API
 interface ApiIncident {
@@ -77,6 +78,9 @@ export function Incidents() {
   // Load incidents and engineers from the real API on mount
   const [incidents, setIncidents] = useState<any[]>([]);
 
+  // Real-time incident events
+  const { newIncident, updatedIncident } = useLiveIncidents();
+
   const loadData = async () => {
     try {
       const [rawIncidents, rawEngineers] = await Promise.all([
@@ -93,6 +97,40 @@ export function Incidents() {
   useEffect(() => {
     loadData();
   }, []);
+
+  // Live: prepend newly created incidents
+  useEffect(() => {
+    if (!newIncident || !newIncident.incident_id) return;
+
+    setIncidents(prev => {
+      if (prev.some(i => i.incident_id === newIncident.incident_id)) return prev;
+      return [mapIncident(newIncident as any), ...prev];
+    });
+  }, [newIncident]);
+
+  // Live: update incident status/assignment in-place
+  useEffect(() => {
+    if (!updatedIncident || !updatedIncident.incident_id) return;
+
+    setIncidents(prev =>
+      prev.map(i =>
+        i.incident_id === updatedIncident.incident_id
+          ? {
+              ...i,
+              status: updatedIncident.status || i.status,
+              assignedTo: updatedIncident.assigned_email || i.assignedTo,
+            }
+          : i
+      )
+    );
+
+    // If the detail dialog is open for this incident, refresh it
+    if (selectedIncident?.incident_id === updatedIncident.incident_id) {
+      incidentApi.fetchIncidentById(updatedIncident.incident_id as string)
+        .then(updated => setSelectedIncident(mapIncident(updated)))
+        .catch(() => {});
+    }
+  }, [updatedIncident]);
 
 
 

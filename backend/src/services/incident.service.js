@@ -3,6 +3,7 @@ const AnomalyModel   = require('../models/anomaly.model');
 const TimelineModel  = require('../models/incident_timeline.model');
 const db             = require('../config/db');
 const ApiError       = require('../utils/apiError');
+const { broadcastIncidentEvent, broadcastAnomalyEvent } = require('../socket');
 
 // ─────────────────────────────────────────────────────────────
 //  CREATE — called when an anomaly is detected (auto or manual)
@@ -34,6 +35,14 @@ exports.createIncidentFromAnomaly = async (anomalyData) => {
   notificationService.notifyAnomalyDetected(incident, anomaly).catch(err => {
     console.error('notifyAnomalyDetected failed:', err.message);
   });
+
+  // Real-time broadcast
+  try {
+    broadcastIncidentEvent('incident_created', incident);
+    broadcastAnomalyEvent('anomaly_created', anomaly);
+  } catch (err) {
+    console.error('Socket broadcast failed (incident_created):', err.message);
+  }
 
   return { incident, anomaly };
 };
@@ -96,6 +105,16 @@ exports.assignEngineer = async (incidentId, engineerId, actorId) => {
     console.error('notifyEngineerAssigned failed:', err.message);
   });
 
+  // Real-time broadcast
+  try {
+    broadcastIncidentEvent('incident_updated', {
+      ...updated,
+      action: 'assigned',
+    });
+  } catch (err) {
+    console.error('Socket broadcast failed (incident_updated assign):', err.message);
+  }
+
   return updated;
 };
 
@@ -126,6 +145,16 @@ exports.acknowledgeIncident = async (incidentId, actorId) => {
     console.error('notifyAnomalyAcknowledged failed:', err.message);
   });
 
+  // Real-time broadcast
+  try {
+    broadcastIncidentEvent('incident_updated', {
+      ...updated,
+      action: 'acknowledged',
+    });
+  } catch (err) {
+    console.error('Socket broadcast failed (incident_updated ack):', err.message);
+  }
+
   return updated;
 };
 
@@ -154,6 +183,16 @@ exports.resolveIncident = async (incidentId, actorId) => {
   notificationService.notifyAnomalyResolved(updated, actorId).catch(err => {
     console.error('notifyAnomalyResolved failed:', err.message);
   });
+
+  // Real-time broadcast
+  try {
+    broadcastIncidentEvent('incident_updated', {
+      ...updated,
+      action: 'resolved',
+    });
+  } catch (err) {
+    console.error('Socket broadcast failed (incident_updated resolve):', err.message);
+  }
 
   return updated;
 };

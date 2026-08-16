@@ -5,6 +5,7 @@ import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
 import { addAnomalyFeedback, fetchAnomalies, fetchAnomalyById } from '../../../api/anomalyApi';
 import type { ApiAnomaly } from '../../../api/anomalyApi';
+import { useLiveAnomalies } from '../../hooks/useLiveAnomalies';
 
 type FeedbackLabel = 'true_positive' | 'false_positive' | 'expected_change' | 'duplicate' | 'unknown';
 
@@ -107,6 +108,9 @@ export function Anomalies({ selectedAnomalyId }: AnomaliesProps) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    // Real-time anomaly events
+    const { newAnomaly, updatedAnomaly } = useLiveAnomalies();
+
     useEffect(() => {
         let mounted = true;
 
@@ -128,6 +132,65 @@ export function Anomalies({ selectedAnomalyId }: AnomaliesProps) {
             mounted = false;
         };
     }, []);
+
+    // Live: prepend new anomalies as they arrive from ML detection
+    useEffect(() => {
+        if (!newAnomaly || !newAnomaly.anomaly_id) return;
+
+        // Avoid duplicates
+        setAnomalies(prev => {
+            if (prev.some(a => a.id === newAnomaly.anomaly_id)) return prev;
+
+            const mapped: Anomaly = {
+                id: newAnomaly.anomaly_id as string,
+                severity: (newAnomaly.severity as string) || 'medium',
+                entity: (newAnomaly.server_name as string) || (newAnomaly.service_name as string) || `Server ${newAnomaly.server_id || ''}`,
+                type: newAnomaly.service_id ? 'Service' : newAnomaly.application_id ? 'Application' : 'Host',
+                title: (newAnomaly.title as string) || 'Anomaly detected',
+                description: (newAnomaly.description as string) || null,
+                detectedTime: 'now',
+                status: 'detected',
+                detector: (newAnomaly.ml_details as any)?.detector_name || null,
+                metricValue: formatNumber(newAnomaly.metric_value as number),
+                threshold: formatNumber(newAnomaly.threshold as number),
+                score: formatNumber((newAnomaly.ml_details as any)?.score),
+                confidence: formatNumber((newAnomaly.ml_details as any)?.confidence),
+                reasonCodes: (newAnomaly.ml_details as any)?.reason_codes || [],
+                incidentNumber: null,
+                suppressionReason: null,
+            };
+
+            return [mapped, ...prev];
+        });
+    }, [newAnomaly]);
+
+    // Live: update anomaly status/feedback in-place
+    useEffect(() => {
+        if (!updatedAnomaly || !updatedAnomaly.anomaly_id) return;
+
+        if (updatedAnomaly.action === 'status_changed' && updatedAnomaly.status) {
+            setAnomalies(prev =>
+                prev.map(a =>
+                    a.id === updatedAnomaly.anomaly_id
+                        ? {
+                              ...a,
+                              status: updatedAnomaly.status as Anomaly['status'],
+                              resolvedTime: updatedAnomaly.resolved_at
+                                  ? formatRelativeTime(updatedAnomaly.resolved_at as string)
+                                  : a.resolvedTime,
+                          }
+                        : a
+                )
+            );
+        }
+
+        // Refresh detail panel if it's open for this anomaly
+        if (selectedAnomaly === updatedAnomaly.anomaly_id) {
+            fetchAnomalyById(updatedAnomaly.anomaly_id as string)
+                .then(setSelectedDetail)
+                .catch(() => {});
+        }
+    }, [updatedAnomaly]);
 
     useEffect(() => {
         if (!selectedAnomaly) {

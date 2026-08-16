@@ -3,6 +3,7 @@ const AnomalyModel = require("../models/anomaly.model");
 const IncidentModel = require("../models/incident.model");
 const TimelineModel = require("../models/incident_timeline.model");
 const ApiError = require("../utils/apiError");
+const { broadcastAnomalyEvent, broadcastIncidentEvent } = require("../socket");
 
 const VALID_SEVERITIES = new Set(["low", "medium", "high", "critical"]);
 const VALID_STATUSES = new Set(["detected", "assigned", "acknowledged", "resolved"]);
@@ -123,6 +124,19 @@ exports.createFromMlDetection = async (payload) => {
       });
     } catch (err) {
       console.error("Failed to load notificationService:", err.message);
+    }
+
+    // ── Real-time broadcast ──
+    try {
+      broadcastAnomalyEvent('anomaly_created', {
+        ...anomaly,
+        ml_details: details,
+      });
+      if (incident) {
+        broadcastIncidentEvent('incident_created', incident);
+      }
+    } catch (err) {
+      console.error("Socket broadcast failed (anomaly_created):", err.message);
     }
 
     return {

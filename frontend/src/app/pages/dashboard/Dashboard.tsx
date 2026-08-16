@@ -11,6 +11,8 @@ interface DashboardProps {
 import { useState, useEffect } from 'react';
 import { getDashboardSummary, type DashboardSummary } from '../../services/dashboardService';
 import { useLiveMetrics } from '../../hooks/useLiveMetrics';
+import { useLiveAnomalies } from '../../hooks/useLiveAnomalies';
+import { useLiveIncidents } from '../../hooks/useLiveIncidents';
 
 const DASHBOARD_REFRESH_INTERVAL_MS = 30_000;
 
@@ -19,6 +21,8 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   const [loading, setLoading] = useState(true);
 
   const latestMetric = useLiveMetrics();
+  const { newAnomaly } = useLiveAnomalies();
+  const { newIncident, updatedIncident } = useLiveIncidents();
 
   useEffect(() => {
     let isMounted = true;
@@ -83,6 +87,53 @@ export function Dashboard({ onNavigate }: DashboardProps) {
       };
     });
   }, [latestMetric]);
+
+  // Live: bump anomaly count when a new anomaly is detected
+  useEffect(() => {
+    if (!newAnomaly || !newAnomaly.anomaly_id) return;
+    setData(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        kpis: {
+          ...prev.kpis,
+          activeAnomalies: (prev.kpis.activeAnomalies ?? 0) + 1,
+        },
+      };
+    });
+  }, [newAnomaly]);
+
+  // Live: update incident counters on status transitions
+  useEffect(() => {
+    if (!updatedIncident) return;
+    setData(prev => {
+      if (!prev) return prev;
+      // When an incident is resolved, decrement open count
+      if (updatedIncident.action === 'resolved') {
+        return {
+          ...prev,
+          openIncidents: (prev.openIncidents || []).filter(
+            (i: any) => i.incident_id !== updatedIncident.incident_id
+          ),
+        };
+      }
+      return prev;
+    });
+  }, [updatedIncident]);
+
+  // Live: prepend newly created incidents to the dashboard list
+  useEffect(() => {
+    if (!newIncident || !newIncident.incident_id) return;
+    setData(prev => {
+      if (!prev) return prev;
+      const existing = prev.openIncidents || [];
+      if (existing.some((i: any) => i.incident_id === newIncident.incident_id)) return prev;
+      return {
+        ...prev,
+        openIncidents: [newIncident as any, ...existing],
+      };
+    });
+  }, [newIncident]);
 
   const getSeverityColor = (severity: string) => {
     switch (severity?.toLowerCase()) {

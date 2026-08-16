@@ -45,4 +45,24 @@ const getIO = () => {
   return io;
 };
 
-module.exports = { initSocket, getIO };
+/**
+ * Broadcast an anomaly lifecycle event to all connected clients.
+ * @param {'anomaly_created'|'anomaly_updated'} eventType
+ * @param {object} data - anomaly payload
+ */
+const broadcastAnomalyEvent = (eventType, data) => {
+  if (!io) return;
+  io.emit(eventType, data);
+};
+
+/**
+ * Broadcast an incident lifecycle event to all connected clients.
+ * @param {'incident_created'|'incident_updated'} eventType
+ * @param {object} data - incident payload
+ */
+const broadcastIncidentEvent = (eventType, data) => {
+  if (!io) return;
+  io.emit(eventType, data);
+};
+
+module.exports = { initSocket, getIO, broadcastAnomalyEvent, broadcastIncidentEvent };

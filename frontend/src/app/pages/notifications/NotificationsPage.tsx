@@ -17,6 +17,7 @@ import {
   markAllAsRead as markAllNotificationsAsRead,
   deleteNotification as deleteNotificationApi,
 } from '../../../api/notificationApi';
+import { useSocket } from '../../context/SocketContext';
 
 interface NotificationsPageProps {
   onNavigate?: (page: string) => void;
@@ -84,6 +85,26 @@ export function NotificationsPage({ onNavigate }: NotificationsPageProps = {}) {
   useEffect(() => {
     loadNotifications();
   }, [loadNotifications]);
+
+  // Real-time: prepend new notifications as they arrive via Socket.io
+  const { socket, isConnected } = useSocket();
+  useEffect(() => {
+    if (!socket || !isConnected) return;
+
+    const handleNewNotification = (dbNotif: any) => {
+      const uiNotif = mapDbToUiNotification(dbNotif);
+      setNotifications(prev => {
+        // Avoid duplicates
+        if (prev.some(n => n.id === uiNotif.id)) return prev;
+        return [uiNotif, ...prev];
+      });
+    };
+
+    socket.on('new_notification', handleNewNotification);
+    return () => {
+      socket.off('new_notification', handleNewNotification);
+    };
+  }, [socket, isConnected]);
 
   const getNotificationIcon = (type: Notification['type']) => {
     switch (type) {

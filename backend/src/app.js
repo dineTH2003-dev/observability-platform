@@ -48,5 +48,15 @@ setInterval(async () => {
   }
 }, 60_000);
 
+// Alert Rule Evaluator: every 60s, evaluate custom alert rules
+const AlertEvaluatorService = require("./services/alert-evaluator.service");
+setInterval(async () => {
+  try {
+    await AlertEvaluatorService.evaluateAlertRules();
+  } catch (err) {
+    logger.error({ msg: "AlertEvaluator loop error", err: err.message });
+  }
+}, 60_000);
+
 module.exports = app;
 

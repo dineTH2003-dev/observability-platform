@@ -15,9 +15,8 @@ exports.getServerMetrics = async (serverId, limit = 60) => {
 
 // Get historical service metrics
 exports.getServiceMetrics = async (serviceId, timeRange = '1h', limit = 60) => {
-  // Ensure table has disk_usage and thread_count
-  await pool.query(`ALTER TABLE service_metrics ADD COLUMN IF NOT EXISTS disk_usage NUMERIC(5,2) DEFAULT 0;`);
-  await pool.query(`ALTER TABLE service_metrics ADD COLUMN IF NOT EXISTS thread_count INT DEFAULT 0;`);
+  // NOTE: disk_usage and thread_count columns are added via the one-time migration:
+  // database/add_service_metric_columns.sql
 
   let intervalStr = '1 hour';
   let bucketSecs = 60;
@@ -47,6 +46,7 @@ exports.getServiceMetrics = async (serviceId, timeRange = '1h', limit = 60) => {
 };
 
 // Get aggregated server metrics for dashboard
+// NOTE: The WHERE clause prevents a full-table scan over all historical data.
 exports.getAggregatedServerMetrics = async (limit = 20) => {
   const query = `
     SELECT 
@@ -54,6 +54,7 @@ exports.getAggregatedServerMetrics = async (limit = 20) => {
       AVG(cpu_usage) as avg_cpu,
       AVG(memory_usage) as avg_memory
     FROM server_metrics
+    WHERE recorded_at >= NOW() - INTERVAL '1 hour'
     GROUP BY time
     ORDER BY time DESC
     LIMIT $1

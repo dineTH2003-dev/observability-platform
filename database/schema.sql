@@ -40,6 +40,15 @@ CREATE TABLE IF NOT EXISTS alerts (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS alert_rule_evaluations (
+  id SERIAL PRIMARY KEY,
+  rule_id VARCHAR(50) REFERENCES alerts(id) ON DELETE CASCADE,
+  entity_type VARCHAR(50) NOT NULL,
+  entity_id INT,
+  last_triggered_at TIMESTAMPTZ,
+  UNIQUE(rule_id, entity_type, entity_id)
+);
+
 CREATE TABLE IF NOT EXISTS alert_settings (
   id INT PRIMARY KEY DEFAULT 1,
   alert_events JSONB NOT NULL DEFAULT '{}'::jsonb,

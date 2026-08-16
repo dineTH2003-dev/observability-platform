@@ -1,6 +1,14 @@
 const pool = require("../config/db");
+const cache = require("../utils/cache");
+
+const DASHBOARD_CACHE_KEY = 'dashboard:summary';
+const DASHBOARD_TTL_MS = 15_000; // 15 seconds
 
 exports.getDashboardSummary = async () => {
+  // Return cached result if fresh — avoids 5 DB queries on every poll cycle.
+  const cached = cache.get(DASHBOARD_CACHE_KEY);
+  if (cached) return cached;
+
   // 1. Open Incidents
   const openIncidentsPromise = pool.query(`
     SELECT i.incident_id as id, i.incident_number, i.title, i.severity, i.status, 
@@ -72,22 +80,47 @@ exports.getDashboardSummary = async () => {
   `);
 
   // 5. KPI and composite system health counts
+  // Uses FILTER clauses instead of 8 correlated subqueries — 3 single-pass scans vs 8 sequential ones.
   const healthQueryPromise = pool.query(`
-    WITH ComponentHealth AS (
-      SELECT 
-        (SELECT COUNT(*) FROM servers WHERE server_status = 'CRITICAL') as critical_servers,
-        (SELECT COUNT(*) FROM servers WHERE server_status = 'WARNING') as warning_servers,
-        (SELECT COUNT(*) FROM servers) as total_servers,
-        (SELECT COUNT(*) FROM applications WHERE application_status = 'DOWN') as critical_apps,
-        (SELECT COUNT(*) FROM applications WHERE application_status = 'WARNING') as warning_apps,
-        (SELECT COUNT(*) FROM applications) as total_apps,
-        (SELECT COUNT(*) FROM services WHERE status = 'ERROR') as critical_services,
-        (SELECT COUNT(*) FROM services WHERE status = 'STOPPED') as warning_services,
-        (SELECT COUNT(*) FROM services) as total_services,
-        (SELECT COUNT(*) FROM anomalies WHERE status = 'detected') as active_anomalies,
-        (SELECT COUNT(*) FROM incidents WHERE status = 'open') as open_incidents
-    )
-    SELECT * FROM ComponentHealth;
+    WITH
+      server_counts AS (
+        SELECT
+          COUNT(*) FILTER (WHERE server_status = 'CRITICAL') AS critical_servers,
+          COUNT(*) FILTER (WHERE server_status = 'WARNING')  AS warning_servers,
+          COUNT(*)                                           AS total_servers
+        FROM servers
+      ),
+      app_counts AS (
+        SELECT
+          COUNT(*) FILTER (WHERE application_status = 'DOWN')     AS critical_apps,
+          COUNT(*) FILTER (WHERE application_status = 'WARNING')  AS warning_apps,
+          COUNT(*)                                                 AS total_apps
+        FROM applications
+      ),
+      service_counts AS (
+        SELECT
+          COUNT(*) FILTER (WHERE status = 'ERROR')   AS critical_services,
+          COUNT(*) FILTER (WHERE status = 'STOPPED') AS warning_services,
+          COUNT(*)                                   AS total_services
+        FROM services
+      ),
+      issue_counts AS (
+        SELECT
+          COUNT(*) FILTER (WHERE status = 'detected') AS active_anomalies
+        FROM anomalies
+      ),
+      incident_counts AS (
+        SELECT
+          COUNT(*) FILTER (WHERE status = 'open') AS open_incidents
+        FROM incidents
+      )
+    SELECT
+      sc.critical_servers, sc.warning_servers, sc.total_servers,
+      ac.critical_apps,    ac.warning_apps,    ac.total_apps,
+      svc.critical_services, svc.warning_services, svc.total_services,
+      ic.active_anomalies,
+      inc.open_incidents
+    FROM server_counts sc, app_counts ac, service_counts svc, issue_counts ic, incident_counts inc;
   `);
 
   const [
@@ -129,7 +162,7 @@ exports.getDashboardSummary = async () => {
   // Clamp between 0 and 100
   systemHealth = Math.max(0, Math.min(100, Math.round(systemHealth)));
 
-  return {
+  const result = {
     kpis: {
       hosts: tServers,
       applications: tApps,
@@ -151,4 +184,10 @@ exports.getDashboardSummary = async () => {
     metricsOverview: metricsData,
     anomalyTrend: anomalyTrend
   };
+
+  // Cache so subsequent requests within 15s skip all DB queries.
+  cache.set(DASHBOARD_CACHE_KEY, result, DASHBOARD_TTL_MS);
+
+  return result;
 };
+

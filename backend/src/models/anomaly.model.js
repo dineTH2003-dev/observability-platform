@@ -1,4 +1,8 @@
 const db = require("../config/db");
+const cache = require("../utils/cache");
+
+const ANOMALY_CACHE_PREFIX = 'anomalies:';
+const ANOMALY_LIST_TTL_MS = 10_000; // 10 seconds
 
 // Create a new anomaly record
 exports.create = async (data, client = db) => {
@@ -15,7 +19,7 @@ exports.create = async (data, client = db) => {
     detected_at,
   } = data;
 
-  const { rows } = await client.query(
+  const { rows } = await db.query(
     `INSERT INTO anomalies
        (server_id, service_id, application_id, anomaly_type, severity, title, description, metric_value, threshold, detected_at)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,COALESCE($10, NOW()))
@@ -33,6 +37,8 @@ exports.create = async (data, client = db) => {
       detected_at ?? null,
     ],
   );
+  // Invalidate list cache — new anomaly was just created.
+  cache.invalidate(`${ANOMALY_CACHE_PREFIX}*`);
   return rows[0];
 };
 
@@ -97,6 +103,10 @@ exports.findDuplicateByFingerprint = async (fingerprint) => {
 
 // Get all anomalies, newest first
 exports.findAll = async ({ status, severity, assignedToUserId, limit = 100 } = {}) => {
+  const cacheKey = `${ANOMALY_CACHE_PREFIX}list:${status}:${severity}:${assignedToUserId}:${limit}`;
+  const cached = cache.get(cacheKey);
+  if (cached) return cached;
+
   const conditions = [];
   const params = [];
 
@@ -148,6 +158,7 @@ exports.findAll = async ({ status, severity, assignedToUserId, limit = 100 } = {
      LIMIT $${params.length}`,
     params,
   );
+  cache.set(cacheKey, rows, ANOMALY_LIST_TTL_MS);
   return rows;
 };
 
@@ -215,6 +226,8 @@ exports.updateStatus = async (id, status, resolvedAt = null) => {
     `UPDATE anomalies SET status = $1, resolved_at = $2 WHERE anomaly_id = $3 RETURNING *`,
     [status, resolvedAt, id],
   );
+  // Invalidate list cache — status changed.
+  cache.invalidate(`${ANOMALY_CACHE_PREFIX}*`);
   return rows[0];
 };
 

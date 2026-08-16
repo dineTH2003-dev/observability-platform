@@ -1,15 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import {
   ArrowLeft,
   Activity,
   Cpu,
   HardDrive,
-  Loader2,
   Wrench,
 } from 'lucide-react';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Label } from '../../components/ui/label';
+import { Skeleton } from '../../components/ui/skeleton';
 import {
   Select,
   SelectContent,
@@ -226,74 +226,52 @@ export function ServiceMetrics({ serviceId, onNavigate }: ServiceMetricsProps) {
 
     let ignore = false;
 
-    const loadService = async () => {
+    // PARALLEL fetch — service info and metrics load simultaneously.
+    const loadAll = async () => {
       setIsLoadingService(true);
-      setError(null);
-
-      try {
-        const data = await serviceService.getById(serviceId);
-        if (!ignore) {
-          setService(data);
-        }
-      } catch (loadError) {
-        if (!ignore) {
-          console.error('Failed to load service details', loadError);
-          setError('Failed to load service details.');
-        }
-      } finally {
-        if (!ignore) {
-          setIsLoadingService(false);
-        }
-      }
-    };
-
-    loadService();
-
-    return () => {
-      ignore = true;
-    };
-  }, [serviceId]);
-
-  useEffect(() => {
-    if (!serviceId) return;
-
-    let ignore = false;
-
-    const loadMetrics = async () => {
       setIsLoadingMetrics(true);
       setError(null);
 
-      try {
-        const rangeConfig = getSelectedRangeConfig(timeRange);
-        const data = await serviceMetricService.getServiceMetrics(serviceId, timeRange, rangeConfig.limit);
-        if (!ignore) {
-          setMetrics(data);
+      const rangeConfig = getSelectedRangeConfig(timeRange);
+
+      const [serviceResult, metricsResult] = await Promise.allSettled([
+        serviceService.getById(serviceId),
+        serviceMetricService.getServiceMetrics(serviceId, timeRange, rangeConfig.limit),
+      ]);
+
+      if (ignore) return;
+
+      if (serviceResult.status === 'fulfilled') {
+        setService(serviceResult.value);
+      } else {
+        console.error('Failed to load service details', serviceResult.reason);
+        setError('Failed to load service details.');
+      }
+      setIsLoadingService(false);
+
+      if (metricsResult.status === 'fulfilled') {
+        setMetrics(metricsResult.value);
+      } else {
+        console.error('Failed to load service metrics', metricsResult.reason);
+        setError('Failed to load service metrics.');
+        setMetrics([]);
+      }
+      setIsLoadingMetrics(false);
+
+      // Load baselines (non-critical — failure is silent)
+      if (timeRange === '15m' || timeRange === '1h') {
+        try {
+          const bData = await serviceMetricService.getServiceBaselines(serviceId, rangeConfig.limit);
+          if (!ignore) setBaselines(bData);
+        } catch (bErr) {
+          console.warn('Failed to load service baselines', bErr);
         }
-        
-        if (timeRange === '15m' || timeRange === '1h') {
-          try {
-             const bData = await serviceMetricService.getServiceBaselines(serviceId, rangeConfig.limit);
-             if (!ignore) setBaselines(bData);
-          } catch (bErr) {
-             console.warn("Failed to load service baselines", bErr);
-          }
-        } else {
-          if (!ignore) setBaselines([]);
-        }
-      } catch (loadError) {
-        if (!ignore) {
-          console.error('Failed to load service metrics', loadError);
-          setError('Failed to load service metrics.');
-          setMetrics([]);
-        }
-      } finally {
-        if (!ignore) {
-          setIsLoadingMetrics(false);
-        }
+      } else {
+        setBaselines([]);
       }
     };
 
-    loadMetrics();
+    loadAll();
 
     return () => {
       ignore = true;
@@ -318,15 +296,26 @@ export function ServiceMetrics({ serviceId, onNavigate }: ServiceMetricsProps) {
     });
   }, [latestMetric, timeRange]);
 
-  const getBounds = (metricName: string, timestamp: number) => {
+  // Build an O(1) lookup map from baselines keyed by "metricName:minuteBucket".
+  // This replaces the previous O(n²) loop that scanned all baselines for every metric point.
+  const baselineMap = useMemo(() => {
+    const map = new Map<string, typeof baselines[number]>();
     for (const b of baselines) {
-      if (b.metric_name === metricName) {
-         if (Math.abs(new Date(b.recorded_at).getTime() - timestamp) < 60000) {
-           return b;
-         }
-      }
+      const bucket = Math.floor(new Date(b.recorded_at).getTime() / 60000); // minute bucket
+      map.set(`${b.metric_name}:${bucket}`, b);
     }
-    return null;
+    return map;
+  }, [baselines]);
+
+  const getBounds = (metricName: string, timestamp: number) => {
+    const bucket = Math.floor(timestamp / 60000);
+    // Try exact bucket, then ±1 minute for clock-skew tolerance.
+    return (
+      baselineMap.get(`${metricName}:${bucket}`) ??
+      baselineMap.get(`${metricName}:${bucket - 1}`) ??
+      baselineMap.get(`${metricName}:${bucket + 1}`) ??
+      null
+    );
   };
 
   const chartData = metrics.map((metric) => {
@@ -484,12 +473,17 @@ export function ServiceMetrics({ serviceId, onNavigate }: ServiceMetricsProps) {
       </div>
 
       {isLoading ? (
-        <Card className="bg-nebula-navy-light border-nebula-navy-lighter">
-          <CardContent className="p-10 flex items-center justify-center gap-3 text-slate-300">
-            <Loader2 className="size-5 animate-spin" />
-            Loading service metrics from the database...
-          </CardContent>
-        </Card>
+        // Chart skeleton cards — shown while data loads in parallel.
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i} className="bg-nebula-navy-light border-nebula-navy-lighter">
+              <CardContent className="p-6">
+                <Skeleton className="h-5 w-40 mb-4" />
+                <Skeleton className="h-[260px] w-full rounded-lg" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       ) : chartData.length === 0 ? (
         <Card className="bg-nebula-navy-light border-nebula-navy-lighter">
           <CardContent className="p-10 text-center">

@@ -1,6 +1,7 @@
 import { Server, Box, Activity, AlertTriangle, AlertCircle, Wrench, Cpu, HardDrive, Network, ArrowRight } from 'lucide-react';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
+import { Skeleton } from '../../components/ui/skeleton';
 import { ComposedChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 
 interface DashboardProps {
@@ -164,7 +165,114 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   ];
 
   if (loading) {
-    return <div className="flex h-full items-center justify-center text-slate-400">Loading Dashboard...</div>;
+    return (
+      <div className="space-y-6">
+        {/* Header skeleton */}
+        <div>
+          <Skeleton className="h-7 w-64 mb-2" />
+          <Skeleton className="h-4 w-48" />
+        </div>
+
+        {/* 6 KPI card skeletons */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Card key={i} className="bg-nebula-navy-light border-nebula-navy-lighter">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <Skeleton className="w-12 h-12 rounded-xl" />
+                  <Skeleton className="h-3 w-14" />
+                </div>
+                <Skeleton className="h-3 w-24 mb-2" />
+                <Skeleton className="h-8 w-16 mb-2" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+
+        {/* Metrics overview skeleton */}
+        <Card className="bg-nebula-navy-light border-nebula-navy-lighter">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <Skeleton className="h-5 w-40 mb-1" />
+                <Skeleton className="h-3 w-52" />
+              </div>
+              <Skeleton className="h-8 w-32 rounded-md" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Card key={i} className="bg-nebula-navy-dark border-nebula-navy-lighter">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <Skeleton className="w-10 h-10 rounded-lg" />
+                      <Skeleton className="h-3 w-16" />
+                    </div>
+                    <Skeleton className="h-3 w-20 mb-2" />
+                    <Skeleton className="h-7 w-16 mb-3" />
+                    <Skeleton className="h-12 w-full" />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Incidents + resources skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2">
+            <Card className="bg-nebula-navy-light border-nebula-navy-lighter">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <Skeleton className="h-5 w-32" />
+                  <Skeleton className="h-8 w-20 rounded-md" />
+                </div>
+                <div className="space-y-3">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="p-4 bg-nebula-navy-dark rounded-lg border border-nebula-navy-lighter">
+                      <div className="flex gap-2 mb-2">
+                        <Skeleton className="h-4 w-16" />
+                        <Skeleton className="h-4 w-14" />
+                        <Skeleton className="h-4 w-20" />
+                      </div>
+                      <Skeleton className="h-4 w-3/4 mb-2" />
+                      <Skeleton className="h-3 w-1/2" />
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          <div>
+            <Card className="bg-nebula-navy-light border-nebula-navy-lighter">
+              <CardContent className="p-6">
+                <Skeleton className="h-5 w-40 mb-1" />
+                <Skeleton className="h-3 w-48 mb-4" />
+                <div className="space-y-3">
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="p-3 bg-nebula-navy-dark rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <Skeleton className="h-4 w-28" />
+                        <Skeleton className="h-3 w-8" />
+                      </div>
+                      <Skeleton className="h-2 w-full rounded-full" />
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Anomaly trend chart skeleton */}
+        <Card className="bg-nebula-navy-light border-nebula-navy-lighter">
+          <CardContent className="p-6">
+            <Skeleton className="h-5 w-32 mb-1" />
+            <Skeleton className="h-3 w-48 mb-6" />
+            <Skeleton className="h-[280px] w-full rounded-lg" />
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   return (

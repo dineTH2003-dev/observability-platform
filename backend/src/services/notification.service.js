@@ -1,6 +1,7 @@
 const NotificationModel = require('../models/notification.model');
 const db               = require('../config/db');
 const logger           = require('../config/logger');
+const emailUtil        = require('../utils/email.util');
 
 // Lazy reference — avoids circular require at load time
 let _io = null;
@@ -87,6 +88,19 @@ exports.notifyAnomalyDetected = async (incident, anomaly) => {
       incident_id:       incidentId,
       anomaly_id:        anomalyId,
     });
+
+    // Fetch admin emails and send alert email
+    const { rows: admins } = await db.query(`SELECT email FROM users WHERE id = ANY($1::uuid[])`, [adminIds]);
+    const emails = admins.map(a => a.email).filter(Boolean);
+    if (emails.length > 0) {
+      const emailHtml = `
+        <h2>Anomaly Detected: ${title}</h2>
+        <p>${message}</p>
+        <p><strong>Severity:</strong> ${severity}</p>
+        <p>Log in to CloudSight to view details.</p>
+      `;
+      await emailUtil.sendNotificationEmail(emails, `[CloudSight Alert] ${title}`, emailHtml);
+    }
   } catch (err) {
     logger.error({ msg: 'notifyAnomalyDetected failed', error: err.message });
   }
@@ -111,6 +125,19 @@ exports.notifyEngineerAssigned = async (incident, engineerId, actorId) => {
     });
 
     emitToUser(engineerId, notif);
+
+    // Fetch engineer email and send notification
+    const { rows: engineers } = await db.query(`SELECT email, first_name FROM users WHERE id = $1`, [engineerId]);
+    const engineer = engineers[0];
+    if (engineer && engineer.email) {
+      const emailHtml = `
+        <h2>Incident Assigned to You</h2>
+        <p>Hi ${engineer.first_name || 'Engineer'},</p>
+        <p>You have been assigned to <strong>Incident INC-${incident.incident_number}: ${incident.title}</strong> by ${actorEmail}.</p>
+        <p>Please log in to CloudSight to review and acknowledge this incident.</p>
+      `;
+      await emailUtil.sendNotificationEmail(engineer.email, `[CloudSight] Incident Assigned: INC-${incident.incident_number}`, emailHtml);
+    }
   } catch (err) {
     logger.error({ msg: 'notifyEngineerAssigned failed', error: err.message });
   }
@@ -193,4 +220,38 @@ exports.markAllAsRead = async (userId) => {
 
 exports.deleteNotification = async (notificationId, userId) => {
   return NotificationModel.softDelete(notificationId, userId);
+};
+
+/**
+ * Custom Alert Rule triggered
+ */
+exports.notifyCustomAlertRule = async (rule, entityDetails) => {
+  try {
+    if (!rule.recipients || rule.recipients.length === 0) return;
+
+    // Resolve recipients to user IDs (emails or roles)
+    // Recipients is an array of strings e.g. ["admin", "john@example.com"]
+    const { rows } = await db.query(
+      `SELECT id FROM users 
+       WHERE email = ANY($1::text[]) 
+          OR role::text = ANY($1::text[])`,
+      [rule.recipients]
+    );
+
+    const recipientIds = rows.map(r => r.id);
+    if (recipientIds.length === 0) return;
+
+    const message = `Custom Alert "${rule.name}" triggered for ${entityDetails.entity_type} ${entityDetails.entity_id || ''}. Condition: ${rule.condition}`;
+
+    await broadcastNotifications(recipientIds, {
+      notification_type: 'custom_alert',
+      title:             `Alert Triggered: ${rule.name}`,
+      message:           message,
+      sender_user_id:    null,
+      incident_id:       null,
+      anomaly_id:        null,
+    });
+  } catch (err) {
+    logger.error({ msg: 'notifyCustomAlertRule failed', error: err.message });
+  }
 };

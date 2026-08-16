@@ -39,6 +39,20 @@ async function sendResetEmail(email, token) {
   });
 }
 
+async function sendNotificationEmail(to, subject, htmlContent) {
+  try {
+    await transporter.sendMail({
+      from: `"CloudSight Alerts" <${env.EMAIL_USER}>`,
+      to,
+      subject,
+      html: htmlContent,
+    });
+  } catch (err) {
+    console.error('Error sending notification email:', err.message);
+  }
+}
+
 module.exports = {
   sendResetEmail,
+  sendNotificationEmail,
 };

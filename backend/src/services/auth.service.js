@@ -3,10 +3,7 @@ const jwt = require('jsonwebtoken');
 const db = require('../config/db');
 const env = require('../config/env');
 const crypto = require('crypto');
-const {
-  PASSWORD_VALIDATION_MESSAGE,
-  validatePassword,
-} = require('../utils/passwordValidation');
+// password validation lives on frontend; keep backend minimal here
 const { sendVerificationEmail } = require('../utils/email.util');
 
 const VERIFICATION_TOKEN_BYTES = 32;
@@ -21,11 +18,6 @@ function hashToken(token) {
 }
 
 async function signupUser({ email, password, role = 'engineer' }) {
-  const passwordResult = validatePassword(password);
-  if (!passwordResult.isValid) {
-    throw new Error(PASSWORD_VALIDATION_MESSAGE);
-  }
-
   const hashed = await bcrypt.hash(password, 10);
   const verificationToken = generateSecureToken();
   const tokenHash = hashToken(verificationToken);
@@ -217,9 +209,9 @@ async function resendVerification(email) {
 }
 
 module.exports = {
-  signupUser,
-  loginUser,
-  generateResetToken,
-  verifyEmail,
-  resendVerification,
+    signupUser,
+    loginUser,
+    generateResetToken,
+    verifyEmail,
+    resendVerification,
 };

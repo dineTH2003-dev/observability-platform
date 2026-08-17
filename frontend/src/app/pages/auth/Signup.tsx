@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CheckCircle2, Eye, EyeOff, XCircle } from 'lucide-react';
+import { CheckCircle2, Eye, EyeOff, MailCheck, XCircle } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
@@ -13,21 +13,19 @@ import {
 } from '../../utils/passwordValidation';
 
 interface SignupProps {
-  onSignup: (authData: {
-    accessToken: string;
-    refreshToken: string;
-    user: { id: string; email: string; role: 'admin' | 'engineer' };
-  }) => void;
   onSwitchToLogin: () => void;
 }
 
-export function Signup({ onSignup, onSwitchToLogin }: SignupProps) {
+export function Signup({ onSwitchToLogin }: SignupProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [agreeToTerms, setAgreeToTerms] = useState(false);
+  const [registrationComplete, setRegistrationComplete] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+  const [resendMessage, setResendMessage] = useState('');
   const passwordValidation = getPasswordValidation(password);
   const hasConfirmPassword = confirmPassword.length > 0;
   const passwordsMatch = password === confirmPassword;
@@ -47,30 +45,71 @@ export function Signup({ onSignup, onSwitchToLogin }: SignupProps) {
     }
 
     try {
-      const data = await authService.signup({ email, password });
-      onSignup({
-        accessToken: data.accessToken,
-        refreshToken: data.refreshToken,
-        user: data.user,
-      });
+      await authService.signup({ email, password });
+      setRegistrationComplete(true);
     } catch (error: any) {
       alert(error.response?.data?.message || 'Signup failed');
+    }
+  };
+
+  const handleResendVerification = async () => {
+    try {
+      setIsResending(true);
+      setResendMessage('');
+      const result = await authService.resendVerification(email);
+      setResendMessage(result.message);
+    } catch (error: any) {
+      setResendMessage(error.response?.data?.message || 'Unable to resend verification email right now.');
+    } finally {
+      setIsResending(false);
     }
   };
 
   return (
     <div className="min-h-screen w-full flex flex-col md:flex-row bg-nebula-navy-dark">
       {/* Left Panel - Signup Form */}
-      <div className="w-full md:w-1/2 min-h-screen bg-nebula-navy-dark flex items-center justify-center py-8 lg:py-10">
-        <div className="w-full max-w-md px-6 sm:px-10 md:px-8 lg:px-12">
+      <div className="w-full md:w-1/2 min-h-screen bg-nebula-navy-dark flex items-center justify-center py-6 lg:py-8">
+        <div className="w-full max-w-md px-6 sm:px-8 md:px-6 lg:px-10">
+          {registrationComplete ? (
+            <div className="text-center">
+              <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full border border-nebula-navy-lighter bg-nebula-navy-light">
+                  <MailCheck className="size-8 text-emerald-400" />
+                </div>
+                <h1 className="text-3xl font-semibold text-white mb-3">Check Your Email</h1>
+                <p className="text-slate-400 text-sm leading-6 mb-8">
+                  We've sent a verification link to your email address. Please click the link in that email to activate your CloudSight account.
+                </p>
+              <Button
+                type="button"
+                onClick={onSwitchToLogin}
+                className="w-full h-12 bg-gradient-to-r from-nebula-purple to-nebula-blue hover:from-nebula-purple-dark hover:to-nebula-blue text-white font-medium"
+              >
+                Go to Sign In
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleResendVerification}
+                disabled={isResending}
+                className="mt-3 w-full h-12 bg-transparent border-nebula-navy-lighter text-white hover:bg-nebula-navy-light"
+              >
+                {isResending ? 'Sending...' : 'Resend Verification Email'}
+              </Button>
+              {resendMessage && (
+                <p className="mt-3 text-xs text-slate-400">{resendMessage}</p>
+              )}
+              <p className="text-xs text-slate-500 mt-8">©2026 CloudSight. All Rights Reserved.</p>
+            </div>
+          ) : (
+          <>
           {/* Header */}
-          <div className="mb-8">
+          <div className="mb-6">
             <h1 className="text-3xl font-semibold text-white mb-2">Create Account</h1>
             <p className="text-slate-400 text-sm">Sign up to get started with Nebula!</p>
           </div>
 
           {/* Signup Form */}
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-3">
             <div>
               <Label htmlFor="email" className="text-white text-sm mb-2 block">
                 Email*
@@ -110,26 +149,8 @@ export function Signup({ onSignup, onSwitchToLogin }: SignupProps) {
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
-              <div className="mt-3 space-y-3">
+              <div className="mt-2">
                 <PasswordStrength password={password} />
-                <div className="grid gap-2 rounded-xl border border-nebula-navy-lighter bg-nebula-navy-light/70 p-3">
-                  <p className="text-xs font-medium text-slate-300">Requirements:</p>
-                  {passwordValidation.results.map((rule) => (
-                    <div
-                      key={rule.key}
-                      className={`flex items-center gap-2 text-xs ${
-                        rule.isValid ? 'text-emerald-400' : 'text-slate-400'
-                      }`}
-                    >
-                      {rule.isValid ? (
-                        <CheckCircle2 className="size-3.5 flex-shrink-0" />
-                      ) : (
-                        <XCircle className="size-3.5 flex-shrink-0" />
-                      )}
-                      <span>{rule.label}</span>
-                    </div>
-                  ))}
-                </div>
               </div>
             </div>
 
@@ -190,7 +211,7 @@ export function Signup({ onSignup, onSwitchToLogin }: SignupProps) {
           </form>
 
           {/* Footer */}
-          <div className="text-center mt-8">
+          <div className="text-center mt-6">
             <p className="text-sm text-slate-400 mb-4">
               Already have an account?{' '}
               <button
@@ -202,6 +223,8 @@ export function Signup({ onSignup, onSwitchToLogin }: SignupProps) {
             </p>
             <p className="text-xs text-slate-500">©2026 CloudSight. All Rights Reserved.</p>
           </div>
+          </>
+          )}
         </div>
       </div>
 

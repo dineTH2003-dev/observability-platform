@@ -39,6 +39,31 @@ async function sendResetEmail(email, token) {
   });
 }
 
+async function sendVerificationEmail(email, token) {
+  const frontendUrl = env.FRONTEND_URL.trim().replace(/\/$/, '');
+  const verificationLink = `${frontendUrl}/verify-email?token=${token}`;
+
+  await transporter.sendMail({
+    from: `"CloudSight" <${env.EMAIL_USER}>`,
+    to: email,
+    subject: 'Verify your CloudSight email address',
+    html: `
+      <div style="font-family: Arial, sans-serif; color: #111827; line-height: 1.6;">
+        <h2 style="color: #4f46e5;">Welcome to CloudSight!</h2>
+        <p>Thank you for creating your CloudSight account.</p>
+        <p>Please verify your email address by clicking the button below.</p>
+        <p style="margin: 28px 0;">
+          <a href="${verificationLink}" style="background: #6d28d9; color: #ffffff; padding: 12px 20px; border-radius: 8px; text-decoration: none; font-weight: 700;">
+            Verify Email
+          </a>
+        </p>
+        <p>This verification link will expire in 24 hours.</p>
+        <p>If you did not create this account, you can safely ignore this email.</p>
+      </div>
+    `,
+  });
+}
+
 async function sendNotificationEmail(to, subject, htmlContent) {
   try {
     await transporter.sendMail({
@@ -54,5 +79,6 @@ async function sendNotificationEmail(to, subject, htmlContent) {
 
 module.exports = {
   sendResetEmail,
+  sendVerificationEmail,
   sendNotificationEmail,
 };

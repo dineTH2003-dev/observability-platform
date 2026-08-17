@@ -128,7 +128,8 @@ exports.createFromMlDetection = async (payload) => {
 
     // ── Real-time broadcast ──
     try {
-      broadcastAnomalyEvent('anomaly_created', {
+      const fullAnomaly = await AnomalyModel.findById(anomaly.anomaly_id);
+      broadcastAnomalyEvent('anomaly_created', fullAnomaly || {
         ...anomaly,
         ml_details: details,
       });

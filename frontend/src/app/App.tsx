@@ -15,6 +15,7 @@ import { Settings } from './pages/settings/settings';
 import { Login } from './pages/auth/Login';
 import { Signup } from './pages/auth/Signup';
 import { ForgotPassword } from './pages/auth/ForgotPassword';
+import { VerifyEmail } from './pages/auth/VerifyEmail';
 import { AuthLayout } from './layouts/AuthLayout';
 import { useAuth } from './hooks/useAuth';
 import { AuthProvider } from './context/AuthContext';
@@ -27,13 +28,14 @@ import { ResetPassword } from './pages/auth/ResetPassword';
 import { Incidents } from './pages/incidents/Incidents';
 import { Profile } from './pages/profile/Profile';
 
-type AuthView = 'login' | 'signup' | 'forgot-password' | 'reset-password';
+type AuthView = 'login' | 'signup' | 'forgot-password' | 'reset-password' | 'verify-email';
 
 const authPathToView: Record<string, AuthView> = {
   '/login': 'login',
   '/signup': 'signup',
   '/forgot-password': 'forgot-password',
   '/reset-password': 'reset-password',
+  '/verify-email': 'verify-email',
 };
 
 function replacePath(path: string) {
@@ -54,9 +56,6 @@ function AppContent() {
     replacePath(path);
   }
 
-  const params = new URLSearchParams(window.location.search);
-  const token = params.get('token');
-
   if (isLoading) {
     return (
       <div className="min-h-screen bg-nebula-navy-bg flex items-center justify-center text-slate-400">
@@ -66,10 +65,18 @@ function AppContent() {
   }
 
   if (!isAuthenticated) {
-    if (token) {
+    if (authView === 'reset-password') {
       return (
         <AuthLayout>
-          <ResetPassword onBackToLogin={() => setAuthView('login')} />
+          <ResetPassword onBackToLogin={() => showAuthView('login', '/login')} />
+        </AuthLayout>
+      );
+    }
+
+    if (authView === 'verify-email') {
+      return (
+        <AuthLayout>
+          <VerifyEmail onBackToLogin={() => showAuthView('login', '/login')} />
         </AuthLayout>
       );
     }
@@ -87,7 +94,7 @@ function AppContent() {
           <ForgotPassword onBackToLogin={() => showAuthView('login', '/login')} />
         )}
         {authView === 'signup' && (
-          <Signup onSignup={login as any} onSwitchToLogin={() => showAuthView('login', '/login')} />
+          <Signup onSwitchToLogin={() => showAuthView('login', '/login')} />
         )}
       </AuthLayout>
     );

@@ -23,6 +23,10 @@ import { LoadingSkeleton } from "../../components/profile/LoadingSkeleton";
 import { PersonalInformation } from "../../components/profile/PersonalInformation";
 import { ProfileHeader } from "../../components/profile/ProfileHeader";
 import { ProfileCard } from "../../components/profile/ProfileCard";
+import {
+  PASSWORD_VALIDATION_MESSAGE,
+  getPasswordValidation,
+} from "../../utils/passwordValidation";
 
 const EMPTY_PROFILE_FORM: ProfileFormValues = {
   firstName: "",
@@ -41,8 +45,6 @@ const EMPTY_PASSWORD_FORM: PasswordChangePayload = {
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_REGEX = /^[+]?[0-9()\-\s]{7,20}$/;
-const PASSWORD_REGEX =
-  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
 
 interface ProfilePageProps {
   onLogout: () => void;
@@ -352,13 +354,9 @@ function validatePassword(values: PasswordChangePayload) {
     errors.currentPassword = "Current password is required";
   }
 
-  if (!PASSWORD_REGEX.test(values.newPassword)) {
-    errors.newPassword = `Password must contain at least:
-• 8 characters
-• One uppercase letter
-• One lowercase letter
-• One number
-• One special character`;
+  const passwordValidation = getPasswordValidation(values.newPassword);
+  if (!passwordValidation.isValid) {
+    errors.newPassword = PASSWORD_VALIDATION_MESSAGE;
   }
 
   if (values.confirmPassword !== values.newPassword) {

@@ -9,6 +9,7 @@ interface DashboardProps {
 }
 
 import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { getDashboardSummary, type DashboardSummary } from '../../services/dashboardService';
 import { useLiveMetrics } from '../../hooks/useLiveMetrics';
 import { useLiveAnomalies } from '../../hooks/useLiveAnomalies';
@@ -17,42 +18,24 @@ import { useLiveIncidents } from '../../hooks/useLiveIncidents';
 const DASHBOARD_REFRESH_INTERVAL_MS = 30_000;
 
 export function Dashboard({ onNavigate }: DashboardProps) {
+  const { data: initialData, isLoading: loading } = useQuery<DashboardSummary>({
+    queryKey: ['dashboard', 'summary'],
+    queryFn: getDashboardSummary,
+    refetchInterval: DASHBOARD_REFRESH_INTERVAL_MS,
+    staleTime: 15_000,
+  });
+
   const [data, setData] = useState<DashboardSummary | null>(null);
-  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (initialData) {
+      setData(initialData);
+    }
+  }, [initialData]);
 
   const latestMetric = useLiveMetrics();
   const { newAnomaly } = useLiveAnomalies();
   const { newIncident, updatedIncident } = useLiveIncidents();
-
-  useEffect(() => {
-    let isMounted = true;
-    let requestInFlight = false;
-
-    const fetchData = async () => {
-      // Do not stack another expensive summary request if the previous poll is slow.
-      if (requestInFlight) return;
-
-      requestInFlight = true;
-      try {
-        const summary = await getDashboardSummary();
-        if (isMounted) setData(summary);
-      } catch (err) {
-        if (isMounted) console.error('Failed to fetch dashboard summary', err);
-      } finally {
-        requestInFlight = false;
-        if (isMounted) setLoading(false);
-      }
-    };
-
-    // Fetch once on entry, then refresh the aggregate data at a bounded rate.
-    void fetchData();
-    const intervalId = window.setInterval(() => void fetchData(), DASHBOARD_REFRESH_INTERVAL_MS);
-
-    return () => {
-      isMounted = false;
-      window.clearInterval(intervalId);
-    };
-  }, []);
 
   // Keep the sparklines responsive without re-running the full dashboard summary.
   useEffect(() => {

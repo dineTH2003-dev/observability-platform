@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Wrench, Search, Activity, CheckCircle, AlertCircle,
   XCircle, ExternalLink, Trash2, Settings, RefreshCw, ServerCrash,
@@ -110,12 +110,24 @@ function SkeletonRow() {
   );
 }
 
+import { useQuery } from '@tanstack/react-query';
+
 // Main Component
 export function Services({ onNavigate }: ServicesPageProps) {
+  const { data: servicesData, isLoading: servicesLoading, error: servicesError, refetch } = useQuery({
+    queryKey: ['servicesList'],
+    queryFn: () => serviceService.getAll().then(res => res.map(mapApiService)),
+    staleTime: 15_000,
+  });
+
+  const { data: appsData } = useQuery({
+    queryKey: ['applicationsList'],
+    queryFn: () => applicationService.getAll().then(res => (res as any).data ?? res),
+    staleTime: 30_000,
+  });
+
   const [services, setServices] = useState<Service[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   const [configModalOpen, setConfigModalOpen] = useState(false);
@@ -124,25 +136,16 @@ export function Services({ onNavigate }: ServicesPageProps) {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  // Load
-  const loadData = useCallback(async (silent = false) => {
-    if (!silent) setLoading(true);
-    setLoadError(null);
-    try {
-      const [apiServices, appsRes] = await Promise.all([
-        serviceService.getAll(),
-        applicationService.getAll(),
-      ]);
-      setServices(apiServices.map(mapApiService));
-      setApplications((appsRes as any).data ?? appsRes);
-    } catch {
-      setLoadError('Failed to load services. Please try again.');
-    } finally {
-      if (!silent) setLoading(false);
-    }
-  }, []);
+  useEffect(() => {
+    if (servicesData) setServices(servicesData);
+  }, [servicesData]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => {
+    if (appsData) setApplications(appsData);
+  }, [appsData]);
+
+  const loading = servicesLoading && services.length === 0;
+  const loadError = servicesError ? 'Failed to load services. Please try again.' : null;
 
   // Real-time socket updates for services
   const { socket } = useSocket();
@@ -166,13 +169,7 @@ export function Services({ onNavigate }: ServicesPageProps) {
     };
   }, [socket]);
 
-  // Optionally refresh if significant status changes happen, or just refresh periodically
-  useEffect(() => {
-    const t = setInterval(() => loadData(true), 30_000);
-    return () => clearInterval(t);
-  }, [loadData]);
-
-  const handleRefresh = () => { loadData(); toast.info('Refreshing services…'); };
+  const handleRefresh = () => { refetch(); toast.info('Refreshing services…'); };
 
   // Filtering
   const filtered = services.filter((s) => {

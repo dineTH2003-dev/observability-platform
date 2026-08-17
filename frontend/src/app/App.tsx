@@ -153,13 +153,18 @@ function AppContent() {
   );
 }
 
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from './lib/queryClient';
+
 export default function App() {
   return (
-    <AuthProvider>
-      <SocketProvider>
-        <AppContent />
-        <Toaster />
-      </SocketProvider>
-    </AuthProvider>
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <SocketProvider>
+          <AppContent />
+          <Toaster />
+        </SocketProvider>
+      </AuthProvider>
+    </QueryClientProvider>
   );
 }

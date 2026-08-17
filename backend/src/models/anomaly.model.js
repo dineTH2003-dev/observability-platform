@@ -104,7 +104,7 @@ exports.findDuplicateByFingerprint = async (fingerprint) => {
 // Get all anomalies, newest first
 exports.findAll = async ({ status, severity, assignedToUserId, limit = 100 } = {}) => {
   const cacheKey = `${ANOMALY_CACHE_PREFIX}list:${status}:${severity}:${assignedToUserId}:${limit}`;
-  const cached = cache.get(cacheKey);
+  const cached = await cache.get(cacheKey);
   if (cached) return cached;
 
   const conditions = [];

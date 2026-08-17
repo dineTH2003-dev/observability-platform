@@ -12,7 +12,12 @@ export function useNavigation() {
   const [selectedServiceId, setSelectedServiceId] = useState<number | undefined>();
 
   useEffect(() => {
-    setCurrentPage(getPageFromHash());
+    const syncPage = () => {
+      setCurrentPage(getPageFromHash());
+    };
+    syncPage();
+    window.addEventListener('hashchange', syncPage);
+    return () => window.removeEventListener('hashchange', syncPage);
   }, []);
 
   const handleNavigate = (page: string, id?: string | number) => {

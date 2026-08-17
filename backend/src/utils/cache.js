@@ -1,67 +1,102 @@
 /**
- * Lightweight in-memory TTL cache.
- *
- * Usage:
- *   const cache = require('./cache');
- *   const result = cache.get('my-key');
- *   if (!result) {
- *     const fresh = await expensiveQuery();
- *     cache.set('my-key', fresh, 15_000); // 15 second TTL
- *     return fresh;
- *   }
- *   return result;
+ * Multi-Tier Cache Utility: Redis Centralized Cache + In-Memory Fallback.
  */
 
-const store = new Map();
+const redisConfig = require('../config/redis');
+
+// Secondary in-memory store for fallback or local caching
+const memoryStore = new Map();
 
 /**
- * Retrieve a cached value. Returns undefined if the key is missing or expired.
- * @param {string} key
- * @returns {any | undefined}
+ * Get cached item. Async aware for Redis, sync compatible for memory store.
  */
-function get(key) {
-  const entry = store.get(key);
+async function get(key) {
+  if (redisConfig.isAvailable()) {
+    try {
+      const redis = redisConfig.getClient();
+      const raw = await redis.get(key);
+      if (raw) return JSON.parse(raw);
+    } catch (err) {
+      // Fall through to memory store if Redis query errors out
+    }
+  }
+
+  // Memory fallback
+  const entry = memoryStore.get(key);
   if (!entry) return undefined;
   if (Date.now() > entry.expiresAt) {
-    store.delete(key);
+    memoryStore.delete(key);
     return undefined;
   }
   return entry.value;
 }
 
 /**
- * Store a value with a TTL.
- * @param {string} key
- * @param {any} value
- * @param {number} ttlMs - Time-to-live in milliseconds
+ * Set cached item with TTL in milliseconds.
  */
-function set(key, value, ttlMs) {
-  store.set(key, { value, expiresAt: Date.now() + ttlMs });
+async function set(key, value, ttlMs = 15_000) {
+  const ttlSeconds = Math.max(1, Math.ceil(ttlMs / 1000));
+
+  if (redisConfig.isAvailable()) {
+    try {
+      const redis = redisConfig.getClient();
+      await redis.setex(key, ttlSeconds, JSON.stringify(value));
+    } catch (err) {
+      // Ignore Redis error and save to memory
+    }
+  }
+
+  memoryStore.set(key, { value, expiresAt: Date.now() + ttlMs });
 }
 
 /**
- * Invalidate one or more keys (e.g. after a write/mutation).
- * Accepts exact keys or key prefixes ending with '*'.
- * @param {...string} keys
+ * Invalidate key or key pattern (ending with *).
  */
-function invalidate(...keys) {
+async function invalidate(...keys) {
   for (const key of keys) {
+    // Invalidate Redis
+    if (redisConfig.isAvailable()) {
+      try {
+        const redis = redisConfig.getClient();
+        if (key.endsWith('*')) {
+          const pattern = key;
+          const matchingKeys = await redis.keys(pattern);
+          if (matchingKeys.length > 0) {
+            await redis.del(...matchingKeys);
+          }
+        } else {
+          await redis.del(key);
+        }
+      } catch (err) {
+        // Ignore
+      }
+    }
+
+    // Invalidate memory store
     if (key.endsWith('*')) {
       const prefix = key.slice(0, -1);
-      for (const storedKey of store.keys()) {
-        if (storedKey.startsWith(prefix)) store.delete(storedKey);
+      for (const storedKey of memoryStore.keys()) {
+        if (storedKey.startsWith(prefix)) memoryStore.delete(storedKey);
       }
     } else {
-      store.delete(key);
+      memoryStore.delete(key);
     }
   }
 }
 
 /**
- * Clear the entire cache (useful for tests).
+ * Clear all cached items.
  */
-function clear() {
-  store.clear();
+async function clear() {
+  if (redisConfig.isAvailable()) {
+    try {
+      const redis = redisConfig.getClient();
+      await redis.flushdb();
+    } catch (err) {
+      // Ignore
+    }
+  }
+  memoryStore.clear();
 }
 
 module.exports = { get, set, invalidate, clear };

@@ -6,7 +6,7 @@ const DASHBOARD_TTL_MS = 15_000; // 15 seconds
 
 exports.getDashboardSummary = async () => {
   // Return cached result if fresh — avoids 5 DB queries on every poll cycle.
-  const cached = cache.get(DASHBOARD_CACHE_KEY);
+  const cached = await cache.get(DASHBOARD_CACHE_KEY);
   if (cached) return cached;
 
   // 1. Open Incidents
@@ -186,7 +186,7 @@ exports.getDashboardSummary = async () => {
   };
 
   // Cache so subsequent requests within 15s skip all DB queries.
-  cache.set(DASHBOARD_CACHE_KEY, result, DASHBOARD_TTL_MS);
+  await cache.set(DASHBOARD_CACHE_KEY, result, DASHBOARD_TTL_MS);
 
   return result;
 };

@@ -141,25 +141,7 @@ export function Anomalies({ selectedAnomalyId }: AnomaliesProps) {
         setAnomalies(prev => {
             if (prev.some(a => a.id === newAnomaly.anomaly_id)) return prev;
 
-            const mapped: Anomaly = {
-                id: newAnomaly.anomaly_id as string,
-                severity: (newAnomaly.severity as string) || 'medium',
-                entity: (newAnomaly.server_name as string) || (newAnomaly.service_name as string) || `Server ${newAnomaly.server_id || ''}`,
-                type: newAnomaly.service_id ? 'Service' : newAnomaly.application_id ? 'Application' : 'Host',
-                title: (newAnomaly.title as string) || 'Anomaly detected',
-                description: (newAnomaly.description as string) || null,
-                detectedTime: 'now',
-                status: 'detected',
-                detector: (newAnomaly.ml_details as any)?.detector_name || null,
-                metricValue: formatNumber(newAnomaly.metric_value as number),
-                threshold: formatNumber(newAnomaly.threshold as number),
-                score: formatNumber((newAnomaly.ml_details as any)?.score),
-                confidence: formatNumber((newAnomaly.ml_details as any)?.confidence),
-                reasonCodes: (newAnomaly.ml_details as any)?.reason_codes || [],
-                incidentNumber: null,
-                suppressionReason: null,
-            };
-
+            const mapped = toAnomaly(newAnomaly as unknown as ApiAnomaly);
             return [mapped, ...prev];
         });
     }, [newAnomaly]);

@@ -1,7 +1,7 @@
 const express    = require("express");
 const router     = express.Router();
 const controller = require("../controllers/service.controller");
-const cacheMiddleware = require("../middleware/cacheMiddleware");
+const cacheMiddleware = require("../middlewares/cacheMiddleware");
 const cache = require("../utils/cache");
 
 router.get("/", cacheMiddleware(15), controller.getAll);

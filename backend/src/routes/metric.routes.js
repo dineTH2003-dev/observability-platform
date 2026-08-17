@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const metricController = require("../controllers/metric.controller");
-const cacheMiddleware = require("../middleware/cacheMiddleware");
+const cacheMiddleware = require("../middlewares/cacheMiddleware");
 
 // Cache metrics endpoints for 15 seconds
 router.get("/servers", cacheMiddleware(15), metricController.getAggregatedServerMetrics);

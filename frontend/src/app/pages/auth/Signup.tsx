@@ -4,6 +4,7 @@ import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Checkbox } from '../../components/ui/checkbox';
+import { PasswordStrength } from '../../components/profile/PasswordStrength';
 import logoImage from '../../../assets/logo.png';
 import { authService } from '../../services/authService';
 import { PasswordStrength } from '../../components/profile/PasswordStrength';
@@ -45,6 +46,11 @@ export function Signup({ onSwitchToLogin }: SignupProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!passwordValidation.isValid) {
+      alert(PASSWORD_VALIDATION_MESSAGE);
+      return;
+    }
+
     if (password !== confirmPassword) {
       alert('Passwords do not match');
       return;
@@ -72,7 +78,7 @@ export function Signup({ onSwitchToLogin }: SignupProps) {
   };
 
   return (
-    <div className="min-h-screen w-full flex">
+    <div className="min-h-screen w-full flex flex-col md:flex-row bg-nebula-navy-dark">
       {/* Left Panel - Signup Form */}
       <div className="w-1/2 h-screen bg-nebula-navy-dark flex items-center justify-center">
         <div className="w-full max-w-md px-12">
@@ -136,6 +142,8 @@ export function Signup({ onSwitchToLogin }: SignupProps) {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full h-12 pr-12 bg-nebula-navy-light border-nebula-navy-lighter text-white placeholder:text-slate-500"
+                  aria-invalid={password.length > 0 && !passwordValidation.isValid}
+                  required
                 />
 
                 <button
@@ -163,6 +171,8 @@ export function Signup({ onSwitchToLogin }: SignupProps) {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   className="w-full h-12 pr-12 bg-nebula-navy-light border-nebula-navy-lighter text-white placeholder:text-slate-500"
+                  aria-invalid={hasConfirmPassword && !passwordsMatch}
+                  required
                 />
 
                 <button
@@ -173,6 +183,9 @@ export function Signup({ onSwitchToLogin }: SignupProps) {
                   {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
+              <p className={`mt-2 min-h-4 text-xs ${hasConfirmPassword && !passwordsMatch ? 'text-red-400' : 'text-slate-500'}`}>
+                {hasConfirmPassword && !passwordsMatch ? 'Confirm password must match the password.' : ''}
+              </p>
             </div>
 
             <div className="flex items-center space-x-2 pt-2">
@@ -180,7 +193,7 @@ export function Signup({ onSwitchToLogin }: SignupProps) {
                 id="terms"
                 checked={agreeToTerms}
                 onCheckedChange={(checked: boolean | 'indeterminate') => setAgreeToTerms(Boolean(checked))}
-                className="border-nebula-navy-lighter data-[state=checked]:bg-cyan-500 data-[state=checked]:border-cyan-500"
+                className="border-nebula-navy-lighter data-[state=checked]:bg-nebula-purple data-[state=checked]:border-nebula-purple"
               />
               <label
                 htmlFor="terms"
@@ -221,7 +234,7 @@ export function Signup({ onSwitchToLogin }: SignupProps) {
       </div>
 
       {/* Right Panel - Branding */}
-      <div className="w-1/2 h-screen bg-gradient-to-br from-nebula-purple via-purple-500 to-nebula-pink flex items-center justify-center">
+      <div className="w-full min-h-[280px] md:w-1/2 md:h-screen md:sticky md:top-0 bg-gradient-to-br from-nebula-purple via-purple-500 to-nebula-pink flex items-center justify-center">
         <div className="flex flex-col items-center justify-center gap-6">
           <img
             src={logoImage}

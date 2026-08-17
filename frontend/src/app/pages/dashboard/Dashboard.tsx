@@ -9,6 +9,7 @@ interface DashboardProps {
 }
 
 import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { getDashboardSummary, type DashboardSummary } from '../../services/dashboardService';
 import { useLiveMetrics } from '../../hooks/useLiveMetrics';
 import { useLiveAnomalies } from '../../hooks/useLiveAnomalies';
@@ -17,42 +18,26 @@ import { useLiveIncidents } from '../../hooks/useLiveIncidents';
 const DASHBOARD_REFRESH_INTERVAL_MS = 30_000;
 
 export function Dashboard({ onNavigate }: DashboardProps) {
+  const { data: initialData, isLoading: queryLoading } = useQuery<DashboardSummary>({
+    queryKey: ['dashboardSummary'],
+    queryFn: getDashboardSummary,
+    refetchInterval: DASHBOARD_REFRESH_INTERVAL_MS,
+    staleTime: 15_000,
+  });
+
   const [data, setData] = useState<DashboardSummary | null>(null);
-  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (initialData) {
+      setData(initialData);
+    }
+  }, [initialData]);
+
+  const loading = queryLoading || !data;
 
   const latestMetric = useLiveMetrics();
   const { newAnomaly } = useLiveAnomalies();
   const { newIncident, updatedIncident } = useLiveIncidents();
-
-  useEffect(() => {
-    let isMounted = true;
-    let requestInFlight = false;
-
-    const fetchData = async () => {
-      // Do not stack another expensive summary request if the previous poll is slow.
-      if (requestInFlight) return;
-
-      requestInFlight = true;
-      try {
-        const summary = await getDashboardSummary();
-        if (isMounted) setData(summary);
-      } catch (err) {
-        if (isMounted) console.error('Failed to fetch dashboard summary', err);
-      } finally {
-        requestInFlight = false;
-        if (isMounted) setLoading(false);
-      }
-    };
-
-    // Fetch once on entry, then refresh the aggregate data at a bounded rate.
-    void fetchData();
-    const intervalId = window.setInterval(() => void fetchData(), DASHBOARD_REFRESH_INTERVAL_MS);
-
-    return () => {
-      isMounted = false;
-      window.clearInterval(intervalId);
-    };
-  }, []);
 
   // Keep the sparklines responsive without re-running the full dashboard summary.
   useEffect(() => {
@@ -346,7 +331,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
               <span className="text-xs text-slate-400">Last 24h</span>
             </div>
             <h3 className="text-sm text-slate-400 mb-1">System Health</h3>
-            <p className="text-3xl font-bold text-white mb-2">{data?.kpis.systemHealth || 0}%</p>
+            <p className="text-3xl font-bold text-white mb-2">{data?.kpis?.systemHealth || 0}%</p>
           </CardContent>
         </Card>
 
@@ -360,7 +345,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
               <span className="text-xs text-slate-400">Active</span>
             </div>
             <h3 className="text-sm text-slate-400 mb-1">Hosts</h3>
-            <p className="text-3xl font-bold text-white mb-2">{data?.kpis.hosts || 0}</p>
+            <p className="text-3xl font-bold text-white mb-2">{data?.kpis?.hosts || 0}</p>
           </CardContent>
         </Card>
 
@@ -374,7 +359,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
               <span className="text-xs text-slate-400">Monitored</span>
             </div>
             <h3 className="text-sm text-slate-400 mb-1">Applications</h3>
-            <p className="text-3xl font-bold text-white mb-2">{data?.kpis.applications || 0}</p>
+            <p className="text-3xl font-bold text-white mb-2">{data?.kpis?.applications || 0}</p>
           </CardContent>
         </Card>
 
@@ -388,7 +373,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
               <span className="text-xs text-slate-400">Deployed</span>
             </div>
             <h3 className="text-sm text-slate-400 mb-1">Services</h3>
-            <p className="text-3xl font-bold text-white mb-2">{data?.kpis.services || 0}</p>
+            <p className="text-3xl font-bold text-white mb-2">{data?.kpis?.services || 0}</p>
           </CardContent>
         </Card>
 
@@ -405,7 +390,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
               <span className="text-xs text-slate-400">Detected</span>
             </div>
             <h3 className="text-sm text-slate-400 mb-1">Active Anomalies</h3>
-            <p className="text-3xl font-bold text-white mb-2">{data?.kpis.activeAnomalies || 0}</p>
+            <p className="text-3xl font-bold text-white mb-2">{data?.kpis?.activeAnomalies || 0}</p>
           </CardContent>
         </Card>
 
@@ -422,7 +407,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
               <span className="text-xs text-slate-400">Unresolved</span>
             </div>
             <h3 className="text-sm text-slate-400 mb-1">Open Incidents</h3>
-            <p className="text-3xl font-bold text-white mb-2">{data?.kpis.openIncidents || 0}</p>
+            <p className="text-3xl font-bold text-white mb-2">{data?.kpis?.openIncidents || 0}</p>
           </CardContent>
         </Card>
       </div>

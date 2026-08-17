@@ -45,19 +45,22 @@ interface Engineer {
   role: string;
 }
 
-// Map API response to the shape the existing UI expects
 function mapIncident(raw: ApiIncident): any {
+  if (!raw) return null;
+  const createdAt = raw.created_at ? new Date(raw.created_at) : new Date();
+  const validCreated = !isNaN(createdAt.getTime()) ? createdAt : new Date();
+
   return {
-    id: `INC-${raw.incident_number}`,
+    id: `INC-${raw.incident_number || '000'}`,
     incident_id: raw.incident_id,
-    title: raw.title,
-    severity: raw.severity,
-    status: raw.status,
+    title: raw.title || 'Untitled Incident',
+    severity: raw.severity || 'medium',
+    status: raw.status || 'open',
     assignedTo: raw.assigned_email ?? 'Unassigned',
-    detectedAt: new Date(raw.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+    detectedAt: validCreated.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
     duration: raw.resolved_at
-      ? `${Math.round((new Date(raw.resolved_at).getTime() - new Date(raw.created_at).getTime()) / 60000)}m`
-      : `${Math.round((Date.now() - new Date(raw.created_at).getTime()) / 60000)}m`,
+      ? `${Math.round((new Date(raw.resolved_at).getTime() - validCreated.getTime()) / 60000)}m`
+      : `${Math.round((Date.now() - validCreated.getTime()) / 60000)}m`,
     entity: (raw.anomalies?.[0]?.anomaly_type ?? 'System') + ' anomaly',
     anomalies: raw.anomalies?.map((a) => `${a.anomaly_type} anomaly`) ?? [],
     hasRecommendation: false,

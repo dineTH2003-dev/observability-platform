@@ -38,7 +38,8 @@ exports.createIncidentFromAnomaly = async (anomalyData) => {
 
   // Real-time broadcast
   try {
-    broadcastIncidentEvent('incident_created', incident);
+    const fullIncident = await IncidentModel.findById(incident.incident_id);
+    broadcastIncidentEvent('incident_created', fullIncident || incident);
     broadcastAnomalyEvent('anomaly_created', anomaly);
   } catch (err) {
     console.error('Socket broadcast failed (incident_created):', err.message);
@@ -107,8 +108,9 @@ exports.assignEngineer = async (incidentId, engineerId, actorId) => {
 
   // Real-time broadcast
   try {
+    const full = await IncidentModel.findById(incidentId);
     broadcastIncidentEvent('incident_updated', {
-      ...updated,
+      ...(full || updated),
       action: 'assigned',
     });
   } catch (err) {
@@ -147,8 +149,9 @@ exports.acknowledgeIncident = async (incidentId, actorId) => {
 
   // Real-time broadcast
   try {
+    const full = await IncidentModel.findById(incidentId);
     broadcastIncidentEvent('incident_updated', {
-      ...updated,
+      ...(full || updated),
       action: 'acknowledged',
     });
   } catch (err) {
@@ -186,8 +189,9 @@ exports.resolveIncident = async (incidentId, actorId) => {
 
   // Real-time broadcast
   try {
+    const full = await IncidentModel.findById(incidentId);
     broadcastIncidentEvent('incident_updated', {
-      ...updated,
+      ...(full || updated),
       action: 'resolved',
     });
   } catch (err) {

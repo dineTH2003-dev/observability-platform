@@ -142,10 +142,12 @@ function SkeletonRow() {
   );
 }
 
-import { useQuery } from '@tanstack/react-query';
-
 // Main Component
 export function Hosts() {
+  const [hosts, setHosts] = useState<Host[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   const [rawSearch, setRawSearch] = useState('');
   const [activeTab, setActiveTab] = useState<StatusTab>('ALL');
   const [currentPage, setCurrentPage] = useState(1);
@@ -165,36 +167,33 @@ export function Hosts() {
 
   const search = useDebounce(rawSearch, 250);
 
-  const { data: rawHosts = [], isLoading: loadingHosts, isError, refetch } = useQuery({
-    queryKey: ['hosts', 'list'],
-    queryFn: async () => {
+  // Data loading
+  const loadHosts = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
+    setLoadError(null);
+    try {
       const response = await hostService.getAll();
-      return response.map((h: any) => ({
+      const mapped: Host[] = response.map((h: any) => ({
         id: h.server_id,
         name: h.hostname,
         ip: h.ip_address,
         env: h.environment,
-        health: h.server_status,
-        agent: h.agent_status,
+        health: h.server_status,   // HEALTHY | WARNING | CRITICAL | UNKNOWN
+        agent: h.agent_status,    // ACTIVE | INACTIVE | ERROR
         ssh_port: h.ssh_port,
         username: h.username,
         lastDiscoveredAt: h.last_discovered_at ?? undefined,
       }));
-    },
-    staleTime: 15_000,
-  });
+      setHosts(mapped);
+    } catch {
+      setLoadError('Failed to load hosts. Please try again.');
+    } finally {
+      if (!silent) setLoading(false);
+    }
+  }, []);
 
-  const [hosts, setHosts] = useState<Host[]>([]);
-  const loading = loadingHosts && hosts.length === 0;
-  const loadError = isError ? 'Failed to load hosts. Please try again.' : null;
-
-  useEffect(() => {
-    if (rawHosts) setHosts(rawHosts);
-  }, [rawHosts]);
-
-  const loadHosts = useCallback(async () => {
-    refetch();
-  }, [refetch]);
+  // Initial load
+  useEffect(() => { loadHosts(); }, [loadHosts]);
 
   // Real-time socket updates for hosts & agent status
   const { socket } = useSocket();
@@ -225,7 +224,7 @@ export function Hosts() {
 
   // Auto-poll every 30s agent heartbeats & server_status
   useEffect(() => {
-    const timer = setInterval(() => loadHosts(), POLL_INTERVAL_MS);
+    const timer = setInterval(() => loadHosts(true), POLL_INTERVAL_MS);
     return () => clearInterval(timer);
   }, [loadHosts]);
 
@@ -300,7 +299,7 @@ export function Hosts() {
         os: formData.os || 'linux',
         ssh_port: parseInt(formData.ssh_port || '22'),
       });
-      await loadHosts();
+      await loadHosts(true);
       setIsDialogOpen(false);
       toast.success('Host registered', {
         description: `${formData.hostname.trim()} is now being monitored.`,

@@ -18,8 +18,8 @@ import { useLiveIncidents } from '../../hooks/useLiveIncidents';
 const DASHBOARD_REFRESH_INTERVAL_MS = 30_000;
 
 export function Dashboard({ onNavigate }: DashboardProps) {
-  const { data: initialData, isLoading: loading } = useQuery<DashboardSummary>({
-    queryKey: ['dashboard', 'summary'],
+  const { data: initialData, isLoading: queryLoading } = useQuery<DashboardSummary>({
+    queryKey: ['dashboardSummary'],
     queryFn: getDashboardSummary,
     refetchInterval: DASHBOARD_REFRESH_INTERVAL_MS,
     staleTime: 15_000,
@@ -32,6 +32,8 @@ export function Dashboard({ onNavigate }: DashboardProps) {
       setData(initialData);
     }
   }, [initialData]);
+
+  const loading = queryLoading && !data;
 
   const latestMetric = useLiveMetrics();
   const { newAnomaly } = useLiveAnomalies();

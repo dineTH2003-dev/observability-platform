@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Wrench, Search, Activity, CheckCircle, AlertCircle,
   XCircle, ExternalLink, Trash2, Settings, RefreshCw, ServerCrash,
@@ -114,42 +114,38 @@ import { useQuery } from '@tanstack/react-query';
 
 // Main Component
 export function Services({ onNavigate }: ServicesPageProps) {
+  const { data: servicesData, isLoading: servicesLoading, error: servicesError, refetch } = useQuery({
+    queryKey: ['servicesList'],
+    queryFn: () => serviceService.getAll().then(res => res.map(mapApiService)),
+    staleTime: 15_000,
+  });
+
+  const { data: appsData } = useQuery({
+    queryKey: ['applicationsList'],
+    queryFn: () => applicationService.getAll().then(res => (res as any).data ?? res),
+    staleTime: 30_000,
+  });
+
+  const [services, setServices] = useState<Service[]>([]);
+  const [applications, setApplications] = useState<Application[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+
   const [configModalOpen, setConfigModalOpen] = useState(false);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [deleteService, setDeleteService] = useState<Service | null>(null);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const { data: rawServices = [], isLoading: loadingServices, isError, refetch } = useQuery({
-    queryKey: ['services', 'list'],
-    queryFn: serviceService.getAll,
-    staleTime: 15_000,
-  });
-
-  const { data: rawApps = [] } = useQuery({
-    queryKey: ['applications', 'list'],
-    queryFn: async () => {
-      const res = await applicationService.getAll();
-      return (res as any).data ?? res;
-    },
-    staleTime: 30_000,
-  });
-
-  const [services, setServices] = useState<Service[]>([]);
-  const applications = rawApps as Application[];
-  const loading = loadingServices && services.length === 0;
-  const loadError = isError ? 'Failed to load services. Please try again.' : null;
+  useEffect(() => {
+    if (servicesData) setServices(servicesData);
+  }, [servicesData]);
 
   useEffect(() => {
-    if (rawServices) {
-      setServices(rawServices.map(mapApiService));
-    }
-  }, [rawServices]);
+    if (appsData) setApplications(appsData);
+  }, [appsData]);
 
-  const loadData = useCallback(async () => {
-    refetch();
-  }, [refetch]);
+  const loading = servicesLoading && services.length === 0;
+  const loadError = servicesError ? 'Failed to load services. Please try again.' : null;
 
   // Real-time socket updates for services
   const { socket } = useSocket();
@@ -173,13 +169,7 @@ export function Services({ onNavigate }: ServicesPageProps) {
     };
   }, [socket]);
 
-  // Optionally refresh if significant status changes happen, or just refresh periodically
-  useEffect(() => {
-    const t = setInterval(() => loadData(), 30_000);
-    return () => clearInterval(t);
-  }, [loadData]);
-
-  const handleRefresh = () => { loadData(); toast.info('Refreshing services…'); };
+  const handleRefresh = () => { refetch(); toast.info('Refreshing services…'); };
 
   // Filtering
   const filtered = services.filter((s) => {

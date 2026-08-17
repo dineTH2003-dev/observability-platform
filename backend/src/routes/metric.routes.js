@@ -1,12 +1,13 @@
 const express = require("express");
 const router = express.Router();
 const metricController = require("../controllers/metric.controller");
-const cache = require("../utils/cache");
+const cacheMiddleware = require("../middleware/cacheMiddleware");
 
-router.get("/servers", cache.middleware(10), metricController.getAggregatedServerMetrics);
-router.get("/server/:id", cache.middleware(10), metricController.getServerMetrics);
-router.get("/service/:id", cache.middleware(10), metricController.getServiceMetrics);
-router.get("/server/:id/baselines", cache.middleware(15), metricController.getServerBaselines);
-router.get("/service/:id/baselines", cache.middleware(15), metricController.getServiceBaselines);
+// Cache metrics endpoints for 15 seconds
+router.get("/servers", cacheMiddleware(15), metricController.getAggregatedServerMetrics);
+router.get("/server/:id", cacheMiddleware(15), metricController.getServerMetrics);
+router.get("/service/:id", cacheMiddleware(15), metricController.getServiceMetrics);
+router.get("/server/:id/baselines", cacheMiddleware(30), metricController.getServerBaselines);
+router.get("/service/:id/baselines", cacheMiddleware(30), metricController.getServiceBaselines);
 
 module.exports = router;

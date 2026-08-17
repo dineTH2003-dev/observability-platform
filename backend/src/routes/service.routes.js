@@ -1,13 +1,23 @@
 const express    = require("express");
 const router     = express.Router();
 const controller = require("../controllers/service.controller");
-const cache      = require("../utils/cache");
+const cacheMiddleware = require("../middleware/cacheMiddleware");
+const cache = require("../utils/cache");
 
-router.get("/",                cache.middleware(15), controller.getAll);
-router.get("/:id",             cache.middleware(15), controller.getById);
-router.put("/:id/application", controller.updateApplication);
-router.delete("/:id",          controller.remove);
-router.get("/:id/log-config",  cache.middleware(30), controller.getLogConfig);
-router.post("/:id/log-config", controller.saveLogConfig);
+router.get("/", cacheMiddleware(15), controller.getAll);
+router.get("/:id", cacheMiddleware(15), controller.getById);
+router.put("/:id/application", async (req, res, next) => {
+  await cache.invalidate("route:/api/services*");
+  controller.updateApplication(req, res, next);
+});
+router.delete("/:id", async (req, res, next) => {
+  await cache.invalidate("route:/api/services*");
+  controller.remove(req, res, next);
+});
+router.get("/:id/log-config", cacheMiddleware(30), controller.getLogConfig);
+router.post("/:id/log-config", async (req, res, next) => {
+  await cache.invalidate("route:/api/services*");
+  controller.saveLogConfig(req, res, next);
+});
 
 module.exports = router;

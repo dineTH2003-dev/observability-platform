@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS users (
   email VARCHAR(50) UNIQUE NOT NULL,
   password_hash TEXT NOT NULL,
   role VARCHAR(20) DEFAULT 'engineer',
+  email_verified BOOLEAN NOT NULL DEFAULT FALSE,
   is_active BOOLEAN DEFAULT true,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -22,6 +23,20 @@ CREATE TABLE IF NOT EXISTS password_resets (
   token TEXT NOT NULL,
   expires_at TIMESTAMP NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS email_verifications (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash TEXT NOT NULL UNIQUE,
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_email_verifications_user
+  ON email_verifications(user_id);
+
+CREATE INDEX IF NOT EXISTS idx_email_verifications_expires
+  ON email_verifications(expires_at);
 
 -- Alert Management
 CREATE TABLE IF NOT EXISTS alerts (

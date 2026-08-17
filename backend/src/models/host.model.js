@@ -56,6 +56,22 @@ exports.findById = async (id) => {
   return rows[0];
 };
 
+exports.findByHostname = async (hostname) => {
+  const { rows } = await pool.query(
+    `SELECT * FROM servers WHERE LOWER(hostname) = LOWER($1)`,
+    [hostname],
+  );
+  return rows[0];
+};
+
+exports.findByIpAddress = async (ip_address) => {
+  const { rows } = await pool.query(
+    `SELECT * FROM servers WHERE ip_address = $1`,
+    [ip_address],
+  );
+  return rows[0];
+};
+
 exports.update = async (id, data) => {
   const {
     hostname,

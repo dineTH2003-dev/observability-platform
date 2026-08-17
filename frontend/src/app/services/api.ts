@@ -51,7 +51,22 @@ class ApiService {
         }
       }
 
-      throw new Error(`HTTP error! status: ${response.status}`);
+      let errorData: any;
+      try {
+        errorData = await response.json();
+      } catch {
+        // Ignore if body is not JSON
+      }
+
+      const errorMessage =
+        errorData?.message ||
+        errorData?.error ||
+        `HTTP error! status: ${response.status}`;
+
+      const error = new Error(errorMessage);
+      (error as any).status = response.status;
+      (error as any).data = errorData;
+      throw error;
     }
 
     // 🔥 IMPORTANT PART

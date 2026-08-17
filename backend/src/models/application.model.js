@@ -40,6 +40,14 @@ exports.findById = async (id) => {
   return rows[0];
 };
 
+exports.findByName = async (name) => {
+  const { rows } = await pool.query(
+    "SELECT * FROM applications WHERE LOWER(name) = LOWER($1)",
+    [name]
+  );
+  return rows[0];
+};
+
 exports.update = async (id, data) => {
   const { name, description, version, application_status } = data;
 

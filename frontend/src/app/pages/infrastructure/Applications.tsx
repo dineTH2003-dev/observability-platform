@@ -210,7 +210,11 @@ export function Applications() {
   // Form helpers
   const validateForm = (): boolean => {
     const errors: FormErrors = {};
-    if (!formData.name.trim()) errors.name = 'Application name is required.';
+    if (!formData.name.trim()) {
+      errors.name = 'Application name is required.';
+    } else if (applications.some((app) => safeStr(app.name).trim().toLowerCase() === formData.name.trim().toLowerCase())) {
+      errors.name = 'Application with this name already exists.';
+    }
     if (!selectedServer) errors.server = 'Please select a server.';
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -250,10 +254,14 @@ export function Applications() {
       });
       setIsDialogOpen(false);
       resetDialog();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Create failed:', err);
+      const message = err?.message || 'Something went wrong. Please try again.';
+      if (message.toLowerCase().includes('name')) {
+        setFormErrors((prev) => ({ ...prev, name: message }));
+      }
       toast.error('Registration failed', {
-        description: 'Something went wrong. Please try again.',
+        description: message,
       });
     } finally {
       setSubmitting(false);

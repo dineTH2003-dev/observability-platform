@@ -4,6 +4,17 @@ const ApiError = require("../utils/apiError");
 exports.createServer = async (data) => {
   if (!data.hostname) throw new ApiError(400, "Hostname is required");
   if (!data.ip_address) throw new ApiError(400, "IP address is required");
+
+  const existingHost = await ServerModel.findByHostname(data.hostname.trim());
+  if (existingHost) {
+    throw new ApiError(400, "Host with this name already exists");
+  }
+
+  const existingIp = await ServerModel.findByIpAddress(data.ip_address.trim());
+  if (existingIp) {
+    throw new ApiError(400, "Host with this IP address already exists");
+  }
+
   return await ServerModel.create(data);
 };
 

@@ -6,6 +6,11 @@ exports.createApplication = async (data) => {
     throw new ApiError(400, "Application name is required");
   }
 
+  const existing = await ApplicationModel.findByName(data.name.trim());
+  if (existing) {
+    throw new ApiError(400, "Application with this name already exists");
+  }
+
   return await ApplicationModel.create(data);
 };
 

@@ -240,8 +240,18 @@ export function Hosts() {
 
   const validateForm = (): boolean => {
     const errors: FormErrors = {};
-    if (!formData.hostname.trim()) errors.hostname = 'Host Name is required.';
-    if (!formData.ip_address.trim()) errors.ip_address = 'IP Address is required.';
+    if (!formData.hostname.trim()) {
+      errors.hostname = 'Host Name is required.';
+    } else if (hosts.some((h) => safeStr(h.name).trim().toLowerCase() === formData.hostname.trim().toLowerCase())) {
+      errors.hostname = 'Host with this name already exists.';
+    }
+
+    if (!formData.ip_address.trim()) {
+      errors.ip_address = 'IP Address is required.';
+    } else if (hosts.some((h) => safeStr(h.ip).trim() === formData.ip_address.trim())) {
+      errors.ip_address = 'Host with this IP address already exists.';
+    }
+
     if (!formData.username.trim()) errors.username = 'Username is required.';
     if (!formData.environment.trim()) errors.environment = 'Environment is required.';
     setFormErrors(errors);
@@ -266,8 +276,14 @@ export function Hosts() {
       toast.success('Host registered', {
         description: `${formData.hostname.trim()} is now being monitored.`,
       });
-    } catch {
-      toast.error('Registration failed', { description: 'Something went wrong. Please try again.' });
+    } catch (err: any) {
+      const message = err?.message || 'Something went wrong. Please try again.';
+      if (message.toLowerCase().includes('name') || message.toLowerCase().includes('hostname')) {
+        setFormErrors((p) => ({ ...p, hostname: message }));
+      } else if (message.toLowerCase().includes('ip')) {
+        setFormErrors((p) => ({ ...p, ip_address: message }));
+      }
+      toast.error('Registration failed', { description: message });
     } finally {
       setSubmitting(false);
     }

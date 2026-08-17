@@ -1,9 +1,11 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 
-const SOCKET_URL = import.meta.env.VITE_API_BASE_URL 
-  ? import.meta.env.VITE_API_BASE_URL.replace('/api', '') 
-  : 'http://localhost:3000';
+// Backend runs on port 9000 — NOT 3000 (which is the Vite dev server).
+// In production, strip '/api' from the API base URL to get the socket origin.
+const SOCKET_URL = import.meta.env.VITE_API_BASE_URL
+  ? import.meta.env.VITE_API_BASE_URL.replace('/api', '')
+  : 'http://localhost:9000';
 
 interface SocketContextType {
   socket: Socket | null;
@@ -23,23 +25,32 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   useEffect(() => {
     const socketInstance = io(SOCKET_URL, {
-      transports: ['websocket'],
+      transports: ['websocket', 'polling'], // fallback to polling if websocket blocked
       autoConnect: true,
       reconnection: true,
-      reconnectionAttempts: 5,
+      reconnectionAttempts: Infinity,   // never stop trying
       reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
     });
 
     socketInstance.on('connect', () => {
-      console.log('Connected to WebSocket server');
+      console.log('[Socket] Connected — id:', socketInstance.id);
       setIsConnected(true);
     });
 
-    socketInstance.on('disconnect', () => {
-      console.log('Disconnected from WebSocket server');
+    socketInstance.on('disconnect', (reason) => {
+      console.log('[Socket] Disconnected — reason:', reason);
       setIsConnected(false);
     });
 
+    socketInstance.on('connect_error', (err) => {
+      console.warn('[Socket] Connection error:', err.message);
+      setIsConnected(false);
+    });
+
+    // Expose socket instance immediately so hooks can register listeners
+    // even before the connection is fully established.
+    // socket.io-client queues .on() handlers internally.
     setSocket(socketInstance);
 
     return () => {

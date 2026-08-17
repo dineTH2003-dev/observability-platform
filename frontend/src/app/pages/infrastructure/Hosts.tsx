@@ -21,6 +21,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '../../components/ui/select';
 import { hostService } from '../../services/hostService';
+import { useSocket } from '../../context/SocketContext';
 
 // Constants
 const STATUS_TABS = ['ALL', 'HEALTHY', 'WARNING', 'CRITICAL', 'UNKNOWN'] as const;
@@ -193,6 +194,33 @@ export function Hosts() {
 
   // Initial load
   useEffect(() => { loadHosts(); }, [loadHosts]);
+
+  // Real-time socket updates for hosts & agent status
+  const { socket } = useSocket();
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleMetric = (metric: any) => {
+      if (!metric || !metric.server_id) return;
+      setHosts((prev) =>
+        prev.map((h) =>
+          h.id === Number(metric.server_id)
+            ? {
+                ...h,
+                health: metric.server_status || h.health,
+                agent: 'ACTIVE',
+                lastDiscoveredAt: metric.recorded_at || new Date().toISOString(),
+              }
+            : h
+        )
+      );
+    };
+
+    socket.on('live_server_metric', handleMetric);
+    return () => {
+      socket.off('live_server_metric', handleMetric);
+    };
+  }, [socket]);
 
   // Auto-poll every 30s agent heartbeats & server_status
   useEffect(() => {

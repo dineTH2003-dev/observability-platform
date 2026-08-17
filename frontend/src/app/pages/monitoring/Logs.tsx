@@ -13,6 +13,7 @@ import {
 import { logService } from '../../services/logService';
 import { serviceService } from '../../services/serviceService';
 import { hostService } from '../../services/hostService';
+import { useSocket } from '../../context/SocketContext';
 
 interface LogEntry {
   id: string | number;
@@ -95,6 +96,41 @@ export function Logs() {
       clearTimeout(timer);
     };
   }, [levelFilter, serviceFilter, hostFilter, searchQuery]);
+
+  // Real-time socket listener for incoming live log ingestion
+  const { socket } = useSocket();
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleLiveLog = () => {
+      // Refresh log stream seamlessly when agent ingests logs
+      logService
+        .fetchLogs({
+          level: levelFilter,
+          service: serviceFilter,
+          host: hostFilter,
+          search: searchQuery,
+        })
+        .then((fetched) => {
+          const mapped: LogEntry[] = fetched.map((l) => ({
+            id: l.id,
+            timestamp: new Date(l.timestamp).toLocaleString(),
+            level: l.level as 'error' | 'warning' | 'info',
+            service: l.service,
+            host: l.host,
+            message: l.message,
+            metadata: l.metadata,
+          }));
+          setLogs(mapped);
+        })
+        .catch(() => {});
+    };
+
+    socket.on('live_log', handleLiveLog);
+    return () => {
+      socket.off('live_log', handleLiveLog);
+    };
+  }, [socket, levelFilter, serviceFilter, hostFilter, searchQuery]);
 
   const getLevelColor = (level: string) => {
     switch (level) {

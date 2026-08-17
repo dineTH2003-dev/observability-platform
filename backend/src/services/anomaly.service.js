@@ -128,12 +128,12 @@ exports.createFromMlDetection = async (payload) => {
 
     // ── Real-time broadcast ──
     try {
-      broadcastAnomalyEvent('anomaly_created', {
-        ...anomaly,
-        ml_details: details,
-      });
+      const fullAnomaly = await AnomalyModel.findById(anomaly.anomaly_id);
+      broadcastAnomalyEvent('anomaly_created', fullAnomaly || { ...anomaly, ml_details: details });
       if (incident) {
-        broadcastIncidentEvent('incident_created', incident);
+        const fullIncident = await IncidentModel.findById(incident.incident_id);
+        broadcastIncidentEvent('incident_created', fullIncident || incident);
+        console.log(`[Socket] incident_created broadcast: INC-${(fullIncident || incident).incident_number}, severity=${(fullIncident || incident).severity}`);
       }
     } catch (err) {
       console.error("Socket broadcast failed (anomaly_created):", err.message);
@@ -346,6 +346,6 @@ async function findSuppressionReason(normalized) {
 function shouldCreateIncidentFor(normalized, suppressionReason) {
   if (suppressionReason) return false;
   if (normalized.auto_create_incident === false) return false;
-  if (normalized.auto_create_incident === true) return true;
-  return ["high", "critical"].includes(normalized.anomaly.severity);
+  // Every anomaly — regardless of severity — auto-creates an incident.
+  return true;
 }

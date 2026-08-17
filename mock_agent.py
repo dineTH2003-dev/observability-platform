@@ -141,9 +141,8 @@ def main():
         cycle_count += 1
         print(f"--- Cycle {cycle_count} ---")
         
-        # Inject an anomaly roughly every 20 cycles (10 minutes)
-        # We will keep the anomaly active for 3 cycles (1.5 minutes) to give the ML worker time to catch it reliably
-        is_anomaly = (cycle_count % 20) in [0, 1, 2]
+        # Inject an anomaly every 5 cycles (~2.5 minutes) for frequent real-time demonstration
+        is_anomaly = (cycle_count % 5) in [0, 1]
         
         send_heartbeat()
         send_server_metrics(is_anomaly=is_anomaly)

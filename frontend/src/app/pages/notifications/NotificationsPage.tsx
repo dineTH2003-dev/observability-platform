@@ -87,11 +87,12 @@ export function NotificationsPage({ onNavigate }: NotificationsPageProps = {}) {
   }, [loadNotifications]);
 
   // Real-time: prepend new notifications as they arrive via Socket.io
-  const { socket, isConnected } = useSocket();
+  const { socket } = useSocket();
   useEffect(() => {
-    if (!socket || !isConnected) return;
+    if (!socket) return;
 
     const handleNewNotification = (dbNotif: any) => {
+      console.log('[Live] new_notification received on NotificationsPage');
       const uiNotif = mapDbToUiNotification(dbNotif);
       setNotifications(prev => {
         // Avoid duplicates
@@ -104,7 +105,7 @@ export function NotificationsPage({ onNavigate }: NotificationsPageProps = {}) {
     return () => {
       socket.off('new_notification', handleNewNotification);
     };
-  }, [socket, isConnected]);
+  }, [socket]);
 
   const getNotificationIcon = (type: Notification['type']) => {
     switch (type) {

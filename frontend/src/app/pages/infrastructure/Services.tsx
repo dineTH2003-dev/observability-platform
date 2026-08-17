@@ -20,6 +20,7 @@ import {
 import { serviceService, type Service as ApiService } from '../../services/serviceService';
 import { applicationService } from '../../services/applicationService';
 import type { Application } from '../../types/application';
+import { useSocket } from '../../context/SocketContext';
 
 // Types
 interface Service {
@@ -142,6 +143,28 @@ export function Services({ onNavigate }: ServicesPageProps) {
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // Real-time socket updates for services
+  const { socket } = useSocket();
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleServiceMetric = (metric: any) => {
+      if (!metric || !metric.service_id) return;
+      setServices((prev) =>
+        prev.map((s) =>
+          s.id === Number(metric.service_id)
+            ? { ...s, status: 'RUNNING', updatedAt: metric.recorded_at || new Date().toISOString() }
+            : s
+        )
+      );
+    };
+
+    socket.on('live_service_metric', handleServiceMetric);
+    return () => {
+      socket.off('live_service_metric', handleServiceMetric);
+    };
+  }, [socket]);
 
   // Optionally refresh if significant status changes happen, or just refresh periodically
   useEffect(() => {

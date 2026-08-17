@@ -30,7 +30,7 @@ interface TopbarProps {
 }
 
 export function Topbar({ currentPage, onNavigate, onLogout, onToggleSidebar, currentUser }: TopbarProps) {
-  const { socket, isConnected } = useSocket();
+  const { socket } = useSocket();
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
   function formatRelativeTime(dateString: string): string {
@@ -93,16 +93,17 @@ export function Topbar({ currentPage, onNavigate, onLogout, onToggleSidebar, cur
   }, [currentUser]);
 
   useEffect(() => {
-    if (socket && isConnected && currentUser) {
+    if (socket && currentUser) {
       socket.emit('register_user', currentUser.id);
     }
-  }, [socket, isConnected, currentUser]);
+  }, [socket, currentUser]);
 
   // Listen to live notifications
   useEffect(() => {
-    if (!socket || !isConnected) return;
+    if (!socket) return;
 
     const handleNewNotification = (dbNotif: any) => {
+      console.log('[Live] new_notification received');
       const uiNotif = mapDbToUiNotification(dbNotif);
       setNotifications(prev => [uiNotif, ...prev]);
 
@@ -118,7 +119,7 @@ export function Topbar({ currentPage, onNavigate, onLogout, onToggleSidebar, cur
     return () => {
       socket.off('new_notification', handleNewNotification);
     };
-  }, [socket, isConnected]);
+  }, [socket]);
 
   // Read notifications in the local dashboard page event
   useEffect(() => {

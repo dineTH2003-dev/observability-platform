@@ -65,7 +65,7 @@ def detect_server_hard_rules(row: dict) -> list[Detection]:
                 description="One or more expected server metric samples were missing in the scoring window.",
                 reason_codes=["server_metric_missing"],
                 feature_values=_feature_values(row),
-                auto_create_incident=False,
+                auto_create_incident=True,
             )
         )
 

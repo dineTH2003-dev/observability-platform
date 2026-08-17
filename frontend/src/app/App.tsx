@@ -18,6 +18,7 @@ import { ForgotPassword } from './pages/auth/ForgotPassword';
 import { AuthLayout } from './layouts/AuthLayout';
 import { useAuth } from './hooks/useAuth';
 import { AuthProvider } from './context/AuthContext';
+import { SocketProvider } from './context/SocketContext';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { Metrics } from './pages/monitoring/Metrics';
 import { Tickets } from './pages/tickets/Tickets';
@@ -148,8 +149,10 @@ function AppContent() {
 export default function App() {
   return (
     <AuthProvider>
-      <AppContent />
-      <Toaster />
+      <SocketProvider>
+        <AppContent />
+        <Toaster />
+      </SocketProvider>
     </AuthProvider>
   );
 }

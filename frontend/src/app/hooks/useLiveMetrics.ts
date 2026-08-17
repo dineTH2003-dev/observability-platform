@@ -3,11 +3,11 @@ import { useSocket } from '../context/SocketContext';
 import type { ServerMetric } from '../services/metricService';
 
 export const useLiveMetrics = (serverId?: number) => {
-  const { socket, isConnected } = useSocket();
+  const { socket } = useSocket();
   const [latestMetric, setLatestMetric] = useState<ServerMetric | null>(null);
 
   useEffect(() => {
-    if (!socket || !isConnected) return;
+    if (!socket) return;
 
     const handleNewMetric = (metric: any) => {
       // metric comes from backend event 'live_server_metric'
@@ -31,7 +31,7 @@ export const useLiveMetrics = (serverId?: number) => {
     return () => {
       socket.off('live_server_metric', handleNewMetric);
     };
-  }, [socket, isConnected, serverId]);
+  }, [socket, serverId]);
 
   return latestMetric;
 };

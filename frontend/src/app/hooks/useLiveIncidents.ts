@@ -25,18 +25,20 @@ interface IncidentEvent {
  * The consuming component merges these into its own list state.
  */
 export const useLiveIncidents = () => {
-  const { socket, isConnected } = useSocket();
+  const { socket } = useSocket();
   const [newIncident, setNewIncident] = useState<IncidentEvent | null>(null);
   const [updatedIncident, setUpdatedIncident] = useState<IncidentEvent | null>(null);
 
   useEffect(() => {
-    if (!socket || !isConnected) return;
+    if (!socket) return;
 
     const handleCreated = (data: IncidentEvent) => {
+      console.log('[Live] incident_created', data.incident_id);
       setNewIncident(data);
     };
 
     const handleUpdated = (data: IncidentEvent) => {
+      console.log('[Live] incident_updated', data.incident_id, data.action);
       setUpdatedIncident(data);
     };
 
@@ -47,7 +49,7 @@ export const useLiveIncidents = () => {
       socket.off('incident_created', handleCreated);
       socket.off('incident_updated', handleUpdated);
     };
-  }, [socket, isConnected]);
+  }, [socket]);
 
   return { newIncident, updatedIncident };
 };

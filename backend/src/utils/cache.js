@@ -1,15 +1,5 @@
 /**
- * Lightweight in-memory TTL cache.
- *
- * Usage:
- *   const cache = require('./cache');
- *   const result = cache.get('my-key');
- *   if (!result) {
- *     const fresh = await expensiveQuery();
- *     cache.set('my-key', fresh, 15_000); // 15 second TTL
- *     return fresh;
- *   }
- *   return result;
+ * Enhanced in-memory TTL cache with Express middleware support.
  */
 
 const store = new Map();
@@ -35,7 +25,7 @@ function get(key) {
  * @param {any} value
  * @param {number} ttlMs - Time-to-live in milliseconds
  */
-function set(key, value, ttlMs) {
+function set(key, value, ttlMs = 15000) {
   store.set(key, { value, expiresAt: Date.now() + ttlMs });
 }
 
@@ -58,10 +48,41 @@ function invalidate(...keys) {
 }
 
 /**
- * Clear the entire cache (useful for tests).
+ * Clear the entire cache.
  */
 function clear() {
   store.clear();
 }
 
-module.exports = { get, set, invalidate, clear };
+/**
+ * Express middleware for GET endpoints.
+ * @param {number} ttlSeconds - Duration to cache in seconds
+ */
+function middleware(ttlSeconds = 15) {
+  return (req, res, next) => {
+    if (req.method !== 'GET') return next();
+
+    const key = `express:${req.originalUrl || req.url}`;
+    const cachedBody = get(key);
+
+    if (cachedBody) {
+      res.setHeader('X-Cache', 'HIT');
+      res.setHeader('Cache-Control', `public, max-age=${ttlSeconds}`);
+      return res.json(cachedBody);
+    }
+
+    res.setHeader('X-Cache', 'MISS');
+    const originalJson = res.json.bind(res);
+
+    res.json = (body) => {
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        set(key, body, ttlSeconds * 1000);
+      }
+      return originalJson(body);
+    };
+
+    next();
+  };
+}
+
+module.exports = { get, set, invalidate, clear, middleware };

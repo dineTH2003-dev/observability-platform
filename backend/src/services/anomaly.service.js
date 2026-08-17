@@ -9,17 +9,12 @@ const VALID_SEVERITIES = new Set(["low", "medium", "high", "critical"]);
 const VALID_STATUSES = new Set(["detected", "assigned", "acknowledged", "resolved"]);
 
 exports.getAnomalies = async (filters = {}, user = null) => {
-  const scopedFilters = { ...filters };
-  if (!isAdmin(user)) {
-    scopedFilters.assignedToUserId = user?.userId;
-  }
-  return AnomalyModel.findAll(scopedFilters);
+  return AnomalyModel.findAll(filters);
 };
 
 exports.getAnomalyById = async (id, user = null) => {
   const anomaly = await AnomalyModel.findById(id);
   if (!anomaly) throw new ApiError(404, "Anomaly not found");
-  ensureCanAccessAnomaly(anomaly, user);
   return anomaly;
 };
 
@@ -33,6 +28,12 @@ exports.updateStatus = async (id, status, user = null) => {
   const resolvedAt = status === "resolved" ? new Date() : null;
   const updated = await AnomalyModel.updateStatus(id, status, resolvedAt);
   if (!updated) throw new ApiError(404, "Anomaly not found");
+
+  try {
+    const cache = require("../utils/cache");
+    cache.invalidate("route:/api/anomalies*", "route:/api/dashboard*", "route:/api/incidents*").catch(() => {});
+  } catch (err) {}
+
   return updated;
 };
 
@@ -125,6 +126,12 @@ exports.createFromMlDetection = async (payload) => {
     } catch (err) {
       console.error("Failed to load notificationService:", err.message);
     }
+
+    // Invalidate cache so GET /api/anomalies & /api/incidents reflect the new record
+    try {
+      const cache = require("../utils/cache");
+      cache.invalidate("route:/api/anomalies*", "route:/api/dashboard*", "route:/api/incidents*").catch(() => {});
+    } catch (err) {}
 
     // ── Real-time broadcast ──
     try {

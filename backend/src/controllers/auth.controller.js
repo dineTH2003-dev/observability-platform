@@ -23,8 +23,7 @@ async function login(req, res) {
     const authResult = await loginUser(req.body);
     res.json(authResult);
   } catch (err) {
-    const status = err.message === 'Please verify your email address before signing in.' ? 403 : 401;
-    res.status(status).json({ message: err.message });
+    res.status(401).json({ message: err.message });
   }
 }
 

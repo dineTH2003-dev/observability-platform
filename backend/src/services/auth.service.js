@@ -74,9 +74,6 @@ async function loginUser({ email, password }) {
 
   const match = await bcrypt.compare(password, user.password_hash);
   if (!match) throw new Error('Invalid credentials');
-  if (user.email_verified === false) {
-    throw new Error('Please verify your email address before signing in.');
-  }
  
 
   const accessToken = jwt.sign(

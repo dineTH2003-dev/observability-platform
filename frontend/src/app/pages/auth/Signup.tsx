@@ -74,8 +74,8 @@ export function Signup({ onSwitchToLogin }: SignupProps) {
   return (
     <div className="min-h-screen w-full flex">
       {/* Left Panel - Signup Form */}
-      <div className="w-full md:w-1/2 min-h-screen bg-nebula-navy-dark flex items-center justify-center py-6 lg:py-8">
-        <div className="w-full max-w-md px-6 sm:px-8 md:px-6 lg:px-10">
+      <div className="w-1/2 h-screen bg-nebula-navy-dark flex items-center justify-center">
+        <div className="w-full max-w-md px-12">
           {registrationComplete ? (
             <div className="text-center">
               <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full border border-nebula-navy-lighter bg-nebula-navy-light">
@@ -196,7 +196,7 @@ export function Signup({ onSwitchToLogin }: SignupProps) {
             <Button
               type="submit"
               className="w-full h-12 bg-gradient-to-r from-cyan-500 via-blue-500 to-blue-600 hover:from-cyan-600 hover:via-blue-600 hover:to-blue-700 text-white font-medium shadow-lg shadow-blue-500/50 mt-6"
-              disabled={!agreeToTerms}
+              disabled={!canSubmit}
             >
               Create Account
             </Button>

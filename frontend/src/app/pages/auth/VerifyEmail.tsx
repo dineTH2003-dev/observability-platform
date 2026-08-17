@@ -47,9 +47,9 @@ export function VerifyEmail({ onBackToLogin }: VerifyEmailProps) {
   const isLoading = state === "loading";
 
   return (
-    <div className="min-h-screen w-full flex flex-col md:flex-row bg-nebula-navy-dark">
-      <div className="w-full md:w-1/2 min-h-screen bg-nebula-navy-dark flex items-center justify-center py-8 lg:py-10">
-        <div className="w-full max-w-md px-6 sm:px-10 md:px-8 lg:px-12 text-center">
+    <div className="min-h-screen w-full flex">
+      <div className="w-1/2 h-screen bg-nebula-navy-dark flex items-center justify-center">
+        <div className="w-full max-w-md px-12 text-center">
           <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full border border-nebula-navy-lighter bg-nebula-navy-light">
             {isLoading ? (
               <Loader2 className="size-8 animate-spin text-nebula-purple" />
@@ -81,7 +81,7 @@ export function VerifyEmail({ onBackToLogin }: VerifyEmailProps) {
         </div>
       </div>
 
-      <div className="w-full min-h-[280px] md:w-1/2 md:h-screen md:sticky md:top-0 bg-gradient-to-br from-nebula-purple via-purple-500 to-nebula-pink flex items-center justify-center">
+      <div className="w-1/2 h-screen bg-gradient-to-br from-nebula-purple via-purple-500 to-nebula-pink flex items-center justify-center">
         <div className="flex flex-col items-center justify-center gap-6">
           <img
             src={logoImage}

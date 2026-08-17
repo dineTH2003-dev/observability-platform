@@ -88,7 +88,7 @@ def detect_with_isolation_model(row: dict, *, model_record: dict, feature_column
         reason_codes=["multivariate_isolation_forest"],
         feature_values={col: _float_or_zero(row.get(col)) for col in feature_columns},
         model_id=model_record.get("model_id"),
-        auto_create_incident=False if shadow else severity == "high",
+        auto_create_incident=False if shadow else severity in ("high", "medium"),
     )
 
 

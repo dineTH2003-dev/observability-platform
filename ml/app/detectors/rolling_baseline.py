@@ -100,7 +100,7 @@ def _detect_rolling(
                 upper_bound=upper_bound,
                 reason_codes=[f"{anomaly_type.lower()}_high_vs_rolling_baseline"],
                 feature_values={key: _json_number(row.get(key)) for key in row.keys() if key.endswith("_1h") or key in [value_col]},
-                auto_create_incident=severity == "high",
+                auto_create_incident=severity in ("high", "medium"),
             )
         )
 

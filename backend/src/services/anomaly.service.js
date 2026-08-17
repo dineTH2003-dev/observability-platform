@@ -346,8 +346,6 @@ async function findSuppressionReason(normalized) {
 function shouldCreateIncidentFor(normalized, suppressionReason) {
   if (suppressionReason) return false;
   if (normalized.auto_create_incident === false) return false;
-  if (normalized.auto_create_incident === true) return true;
-  // Auto-create incidents for medium, high, and critical severity anomalies.
-  // Low-severity anomalies are logged only — they do not generate incidents.
-  return ["medium", "high", "critical"].includes(normalized.anomaly.severity);
+  // Every anomaly — regardless of severity — auto-creates an incident.
+  return true;
 }

@@ -7,7 +7,6 @@ import { Checkbox } from '../../components/ui/checkbox';
 import { PasswordStrength } from '../../components/profile/PasswordStrength';
 import logoImage from '../../../assets/logo.png';
 import { authService } from '../../services/authService';
-import { PasswordStrength } from '../../components/profile/PasswordStrength';
 
 interface SignupProps {
   onSwitchToLogin: () => void;
@@ -47,7 +46,8 @@ export function Signup({ onSwitchToLogin }: SignupProps) {
     e.preventDefault();
 
     if (!passwordValidation.isValid) {
-      alert(PASSWORD_VALIDATION_MESSAGE);
+      alert('Password must be at least 8 characters and include uppercase, lowercase, a number, and a special character.');
+
       return;
     }
 

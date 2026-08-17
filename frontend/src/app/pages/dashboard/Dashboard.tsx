@@ -33,7 +33,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     }
   }, [initialData]);
 
-  const loading = queryLoading && !data;
+  const loading = queryLoading || !data;
 
   const latestMetric = useLiveMetrics();
   const { newAnomaly } = useLiveAnomalies();
@@ -331,7 +331,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
               <span className="text-xs text-slate-400">Last 24h</span>
             </div>
             <h3 className="text-sm text-slate-400 mb-1">System Health</h3>
-            <p className="text-3xl font-bold text-white mb-2">{data?.kpis.systemHealth || 0}%</p>
+            <p className="text-3xl font-bold text-white mb-2">{data?.kpis?.systemHealth || 0}%</p>
           </CardContent>
         </Card>
 
@@ -345,7 +345,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
               <span className="text-xs text-slate-400">Active</span>
             </div>
             <h3 className="text-sm text-slate-400 mb-1">Hosts</h3>
-            <p className="text-3xl font-bold text-white mb-2">{data?.kpis.hosts || 0}</p>
+            <p className="text-3xl font-bold text-white mb-2">{data?.kpis?.hosts || 0}</p>
           </CardContent>
         </Card>
 
@@ -359,7 +359,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
               <span className="text-xs text-slate-400">Monitored</span>
             </div>
             <h3 className="text-sm text-slate-400 mb-1">Applications</h3>
-            <p className="text-3xl font-bold text-white mb-2">{data?.kpis.applications || 0}</p>
+            <p className="text-3xl font-bold text-white mb-2">{data?.kpis?.applications || 0}</p>
           </CardContent>
         </Card>
 
@@ -373,7 +373,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
               <span className="text-xs text-slate-400">Deployed</span>
             </div>
             <h3 className="text-sm text-slate-400 mb-1">Services</h3>
-            <p className="text-3xl font-bold text-white mb-2">{data?.kpis.services || 0}</p>
+            <p className="text-3xl font-bold text-white mb-2">{data?.kpis?.services || 0}</p>
           </CardContent>
         </Card>
 
@@ -390,7 +390,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
               <span className="text-xs text-slate-400">Detected</span>
             </div>
             <h3 className="text-sm text-slate-400 mb-1">Active Anomalies</h3>
-            <p className="text-3xl font-bold text-white mb-2">{data?.kpis.activeAnomalies || 0}</p>
+            <p className="text-3xl font-bold text-white mb-2">{data?.kpis?.activeAnomalies || 0}</p>
           </CardContent>
         </Card>
 
@@ -407,7 +407,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
               <span className="text-xs text-slate-400">Unresolved</span>
             </div>
             <h3 className="text-sm text-slate-400 mb-1">Open Incidents</h3>
-            <p className="text-3xl font-bold text-white mb-2">{data?.kpis.openIncidents || 0}</p>
+            <p className="text-3xl font-bold text-white mb-2">{data?.kpis?.openIncidents || 0}</p>
           </CardContent>
         </Card>
       </div>

@@ -116,8 +116,8 @@ export function Anomalies({ selectedAnomalyId }: AnomaliesProps) {
 
         fetchAnomalies()
             .then((rows) => {
-                if (!mounted) return;
-                setAnomalies(rows.map(toAnomaly));
+                const list = Array.isArray(rows) ? rows : [];
+                setAnomalies(list.map(toAnomaly));
                 setError(null);
             })
             .catch((err) => {

@@ -90,8 +90,10 @@ export function Incidents() {
         incidentApi.fetchIncidents(),
         incidentApi.fetchEngineers(),
       ]);
-      setIncidents(rawIncidents.map(mapIncident));
-      setEngineers(rawEngineers);
+      const safeIncidents = Array.isArray(rawIncidents) ? rawIncidents : [];
+      const safeEngineers = Array.isArray(rawEngineers) ? rawEngineers : [];
+      setIncidents(safeIncidents.map(mapIncident).filter(Boolean));
+      setEngineers(safeEngineers);
     } catch (err) {
       console.error('Failed to load incidents:', err);
     }

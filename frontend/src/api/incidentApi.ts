@@ -19,11 +19,19 @@ API.interceptors.request.use((config) => {
 
 // GET /api/incidents  (admin sees all, engineer sees only theirs)
 export const fetchIncidents = () =>
-  API.get('/incidents').then((r) => r.data);
+  API.get('/incidents').then((r) => {
+    const res = r.data;
+    if (Array.isArray(res)) return res;
+    if (Array.isArray(res?.data)) return res.data;
+    return [];
+  });
 
 // GET /api/incidents/:id  (full detail with anomalies + timeline)
 export const fetchIncidentById = (id: string) =>
-  API.get(`/incidents/${id}`).then((r) => r.data);
+  API.get(`/incidents/${id}`).then((r) => {
+    const res = r.data;
+    return res?.data ?? res;
+  });
 
 // POST /api/incidents  (create incident + anomaly together)
 export const createIncident = (data: {
@@ -53,4 +61,9 @@ export const resolveIncident = (incidentId: string) =>
 
 // GET /api/incidents/engineers  (list of users for assign dropdown)
 export const fetchEngineers = () =>
-  API.get('/incidents/engineers').then((r) => r.data);
+  API.get('/incidents/engineers').then((r) => {
+    const res = r.data;
+    if (Array.isArray(res)) return res;
+    if (Array.isArray(res?.data)) return res.data;
+    return [];
+  });

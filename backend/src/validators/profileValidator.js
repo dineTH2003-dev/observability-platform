@@ -1,9 +1,11 @@
 const ApiError = require("../utils/apiError");
+const {
+  PASSWORD_VALIDATION_MESSAGE,
+  validatePassword,
+} = require("../utils/passwordValidation");
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_REGEX = /^[+]?[0-9()\-\s]{7,20}$/;
-const PASSWORD_REGEX =
-  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
 const TEXT_FIELDS = [
   "firstName",
   "lastName",
@@ -68,11 +70,9 @@ function validatePasswordChange(payload = {}) {
     throw new ApiError(400, "Current password is required");
   }
 
-  if (!PASSWORD_REGEX.test(newPassword)) {
-    throw new ApiError(
-      400,
-      "New password must be at least 8 characters and include uppercase, lowercase, number, and special character",
-    );
+  const passwordResult = validatePassword(newPassword);
+  if (!passwordResult.isValid) {
+    throw new ApiError(400, PASSWORD_VALIDATION_MESSAGE);
   }
 
   if (newPassword !== confirmPassword) {

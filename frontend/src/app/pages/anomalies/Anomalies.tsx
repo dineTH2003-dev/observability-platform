@@ -116,8 +116,8 @@ export function Anomalies({ selectedAnomalyId }: AnomaliesProps) {
 
         fetchAnomalies()
             .then((rows) => {
-                if (!mounted) return;
-                setAnomalies(rows.map(toAnomaly));
+                const list = Array.isArray(rows) ? rows : [];
+                setAnomalies(list.map(toAnomaly));
                 setError(null);
             })
             .catch((err) => {
@@ -200,6 +200,13 @@ export function Anomalies({ selectedAnomalyId }: AnomaliesProps) {
         };
     }, [selectedAnomaly]);
 
+    const [currentPage, setCurrentPage] = useState(1);
+    const pageSize = 10;
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery]);
+
     const filteredAnomalies = anomalies.filter(anomaly =>
         anomaly.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         anomaly.entity.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -207,6 +214,9 @@ export function Anomalies({ selectedAnomalyId }: AnomaliesProps) {
         anomaly.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (anomaly.detector || '').toLowerCase().includes(searchQuery.toLowerCase())
     );
+
+    const totalPages = Math.max(1, Math.ceil(filteredAnomalies.length / pageSize));
+    const paginatedAnomalies = filteredAnomalies.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
     const getSeverityColor = (severity: string) => {
         switch (severity) {
@@ -477,7 +487,7 @@ export function Anomalies({ selectedAnomalyId }: AnomaliesProps) {
                         </CardContent>
                     </Card>
                 ) : (
-                    filteredAnomalies.map((anomaly) => (
+                    paginatedAnomalies.map((anomaly) => (
                         <Card
                             key={anomaly.id}
                             className={`bg-nebula-navy-light border-nebula-navy-lighter hover:border-nebula-purple/30 transition-all cursor-pointer ${
@@ -618,6 +628,43 @@ export function Anomalies({ selectedAnomalyId }: AnomaliesProps) {
                     ))
                 )}
             </div>
+
+            {/* Pagination Controls */}
+            {filteredAnomalies.length > 0 && (
+                <div className="flex items-center justify-between border-t border-nebula-navy-lighter pt-4 px-2">
+                    <p className="text-xs text-slate-400">
+                        Showing <span className="font-semibold text-white">{(currentPage - 1) * pageSize + 1}</span> to{' '}
+                        <span className="font-semibold text-white">
+                            {Math.min(currentPage * pageSize, filteredAnomalies.length)}
+                        </span>{' '}
+                        of <span className="font-semibold text-white">{filteredAnomalies.length}</span> anomalies
+                    </p>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={currentPage === 1}
+                            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                            className="bg-transparent border-nebula-navy-lighter text-white hover:bg-nebula-navy-lighter disabled:opacity-40"
+                        >
+                            Previous
+                        </Button>
+                        <span className="text-xs text-slate-400 px-2">
+                            Page <span className="text-white font-medium">{currentPage}</span> of{' '}
+                            <span className="text-white font-medium">{totalPages}</span>
+                        </span>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={currentPage >= totalPages}
+                            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                            className="bg-transparent border-nebula-navy-lighter text-white hover:bg-nebula-navy-lighter disabled:opacity-40"
+                        >
+                            Next
+                        </Button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

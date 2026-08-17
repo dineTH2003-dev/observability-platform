@@ -134,15 +134,15 @@ def send_logs(is_anomaly=False):
 def main():
     print("Starting Local Data Simulator (Mock Agent)...")
     print(f"Targeting Server ID: {SERVER_ID} (App_Server_1)")
-    print(f"Sending data every {SLEEP_INTERVAL} seconds. Press Ctrl+C to stop.\n")
+    print(f"Sending metrics every {SLEEP_INTERVAL}s; triggering 1 anomaly every 1 minute (60s). Press Ctrl+C to stop.\n")
     
     cycle_count = 0
     while True:
         cycle_count += 1
         print(f"--- Cycle {cycle_count} ---")
         
-        # Inject an anomaly every 5 cycles (~2.5 minutes) for frequent real-time demonstration
-        is_anomaly = (cycle_count % 5) in [0, 1]
+        # Trigger 1 anomaly every 1 minute (every 2 cycles = 60 seconds)
+        is_anomaly = (cycle_count % 2 == 0)
         
         send_heartbeat()
         send_server_metrics(is_anomaly=is_anomaly)

@@ -90,8 +90,10 @@ export function Incidents() {
         incidentApi.fetchIncidents(),
         incidentApi.fetchEngineers(),
       ]);
-      setIncidents(rawIncidents.map(mapIncident));
-      setEngineers(rawEngineers);
+      const safeIncidents = Array.isArray(rawIncidents) ? rawIncidents : [];
+      const safeEngineers = Array.isArray(rawEngineers) ? rawEngineers : [];
+      setIncidents(safeIncidents.map(mapIncident).filter(Boolean));
+      setEngineers(safeEngineers);
     } catch (err) {
       console.error('Failed to load incidents:', err);
     }
@@ -137,12 +139,22 @@ export function Incidents() {
 
 
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
   const filteredIncidents = incidents.filter(incident =>
     (incident.title?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
     (incident.id?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
     (incident.entity?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
     (incident.assignedTo?.toLowerCase() || '').includes(searchQuery.toLowerCase())
   );
+
+  const totalPages = Math.max(1, Math.ceil(filteredIncidents.length / pageSize));
+  const paginatedIncidents = filteredIncidents.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const getSeverityColor = (severity: string) => {
     switch (severity) {
@@ -247,7 +259,7 @@ export function Incidents() {
             </CardContent>
           </Card>
         ) : (
-          filteredIncidents.map((incident) => (
+          paginatedIncidents.map((incident) => (
             <Card
               key={incident.id}
               className="bg-nebula-navy-light border-nebula-navy-lighter hover:border-nebula-purple/30 transition-all"
@@ -339,6 +351,43 @@ export function Incidents() {
           ))
         )}
       </div>
+
+      {/* Pagination Controls */}
+      {filteredIncidents.length > 0 && (
+        <div className="flex items-center justify-between border-t border-nebula-navy-lighter pt-4 px-2">
+          <p className="text-xs text-slate-400">
+            Showing <span className="font-semibold text-white">{(currentPage - 1) * pageSize + 1}</span> to{' '}
+            <span className="font-semibold text-white">
+              {Math.min(currentPage * pageSize, filteredIncidents.length)}
+            </span>{' '}
+            of <span className="font-semibold text-white">{filteredIncidents.length}</span> incidents
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              className="bg-transparent border-nebula-navy-lighter text-white hover:bg-nebula-navy-lighter disabled:opacity-40"
+            >
+              Previous
+            </Button>
+            <span className="text-xs text-slate-400 px-2">
+              Page <span className="text-white font-medium">{currentPage}</span> of{' '}
+              <span className="text-white font-medium">{totalPages}</span>
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={currentPage >= totalPages}
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              className="bg-transparent border-nebula-navy-lighter text-white hover:bg-nebula-navy-lighter disabled:opacity-40"
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Incident Details Dialog */}
       <Dialog open={!!selectedIncident && !isAssignDialogOpen} onOpenChange={(open) => !open && setSelectedIncident(null)}>

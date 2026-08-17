@@ -58,13 +58,17 @@ export interface ApiAnomaly {
 }
 
 export const fetchAnomalies = async () => {
-  const response = await API.get<{ success: boolean; data: ApiAnomaly[] }>('/anomalies');
-  return response.data.data;
+  const response = await API.get('/anomalies');
+  const res = response.data;
+  if (Array.isArray(res)) return res;
+  if (Array.isArray(res?.data)) return res.data;
+  return [];
 };
 
 export const fetchAnomalyById = async (anomalyId: string) => {
-  const response = await API.get<{ success: boolean; data: ApiAnomaly }>(`/anomalies/${anomalyId}`);
-  return response.data.data;
+  const response = await API.get(`/anomalies/${anomalyId}`);
+  const res = response.data;
+  return res?.data ?? res;
 };
 
 export const addAnomalyFeedback = async (

@@ -2,3 +2,5 @@ import api from "./api";
 
 export const signupUser = (data: unknown) => api.post("/auth/signup", data);
 export const loginUser = (data: unknown) => api.post("/auth/login", data);
+export const verifyEmailToken = (token: string) => api.get(`/auth/verify-email?token=${encodeURIComponent(token)}`);
+export const resendVerificationEmail = (data: unknown) => api.post("/auth/resend-verification", data);

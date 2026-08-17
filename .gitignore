@@ -1,25 +1,28 @@
-# Byte-compiled / optimized / DLL files
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
-
-# C extensions
 *.so
+.venv/
+venv/
+ENV/
+env/
 
 # Node / JS dependencies and builds
 node_modules/
 dist/
 build/
-*.log
 
-# Environments
-.venv
-venv/
-ENV/
-env/
+# Log files (never commit logs)
+*.log
+logs/
+
+# Environments and secrets
 .env
+backend/database.txt
 
 # OS / Editor
 .DS_Store
 Thumbs.db
 .idea/
+.vscode/

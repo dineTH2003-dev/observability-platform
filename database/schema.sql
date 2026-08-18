@@ -97,8 +97,8 @@ CREATE TABLE tickets (
   context VARCHAR(100),
   priority ticket_priority DEFAULT 'medium',
   status ticket_status DEFAULT 'Open',
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- ============================================================

@@ -49,7 +49,7 @@ function AppContent() {
   const [authView, setAuthView] = useState<AuthView>(() => {
     return authPathToView[window.location.pathname] ?? 'login';
   });
-  const { currentPage, selectedAnomalyId, selectedServiceId, handleNavigate } = useNavigation();
+  const { currentPage, selectedAnomalyId, selectedServiceId, selectedIncidentId, selectedTicketId, selectionEpoch, handleNavigate } = useNavigation();
 
   function showAuthView(view: AuthView, path: string) {
     setAuthView(view);
@@ -129,13 +129,13 @@ function AppContent() {
       {currentPage === 'services' && <Services onNavigate={handleNavigate} />}
       {currentPage === 'service-metrics' && (<ServiceMetrics serviceId={selectedServiceId} onNavigate={handleNavigate} />)}
       {currentPage === 'logs' && <Logs />}
-      {currentPage === 'anomalies' && <Anomalies selectedAnomalyId={selectedAnomalyId} />}
+      {currentPage === 'anomalies' && <Anomalies selectedAnomalyId={selectedAnomalyId} selectionEpoch={selectionEpoch} />}
       {currentPage === 'reports' && (
         <ProtectedRoute allowedRoles={['admin']}>
           <Reports />
         </ProtectedRoute>
       )}
-      {currentPage === 'incidents' && <Incidents />}
+      {currentPage === 'incidents' && <Incidents selectedIncidentId={selectedIncidentId} selectionEpoch={selectionEpoch} />}
       {currentPage === 'alert-settings' && (
         <ProtectedRoute allowedRoles={['admin']}>
           <AlertSettings />
@@ -148,7 +148,7 @@ function AppContent() {
       )}
       {currentPage === 'metrics' && <Metrics />}
       {currentPage === 'notifications' && <NotificationsPage onNavigate={handleNavigate} />}
-      {currentPage === 'tickets' && <Tickets />}
+      {currentPage === 'tickets' && <Tickets selectedTicketId={selectedTicketId} selectionEpoch={selectionEpoch} />}
     </MainLayout>
   );
 }

@@ -71,7 +71,7 @@ function mapIncident(raw: ApiIncident): any {
   };
 }
 
-export function Incidents() {
+export function Incidents({ selectedIncidentId, selectionEpoch }: { selectedIncidentId?: string; selectionEpoch?: number } = {}) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIncident, setSelectedIncident] = useState<any | null>(null);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
@@ -102,6 +102,20 @@ export function Incidents() {
   useEffect(() => {
     loadData();
   }, []);
+
+  // Auto-open incident detail when navigated via notification
+  useEffect(() => {
+    if (!selectedIncidentId) return;
+    incidentApi.fetchIncidentById(selectedIncidentId)
+      .then((raw) => {
+        if (raw) {
+          setSelectedIncident(mapIncident(raw));
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to fetch incident from notification:', err);
+      });
+  }, [selectedIncidentId, selectionEpoch]);
 
   // Live: prepend newly created incidents
   useEffect(() => {

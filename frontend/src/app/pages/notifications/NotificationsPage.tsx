@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Bell, CheckCircle, AlertCircle, UserPlus, CheckCheck, Filter, Search, Trash2, Check, ArrowLeft } from 'lucide-react';
+import { Bell, CheckCircle, AlertCircle, UserPlus, CheckCheck, Filter, Search, Trash2, Check, ArrowLeft, ArrowRight } from 'lucide-react';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -18,9 +18,10 @@ import {
   deleteNotification as deleteNotificationApi,
 } from '../../../api/notificationApi';
 import { useSocket } from '../../context/SocketContext';
+import { getNotificationNavigationTarget, mapApiNotificationToUi } from '../../utils/notificationNavigation';
 
 interface NotificationsPageProps {
-  onNavigate?: (page: string) => void;
+  onNavigate?: (page: string, id?: string | number) => void;
 }
 
 export function NotificationsPage({ onNavigate }: NotificationsPageProps = {}) {
@@ -55,19 +56,7 @@ export function NotificationsPage({ onNavigate }: NotificationsPageProps = {}) {
   };
 
   const mapDbToUiNotification = (n: any): Notification => {
-    const fromLabel = n.sender_user_id ? n.sender_email || 'User' : 'System';
-    const severity = n.severity || (n.notification_type === 'alert_rule' ? 'high' : 'medium');
-    return {
-      id: String(n.notification_id),
-      type: n.notification_type as Notification['type'],
-      title: n.title,
-      message: n.message,
-      timestamp: n.created_at ? formatRelativeTime(n.created_at) : 'some time ago',
-      read: Boolean(n.is_read),
-      severity,
-      from: fromLabel,
-      to: 'You',
-    };
+    return mapApiNotificationToUi(n, formatRelativeTime);
   };
 
   const loadNotifications = useCallback(async () => {
@@ -109,15 +98,21 @@ export function NotificationsPage({ onNavigate }: NotificationsPageProps = {}) {
 
   const getNotificationIcon = (type: Notification['type']) => {
     switch (type) {
+      case 'ticket_created':
+        return <AlertCircle className="size-5 text-nebula-cyan" />; // Or TicketIcon if imported
       case 'anomaly_detected':
         return <AlertCircle className="size-5 text-red-400" />;
       case 'anomaly_assigned':
+      case 'incident_assigned':
         return <UserPlus className="size-5 text-blue-400" />;
       case 'anomaly_acknowledged':
+      case 'incident_acknowledged':
         return <CheckCircle className="size-5 text-yellow-400" />;
       case 'anomaly_resolved':
+      case 'incident_resolved':
         return <CheckCheck className="size-5 text-green-400" />;
       case 'alert_rule':
+      case 'custom_alert':
         return <Bell className="size-5 text-purple-400" />;
       default:
         return <Bell className="size-5 text-slate-400" />;
@@ -141,16 +136,23 @@ export function NotificationsPage({ onNavigate }: NotificationsPageProps = {}) {
 
   const getTypeLabel = (type: Notification['type']) => {
     switch (type) {
+      case 'ticket_created':
+        return 'Ticket Created';
       case 'anomaly_detected':
         return 'Anomaly Detected';
       case 'anomaly_assigned':
-        return 'Anomaly Assigned';
+      case 'incident_assigned':
+        return 'Assigned';
       case 'anomaly_acknowledged':
+      case 'incident_acknowledged':
         return 'Acknowledged';
       case 'anomaly_resolved':
+      case 'incident_resolved':
         return 'Resolved';
       case 'alert_rule':
         return 'Alert Rule';
+      case 'custom_alert':
+        return 'Custom Alert';
       default:
         return type;
     }
@@ -188,6 +190,25 @@ export function NotificationsPage({ onNavigate }: NotificationsPageProps = {}) {
     setNotifications(notifications.filter(n => n.id !== id));
   };
 
+  const handleNotificationClick = (notification: Notification) => {
+    console.debug('[NotificationNav] click', {
+      source: 'notifications-page',
+      notificationId: notification.id,
+      type: notification.type,
+      anomalyId: notification.anomalyId,
+      incidentId: notification.incidentId,
+      relatedEntityId: notification.relatedEntityId,
+    });
+
+    if (!notification.read) {
+      handleMarkAsRead(notification.id);
+    }
+    if (onNavigate) {
+      const target = getNotificationNavigationTarget(notification);
+      onNavigate(target.page, target.id);
+    }
+  };
+
   const filteredNotifications = notifications
     .filter(n => {
       if (filter === 'unread') return !n.read;
@@ -196,6 +217,15 @@ export function NotificationsPage({ onNavigate }: NotificationsPageProps = {}) {
     })
     .filter(n => {
       if (typeFilter === 'all') return true;
+      if (typeFilter === 'anomaly_assigned') {
+        return n.type === 'anomaly_assigned' || n.type === 'incident_assigned';
+      }
+      if (typeFilter === 'anomaly_acknowledged') {
+        return n.type === 'anomaly_acknowledged' || n.type === 'incident_acknowledged';
+      }
+      if (typeFilter === 'anomaly_resolved') {
+        return n.type === 'anomaly_resolved' || n.type === 'incident_resolved';
+      }
       return n.type === typeFilter;
     })
     .filter(n => {
@@ -341,11 +371,13 @@ export function NotificationsPage({ onNavigate }: NotificationsPageProps = {}) {
               </SelectTrigger>
               <SelectContent className="bg-nebula-navy-light border-nebula-navy-lighter text-white">
                 <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="ticket_created">Ticket Created</SelectItem>
                 <SelectItem value="anomaly_detected">Anomaly Detected</SelectItem>
                 <SelectItem value="anomaly_assigned">Assigned</SelectItem>
                 <SelectItem value="anomaly_acknowledged">Acknowledged</SelectItem>
                 <SelectItem value="anomaly_resolved">Resolved</SelectItem>
                 <SelectItem value="alert_rule">Alert Rules</SelectItem>
+                <SelectItem value="custom_alert">Custom Alerts</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -372,11 +404,12 @@ export function NotificationsPage({ onNavigate }: NotificationsPageProps = {}) {
           filteredNotifications.map((notification) => (
             <Card
               key={notification.id}
-              className={`bg-nebula-navy-light border-nebula-navy-lighter hover:border-nebula-cyan/30 transition-colors ${
+              className={`bg-nebula-navy-light border-nebula-navy-lighter hover:border-nebula-cyan/30 transition-colors cursor-pointer ${
                 !notification.read ? 'border-l-4 border-l-nebula-pink' : ''
               }`}
+              onClick={() => handleNotificationClick(notification)}
             >
-              <CardContent className="p-5">
+              <CardContent className="p-5 group">
                 <div className="flex gap-4">
                   {/* Icon */}
                   <div className="flex-shrink-0 mt-1">
@@ -396,10 +429,13 @@ export function NotificationsPage({ onNavigate }: NotificationsPageProps = {}) {
                       </div>
                       <div className="flex items-center gap-2">
                         {!notification.read && (
-                          <Button
+                        <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleMarkAsRead(notification.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleMarkAsRead(notification.id);
+                            }}
                             className="text-nebula-cyan hover:text-nebula-cyan hover:bg-nebula-cyan/10 h-8"
                           >
                             Mark as read
@@ -408,7 +444,10 @@ export function NotificationsPage({ onNavigate }: NotificationsPageProps = {}) {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleDeleteNotification(notification.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteNotification(notification.id);
+                          }}
                           className="text-slate-400 hover:text-red-400 hover:bg-red-500/10 h-8 w-8"
                         >
                           <Trash2 className="size-4" />
@@ -444,6 +483,12 @@ export function NotificationsPage({ onNavigate }: NotificationsPageProps = {}) {
                           To: <span className="text-slate-400">{notification.to}</span>
                         </span>
                       )}
+                    </div>
+
+                    {/* View Details Action Link */}
+                    <div className="mt-2 flex items-center gap-1 text-xs font-semibold text-nebula-cyan group-hover:text-cyan-300 transition-colors">
+                      <span>View details</span>
+                      <ArrowRight className="size-3" />
                     </div>
                   </div>
                 </div>

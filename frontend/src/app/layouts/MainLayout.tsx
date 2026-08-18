@@ -7,7 +7,7 @@ import type { UserProfile } from '../types/user';
 interface MainLayoutProps {
   children: ReactNode;
   currentPage: string;
-  onNavigate: (page: string) => void;
+  onNavigate: (page: string, id?: string | number) => void;
   onLogout: () => void;
   currentUser: UserProfile | null;
 }

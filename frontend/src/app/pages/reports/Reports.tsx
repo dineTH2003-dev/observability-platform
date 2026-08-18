@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select';
-import { FileText, Download } from 'lucide-react';
+import { FileText, Download, History } from 'lucide-react';
 import api from '../../../api/api';
 import { hostService } from '../../services/hostService';
 import { serviceService } from '../../services/serviceService';
@@ -30,7 +30,11 @@ import {
 
 type ReportType = 'infrastructure' | 'performance' | 'incident' | 'reliability' | null;
 
-export function Reports() {
+interface ReportsProps {
+  onNavigate?: (page: string) => void;
+}
+
+export function Reports({ onNavigate }: ReportsProps = {}) {
   const [reportType, setReportType] = useState<ReportType>(null);
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
@@ -219,9 +223,21 @@ export function Reports() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-white">Reports</h1>
-        <p className="text-slate-400 text-sm mt-1">Generate operational insights</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-white">Reports</h1>
+          <p className="text-slate-400 text-sm mt-1">Generate operational insights</p>
+        </div>
+        {onNavigate && (
+          <Button
+            variant="outline"
+            className="border-nebula-navy-lighter text-slate-300 hover:bg-nebula-navy-lighter hover:text-white"
+            onClick={() => onNavigate('reports-history')}
+          >
+            <History className="size-4 mr-2" />
+            Export History
+          </Button>
+        )}
       </div>
 
       <Card className="bg-nebula-navy-light border-nebula-navy-lighter">

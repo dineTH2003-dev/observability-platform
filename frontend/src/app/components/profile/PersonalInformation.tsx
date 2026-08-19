@@ -182,7 +182,7 @@ export function PersonalInformation({
           <div className="space-y-2 pt-2">
             <Label className="text-sm font-medium text-white">Bio</Label>
             <div className="group relative flex items-start">
-              <div className="pointer-events-none absolute left-5 top-3.5 z-10 flex items-center justify-center text-slate-500 transition-colors group-focus-within:text-nebula-cyan">
+              <div className="pointer-events-none absolute left-4 top-3.5 z-10 flex items-center justify-center text-slate-500 transition-colors group-focus-within:text-nebula-cyan">
                 <FileText className="size-4" />
               </div>
               <Textarea
@@ -190,8 +190,9 @@ export function PersonalInformation({
                 disabled={disabled}
                 value={values.bio}
                 maxLength={300}
+                style={{ paddingLeft: "48px" }}
                 onChange={(event) => onChange("bio", event.target.value)}
-                className="min-h-[120px] rounded-xl border-white/8 bg-[#0A1238] pl-14 pr-4 py-3 text-sm text-white placeholder:text-slate-500 shadow-inner shadow-black/20 transition duration-200 hover:border-white/12 focus-visible:ring-nebula-purple/30 disabled:opacity-80 resize-none overflow-hidden"
+                className="min-h-[120px] rounded-xl border-white/8 bg-[#0A1238] !pl-12 pr-4 py-3 text-sm text-white placeholder:text-slate-500 shadow-inner shadow-black/20 transition duration-200 hover:border-white/12 focus-visible:ring-nebula-purple/30 disabled:opacity-80 resize-none overflow-hidden"
                 placeholder="Tell your team a bit about yourself"
               />
             </div>

@@ -149,17 +149,6 @@ export function NotificationDropdown({
               </span>
             )}
           </div>
-          {unreadCount > 0 && onClearAll && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onClearAll();
-              }}
-              className="text-xs font-medium text-slate-400 hover:text-nebula-pink transition-colors px-2 py-1 rounded hover:bg-nebula-navy-dark"
-            >
-              Clear All
-            </button>
-          )}
         </div>
 
         {/* Notification List */}

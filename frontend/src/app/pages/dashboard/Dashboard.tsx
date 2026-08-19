@@ -39,6 +39,25 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   const { newAnomaly } = useLiveAnomalies();
   const { newIncident, updatedIncident } = useLiveIncidents();
 
+  // Mirror the backend formula: 100% minus penalties for critical/warning components and open issues.
+  // This keeps the System Health card in sync without polling the full dashboard summary.
+  const computeSystemHealth = (
+    prevKpis: DashboardSummary['kpis'],
+    anomalyDelta: number,
+    incidentDelta: number
+  ): number => {
+    const newAnomalies = Math.max(0, (prevKpis.activeAnomalies ?? 0) + anomalyDelta);
+    const newIncidents = Math.max(0, (prevKpis.openIncidents ?? 0) + incidentDelta);
+    // Re-derive component penalties using the same fixed kpis (hosts/apps/services don't change live)
+    const currentHealth = prevKpis.systemHealth ?? 100;
+    // Back-calculate what the static component penalty was
+    const staticPenalty = 100 - currentHealth
+      + (prevKpis.activeAnomalies ?? 0) * 2
+      + (prevKpis.openIncidents ?? 0) * 5;
+    const newHealth = 100 - staticPenalty - newAnomalies * 2 - newIncidents * 5;
+    return Math.max(0, Math.min(100, Math.round(newHealth)));
+  };
+
   // Keep the sparklines responsive without re-running the full dashboard summary.
   useEffect(() => {
     if (!latestMetric) return;
@@ -73,49 +92,63 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     });
   }, [latestMetric]);
 
-  // Live: bump anomaly count when a new anomaly is detected
+  // Live: bump anomaly count and recompute System Health when a new anomaly is detected
   useEffect(() => {
     if (!newAnomaly || !newAnomaly.anomaly_id) return;
     setData(prev => {
       if (!prev) return prev;
+      const newAnomalyCount = (prev.kpis.activeAnomalies ?? 0) + 1;
+      const newSystemHealth = computeSystemHealth(prev.kpis, 1, 0);
       return {
         ...prev,
         kpis: {
           ...prev.kpis,
-          activeAnomalies: (prev.kpis.activeAnomalies ?? 0) + 1,
+          activeAnomalies: newAnomalyCount,
+          systemHealth: newSystemHealth,
         },
       };
     });
   }, [newAnomaly]);
 
-  // Live: update incident counters on status transitions
+  // Live: update incident counters and System Health on status transitions
   useEffect(() => {
     if (!updatedIncident) return;
     setData(prev => {
       if (!prev) return prev;
-      // When an incident is resolved, decrement open count
       if (updatedIncident.action === 'resolved') {
+        const newSystemHealth = computeSystemHealth(prev.kpis, 0, -1);
         return {
           ...prev,
           openIncidents: (prev.openIncidents || []).filter(
             (i: any) => i.incident_id !== updatedIncident.incident_id
           ),
+          kpis: {
+            ...prev.kpis,
+            openIncidents: Math.max(0, (prev.kpis.openIncidents ?? 0) - 1),
+            systemHealth: newSystemHealth,
+          },
         };
       }
       return prev;
     });
   }, [updatedIncident]);
 
-  // Live: prepend newly created incidents to the dashboard list
+  // Live: prepend newly created incidents to the dashboard list and update System Health
   useEffect(() => {
     if (!newIncident || !newIncident.incident_id) return;
     setData(prev => {
       if (!prev) return prev;
       const existing = prev.openIncidents || [];
       if (existing.some((i: any) => i.incident_id === newIncident.incident_id)) return prev;
+      const newSystemHealth = computeSystemHealth(prev.kpis, 0, 1);
       return {
         ...prev,
         openIncidents: [newIncident as any, ...existing],
+        kpis: {
+          ...prev.kpis,
+          openIncidents: (prev.kpis.openIncidents ?? 0) + 1,
+          systemHealth: newSystemHealth,
+        },
       };
     });
   }, [newIncident]);

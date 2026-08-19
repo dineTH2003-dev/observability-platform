@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Search, Server } from 'lucide-react';
 import { Card, CardContent } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
@@ -48,7 +48,9 @@ export function Metrics() {
         setMetrics(fetchedMetrics);
         
         try {
-          const fetchedBaselines = await metricService.getServerBaselines(parseInt(selectedHostId), 60);
+          // Fetch 6 hours of baselines — server baselines are ~19 min apart so 60 min gives only ~3 entries.
+          // 360 minutes gives ~19 entries per metric, enough for reliable nearest-neighbor matching.
+          const fetchedBaselines = await metricService.getServerBaselines(parseInt(selectedHostId), 360);
           setBaselines(fetchedBaselines);
         } catch (baselineErr) {
           console.warn("Failed to load baselines", baselineErr);
@@ -78,111 +80,146 @@ export function Metrics() {
 
   const currentHost = hosts.find(h => h.server_id.toString() === selectedHostId);
 
-  // Map server metrics to chart data formats
-  const mapData = (key: keyof ServerMetric) => {
+  // Build sorted baseline index per metric_name for fast nearest-neighbor lookup.
+  // Server baselines are ~19 min apart — a ±30 min window always finds the closest one.
+  const baselineSortedByMetric = useMemo(() => {
+    const grouped = new Map<string, { time: number; entry: any }[]>();
+    for (const b of baselines) {
+      if (!b.metric_name) continue;
+      const t = new Date(b.recorded_at).getTime();
+      if (!grouped.has(b.metric_name)) grouped.set(b.metric_name, []);
+      grouped.get(b.metric_name)!.push({ time: t, entry: b });
+    }
+    // Sort each group ascending by time
+    for (const arr of grouped.values()) {
+      arr.sort((a, b) => a.time - b.time);
+    }
+    return grouped;
+  }, [baselines]);
+
+  // Binary search for the nearest baseline within 30 minutes
+  const findNearestBaseline = (metricName: string, timestamp: number): any | null => {
+    const MAX_DIFF_MS = 30 * 60 * 1000; // 30 minutes
+    const arr = baselineSortedByMetric.get(metricName);
+    if (!arr || arr.length === 0) return null;
+
+    let lo = 0, hi = arr.length - 1;
+    let bestEntry = null, bestDiff = Infinity;
+    while (lo <= hi) {
+      const mid = Math.floor((lo + hi) / 2);
+      const diff = Math.abs(arr[mid].time - timestamp);
+      if (diff < bestDiff) { bestDiff = diff; bestEntry = arr[mid].entry; }
+      if (arr[mid].time < timestamp) lo = mid + 1;
+      else if (arr[mid].time > timestamp) hi = mid - 1;
+      else break;
+    }
+    return bestDiff <= MAX_DIFF_MS ? bestEntry : null;
+  };
+
+  // Map server metrics to chart-ready format, attaching nearest baseline bounds
+  const mapData = (key: keyof ServerMetric, metricName: string, isPercentage = true) => {
     return metrics.map((m) => {
-      const val = Number(m[key]) || 0;
-
-      // Find matching baseline based on closest minute
+      const rawVal = Number(m[key]) || 0;
+      const val = isPercentage ? Math.min(100, Math.max(0, rawVal)) : rawVal;
       const recordTime = new Date(m.recorded_at).getTime();
-      let matchedBaseline = null;
+      const baseline = findNearestBaseline(metricName, recordTime);
 
-      for (const b of baselines) {
-        const mappedKey = key.replace('_usage', '_avg').replace('thread_count', 'thread_count_avg');
-        if (b.metric_name === mappedKey) {
-          const bTime = new Date(b.recorded_at).getTime();
-          if (Math.abs(bTime - recordTime) < 60000) {
-            matchedBaseline = b;
-            break;
-          }
-        }
+      let lower = baseline?.lower_bound != null ? Number(baseline.lower_bound) : (baseline?.cpu_lower != null ? Number(baseline.cpu_lower) : null);
+      let upper = baseline?.upper_bound != null ? Number(baseline.upper_bound) : (baseline?.cpu_upper != null ? Number(baseline.cpu_upper) : null);
+
+      if (isPercentage) {
+        if (lower !== null) lower = Math.max(0, Math.min(100, lower));
+        if (upper !== null) upper = Math.max(0, Math.min(100, upper));
       }
 
-      const lower = matchedBaseline?.cpu_lower ?? matchedBaseline?.lower_bound ?? null;
-      const upper = matchedBaseline?.cpu_upper ?? matchedBaseline?.upper_bound ?? null;
+      const bandWidth = (lower !== null && upper !== null && upper >= lower) ? (upper - lower) : null;
       const anomaly = (lower !== null && val < lower) || (upper !== null && val > upper) ? val : null;
-      const range = (lower !== null && upper !== null) ? [lower, upper] : null;
 
       return {
         time: new Date(m.recorded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         actual: val,
-        baseline: matchedBaseline?.cpu_baseline ?? matchedBaseline?.baseline ?? null,
         lower_bound: lower,
         upper_bound: upper,
-        range: range,
+        band_width: bandWidth,
         anomaly_actual: anomaly,
       };
     });
   };
 
-  const cpuData = metrics.length ? mapData('cpu_usage') : [];
-  const memoryData = metrics.length ? mapData('memory_usage') : [];
-  const diskData = metrics.length ? mapData('disk_usage') : [];
-  const threadData = metrics.length ? mapData('thread_count') : [];
+  const cpuData = metrics.length ? mapData('cpu_usage', 'cpu_avg', true) : [];
+  const memoryData = metrics.length ? mapData('memory_usage', 'memory_avg', true) : [];
+  const diskData = metrics.length ? mapData('disk_usage', 'disk_avg', true) : [];
+  const threadData = metrics.length ? mapData('thread_count', 'thread_count_avg', false) : [];
 
-  const MetricChart = ({ 
-    title, 
-    data, 
-    color
-  }: { 
+  // Shared chart colors — single cyan accent matches the reference style
+  const CYAN = '#06b6d4';
+
+  const MetricChart = ({
+    title,
+    data,
+    unit = '',
+  }: {
     title: string;
     data: any[];
-    color: string;
+    unit?: string;
   }) => {
+    const chartId = title.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
+
     return (
       <Card className="bg-nebula-navy-light border-nebula-navy-lighter">
         <CardContent className="p-6">
           <h3 className="text-lg font-semibold text-white mb-4">{title}</h3>
 
           <ResponsiveContainer width="100%" height={240}>
-            <ComposedChart data={data}>
+            <ComposedChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
               <defs>
-                <linearGradient id={`gradient-${title}`} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={color} stopOpacity={0.25}/>
-                  <stop offset="95%" stopColor={color} stopOpacity={0.05}/>
+                <linearGradient id={`gradient-${chartId}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor={CYAN} stopOpacity={0.15}/>
+                  <stop offset="95%" stopColor={CYAN} stopOpacity={0}/>
                 </linearGradient>
               </defs>
+
               <CartesianGrid strokeDasharray="3 3" stroke="#1A1F3A" />
-              <XAxis 
-                dataKey="time" 
-                stroke="#64748B" 
-                style={{ fontSize: '12px' }}
-                label={{ value: 'Hour', position: 'insideBottom', offset: -5, style: { fill: '#64748B', fontSize: '12px' } }}
+
+              <XAxis
+                dataKey="time"
+                stroke="#475569"
+                tick={{ fill: '#64748B', fontSize: 11 }}
+                tickLine={false}
               />
-              <YAxis 
-                stroke="#64748B" 
-                style={{ fontSize: '12px' }}
-                label={{ value: 'Messages', angle: -90, position: 'insideLeft', style: { fill: '#64748B', fontSize: '12px' } }}
+              <YAxis
+                stroke="#475569"
+                tick={{ fill: '#64748B', fontSize: 11 }}
+                tickLine={false}
+                tickFormatter={(v: number) => `${v}${unit}`}
+                width={45}
+                domain={unit === '%' ? [0, 100] : [0, 'auto']}
               />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: '#0F172A', 
+              <Tooltip
+                formatter={(value: number, name: string) => {
+                  if (name === 'Lower Bound' || name === 'Normal Band') return null;
+                  return [`${Number(value).toFixed(2)}${unit}`, name === 'Current' ? 'Value' : name];
+                }}
+                contentStyle={{
+                  backgroundColor: '#0F172A',
                   border: '1px solid #1E293B',
                   borderRadius: '8px',
                   color: '#F1F5F9',
                   fontSize: '12px'
                 }}
               />
-              
-              {/* Baseline Bounds (Clean Floating Range) */}
+
+              {/* Cyan real-time metric line */}
               <Area
                 type="monotone"
-                dataKey="range"
-                stroke="none"
-                fill={color}
-                fillOpacity={0.15}
-                name="Normal Range"
-                isAnimationActive={false}
-              />
-
-              {/* Actual Metric Line */}
-              <Area 
-                type="monotone" 
-                dataKey="actual" 
-                stroke={color}
-                strokeWidth={2}
-                fill="none"
+                dataKey="actual"
+                stroke={CYAN}
+                strokeWidth={1.5}
+                fill={`url(#gradient-${chartId})`}
+                fillOpacity={1}
                 name="Current"
+                dot={false}
+                isAnimationActive={false}
               />
             </ComposedChart>
           </ResponsiveContainer>
@@ -303,30 +340,30 @@ export function Metrics() {
         </Card>
       )}
 
-      {/* Metric Charts */}
+      {/* Metric Charts — all use single cyan accent color */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <MetricChart
           title="CPU Utilization"
           data={cpuData}
-          color="#3B82F6"
+          unit="%"
         />
 
         <MetricChart
           title="Memory Utilization"
           data={memoryData}
-          color="#3B82F6"
+          unit="%"
         />
 
         <MetricChart
           title="Disk Usage"
           data={diskData}
-          color="#3B82F6"
+          unit=""
         />
 
         <MetricChart
           title="Thread Count"
           data={threadData}
-          color="#3B82F6"
+          unit=""
         />
       </div>
     </div>

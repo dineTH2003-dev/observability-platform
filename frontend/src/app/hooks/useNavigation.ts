@@ -36,9 +36,13 @@ export function useNavigation() {
       setSelectedIncidentId(undefined);
       setSelectedAnomalyId(undefined);
       setSelectionEpoch((n) => n + 1);
-    } else if (typeof numericId === 'number') {
-      setSelectedServiceId(numericId);
+    } else if ((page === 'service-metrics' || page === 'services') && (typeof numericId === 'number' || id)) {
+      const parsedId = typeof numericId === 'number' ? numericId : (id ? parseInt(id, 10) : undefined);
+      if (parsedId && !isNaN(parsedId)) {
+        setSelectedServiceId(parsedId);
+      }
       setSelectedIncidentId(undefined);
+      setSelectedAnomalyId(undefined);
       setSelectedTicketId(undefined);
     } else if (!id) {
       setSelectedIncidentId(undefined);
@@ -66,6 +70,11 @@ export function useNavigation() {
         setSelectedIncidentId(undefined);
         setSelectedAnomalyId(undefined);
         setSelectionEpoch((n) => n + 1);
+      } else if (page === 'service-metrics' && id) {
+        const parsedId = parseInt(id, 10);
+        if (!isNaN(parsedId)) {
+          setSelectedServiceId(parsedId);
+        }
       }
     };
     syncFromHash();
@@ -75,8 +84,8 @@ export function useNavigation() {
 
   const handleNavigate = (page: string, id?: string | number) => {
     const nextPage = page || 'dashboard';
-    const entityId = typeof id === 'string' && id ? id : undefined;
-    const numericId = typeof id === 'number' ? id : undefined;
+    const entityId = typeof id === 'string' && id ? id : (typeof id === 'number' ? id.toString() : undefined);
+    const numericId = typeof id === 'number' ? id : (typeof id === 'string' && !isNaN(parseInt(id, 10)) ? parseInt(id, 10) : undefined);
 
     let hashChanged = false;
     if (typeof window !== 'undefined') {
@@ -88,9 +97,6 @@ export function useNavigation() {
       }
     }
 
-    // When the hash changed, syncFromHash will fire via the 'hashchange' listener
-    // and handle selection + epoch bump. Only call applyEntitySelection directly
-    // when the hash didn't change (re-selecting same entity on the same page).
     if (!hashChanged) {
       applyEntitySelection(nextPage, entityId, numericId);
     }

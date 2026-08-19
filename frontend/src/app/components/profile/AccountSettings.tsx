@@ -139,17 +139,20 @@ function PasswordInput({
     <div className="space-y-2">
       <Label className="text-sm font-medium text-white">{label}</Label>
       <div className="group relative flex items-center">
-        <div className="pointer-events-none absolute left-4 z-10 flex items-center justify-center text-slate-500 transition-colors group-focus-within:text-nebula-cyan">
+        <div
+          style={{ left: "28px" }}
+          className="pointer-events-none absolute z-10 flex items-center justify-center text-slate-500 transition-colors group-focus-within:text-nebula-cyan"
+        >
           <Lock className="size-4" />
         </div>
         <Input
           type={showPassword ? "text" : "password"}
           disabled={disabled}
           value={value}
-          style={{ paddingLeft: "48px" }}
+          style={{ paddingLeft: "60px" }}
           onChange={(event) => onChange(event.target.value)}
           aria-invalid={Boolean(error)}
-          className="h-12 rounded-xl border-white/8 bg-[#0A1238] !pl-12 pr-12 text-sm text-white placeholder:text-slate-500 shadow-inner shadow-black/20 transition duration-200 hover:border-white/12 focus-visible:ring-nebula-purple/30 disabled:opacity-70"
+          className="h-12 rounded-xl border-white/8 bg-[#0A1238] !pl-16 pr-12 text-sm text-white placeholder:text-slate-500 shadow-inner shadow-black/20 transition duration-200 hover:border-white/12 focus-visible:ring-nebula-purple/30 disabled:opacity-70"
         />
         <button
           type="button"

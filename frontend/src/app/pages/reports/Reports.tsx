@@ -307,12 +307,12 @@ export function Reports({ onNavigate }: ReportsProps = {}) {
 
             <div>
               <Label className="text-slate-300 mb-2 block text-sm">From Date</Label>
-              <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="w-full bg-nebula-navy-dark border-nebula-navy-lighter text-white px-3 py-2 rounded" />
+              <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} style={{ colorScheme: 'dark' }} className="w-full bg-nebula-navy-dark border-nebula-navy-lighter text-white px-3 py-2 rounded [&::-webkit-calendar-picker-indicator]:invert" />
             </div>
 
             <div>
               <Label className="text-slate-300 mb-2 block text-sm">To Date</Label>
-              <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="w-full bg-nebula-navy-dark border-nebula-navy-lighter text-white px-3 py-2 rounded" />
+              <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} style={{ colorScheme: 'dark' }} className="w-full bg-nebula-navy-dark border-nebula-navy-lighter text-white px-3 py-2 rounded [&::-webkit-calendar-picker-indicator]:invert" />
             </div>
 
             <div className="flex items-end">

@@ -2,12 +2,9 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   Menu,
   LayoutGrid,
-  Search,
-  Moon,
   User,
 } from 'lucide-react';
 import { Button } from '../ui/button';
-import { Input } from '../ui/input';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -348,14 +345,7 @@ export function Topbar({ currentPage, onNavigate, onLogout, onToggleSidebar, cur
         </div>
 
         <div className="flex items-center gap-4">
-          {/* Search */}
-          <div className="relative w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
-            <Input
-              placeholder="Search..."
-              className="pl-10 bg-nebula-navy-light border-nebula-navy-lighter text-white placeholder:text-slate-500 h-10"
-            />
-          </div>
+
 
           {/* Notifications */}
           <NotificationDropdown
@@ -366,14 +356,7 @@ export function Topbar({ currentPage, onNavigate, onLogout, onToggleSidebar, cur
             onViewAll={handleViewAll}
           />
 
-          {/* Theme toggle */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-slate-400 hover:text-white hover:bg-nebula-navy-lighter"
-          >
-            <Moon className="size-5" />
-          </Button>
+
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

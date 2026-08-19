@@ -88,36 +88,52 @@ export function NotificationDropdown({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <div className="relative inline-block h-10 w-10">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute bottom-0 left-1/2 transform -translate-x-1/2 text-slate-400 hover:text-white hover:bg-nebula-navy-lighter"
-          >
-            <Bell className="w-6 h-6 text-white" />
-          </Button>
-
-          {unreadCount > 0 && (
-            <span
-              className="
-                absolute
-                top-0
-                right-0
-                px-2
-                py-0.5
-                bg-red-500
-                text-white
-                text-xs
-                font-semibold
-                rounded-full
-                flex justify-center items-center
-                z-20
-              "
+        <button
+          type="button"
+          className="inline-flex items-center justify-center w-10 h-10 rounded-md hover:bg-nebula-navy-lighter transition-colors focus:outline-none"
+        >
+          <span style={{ position: 'relative', display: 'block', width: 22, height: 22 }}>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{ display: 'block' }}
+              className="text-slate-300"
             >
-              {unreadCount > 99 ? '99+' : unreadCount}
-            </span>
-          )}
-        </div>
+              <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+              <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+            </svg>
+            {unreadCount > 0 && (
+              <span
+                style={{
+                  position: 'absolute',
+                  top: '-6px',
+                  right: '-8px',
+                  minWidth: '18px',
+                  height: '18px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '0 3px',
+                  fontSize: '10px',
+                  fontWeight: 'bold',
+                  color: 'white',
+                  backgroundColor: '#ef4444',
+                  borderRadius: '9999px',
+                  lineHeight: 1,
+                }}
+              >
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            )}
+          </span>
+        </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
@@ -133,17 +149,6 @@ export function NotificationDropdown({
               </span>
             )}
           </div>
-          {unreadCount > 0 && onClearAll && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onClearAll();
-              }}
-              className="text-xs font-medium text-slate-400 hover:text-nebula-pink transition-colors px-2 py-1 rounded hover:bg-nebula-navy-dark"
-            >
-              Clear All
-            </button>
-          )}
         </div>
 
         {/* Notification List */}

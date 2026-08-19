@@ -28,6 +28,13 @@ function formatDate(iso: string): string {
   }
 }
 
+/** Colour coding for scope badges — matches the Reports page style */
+function scopeBadgeClass(scope: string): string {
+  if (scope === 'Global')  return 'bg-blue-500/10 text-blue-400 border border-blue-500/20';
+  if (scope === 'Service') return 'bg-purple-500/10 text-purple-400 border border-purple-500/20';
+  return 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20';
+}
+
 interface Props {
   onNavigate: (page: string) => void;
 }
@@ -144,84 +151,116 @@ export function ReportHistory({ onNavigate }: Props) {
 
       {/* ── History table ────────────────────────────────────────── */}
       {!loading && !error && records.length > 0 && (
-        <Card className="bg-nebula-navy-light border-nebula-navy-lighter">
+        <Card className="bg-nebula-navy-light border-nebula-navy-lighter overflow-hidden">
           <CardContent className="p-0">
+
+            {/* ── Card header: summary row ── */}
             <div className="flex items-center gap-2 px-6 py-4 border-b border-nebula-navy-lighter">
               <History className="size-5 text-nebula-cyan" />
               <h2 className="text-lg font-semibold text-white">
-                {records.length} Export{records.length !== 1 ? 's' : ''}
+                {records.length} Exported Report{records.length !== 1 ? 's' : ''}
               </h2>
             </div>
 
-            {/* Table header */}
-            <div className="grid grid-cols-[2fr_1fr_1.5fr_1.5fr_1fr_auto] gap-4 px-6 py-3 border-b border-nebula-navy-lighter">
-              <div className="text-xs font-medium text-slate-400 uppercase tracking-wider">Report</div>
-              <div className="text-xs font-medium text-slate-400 uppercase tracking-wider">Scope</div>
-              <div className="text-xs font-medium text-slate-400 uppercase tracking-wider">Time Range</div>
-              <div className="text-xs font-medium text-slate-400 uppercase tracking-wider">Exported By</div>
-              <div className="text-xs font-medium text-slate-400 uppercase tracking-wider">Exported At</div>
-              <div className="text-xs font-medium text-slate-400 uppercase tracking-wider">Actions</div>
-            </div>
+            {/* ── Responsive table wrapper ── */}
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[700px] border-collapse">
 
-            {/* Table rows */}
-            <div className="divide-y divide-nebula-navy-lighter">
-              {records.map((record) => (
-                <div
-                  key={record.id}
-                  className="grid grid-cols-[2fr_1fr_1.5fr_1.5fr_1fr_auto] gap-4 px-6 py-4 items-center hover:bg-nebula-navy-dark/40 transition-colors"
-                >
-                  {/* Report type */}
-                  <div className="min-w-0">
-                    <p className="text-white text-sm font-medium truncate">
-                      {REPORT_TYPE_LABELS[record.report_type] ?? record.report_type}
-                    </p>
-                    <p className="text-slate-500 text-xs mt-0.5 truncate">{record.file_name}</p>
-                  </div>
+                {/* Table head */}
+                <thead>
+                  <tr className="border-b border-nebula-navy-lighter bg-nebula-navy-dark/40">
+                    <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-6 py-3 w-[28%]">
+                      Report
+                    </th>
+                    <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-4 py-3 w-[12%]">
+                      Scope
+                    </th>
+                    <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-4 py-3 w-[18%]">
+                      Time Range
+                    </th>
+                    <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-4 py-3 w-[18%]">
+                      Exported By
+                    </th>
+                    <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-4 py-3 w-[16%]">
+                      Exported At
+                    </th>
+                    <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-6 py-3 w-[8%]">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
 
-                  {/* Scope */}
-                  <div>
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                      record.scope === 'Global'
-                        ? 'bg-blue-500/10 text-blue-400'
-                        : record.scope === 'Service'
-                        ? 'bg-purple-500/10 text-purple-400'
-                        : 'bg-cyan-500/10 text-cyan-400'
-                    }`}>
-                      {record.scope}
-                    </span>
-                    {record.scope_id && (
-                      <p className="text-slate-500 text-xs mt-0.5 truncate">ID: {record.scope_id}</p>
-                    )}
-                  </div>
-
-                  {/* Time range */}
-                  <div className="text-slate-300 text-sm truncate">{record.time_range}</div>
-
-                  {/* Exported by */}
-                  <div className="text-slate-300 text-sm truncate">
-                    {record.exported_by_email ?? record.exported_by}
-                  </div>
-
-                  {/* Exported at */}
-                  <div className="text-slate-300 text-sm whitespace-nowrap">
-                    {formatDate(record.created_at)}
-                  </div>
-
-                  {/* Download action */}
-                  <div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="border-nebula-navy-lighter text-white hover:bg-nebula-navy-lighter whitespace-nowrap"
-                      onClick={() => handleDownload(record)}
-                      disabled={downloading === record.id}
+                {/* Table body */}
+                <tbody className="divide-y divide-nebula-navy-lighter">
+                  {records.map((record) => (
+                    <tr
+                      key={record.id}
+                      className="hover:bg-nebula-navy-dark/40 transition-colors"
                     >
-                      <Download className="size-3.5 mr-1.5" />
-                      {downloading === record.id ? 'Downloading...' : 'Download'}
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                      {/* Report name + filename */}
+                      <td className="px-6 py-4 align-top">
+                        <p className="text-white text-sm font-medium leading-snug">
+                          {REPORT_TYPE_LABELS[record.report_type] ?? record.report_type}
+                        </p>
+                        <p
+                          className="text-slate-500 text-xs mt-0.5 max-w-[240px] truncate"
+                          title={record.file_name}
+                        >
+                          {record.file_name}
+                        </p>
+                      </td>
+
+                      {/* Scope badge */}
+                      <td className="px-4 py-4 align-top">
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${scopeBadgeClass(record.scope)}`}
+                        >
+                          {record.scope}
+                        </span>
+                        {record.scope_id && (
+                          <p className="text-slate-500 text-xs mt-1 truncate max-w-[90px]" title={record.scope_id}>
+                            ID: {record.scope_id}
+                          </p>
+                        )}
+                      </td>
+
+                      {/* Time range */}
+                      <td className="px-4 py-4 align-top">
+                        <span className="text-slate-300 text-sm">{record.time_range}</span>
+                      </td>
+
+                      {/* Exported by */}
+                      <td className="px-4 py-4 align-top">
+                        <span
+                          className="text-slate-300 text-sm block max-w-[160px] truncate"
+                          title={record.exported_by_email ?? record.exported_by}
+                        >
+                          {record.exported_by_email ?? record.exported_by}
+                        </span>
+                      </td>
+
+                      {/* Exported at */}
+                      <td className="px-4 py-4 align-top whitespace-nowrap">
+                        <span className="text-slate-300 text-sm">{formatDate(record.created_at)}</span>
+                      </td>
+
+                      {/* Download action */}
+                      <td className="px-6 py-4 align-top">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-nebula-navy-lighter text-white hover:bg-nebula-navy-lighter whitespace-nowrap"
+                          onClick={() => handleDownload(record)}
+                          disabled={downloading === record.id}
+                        >
+                          <Download className="size-3.5 mr-1.5" />
+                          {downloading === record.id ? 'Downloading…' : 'Download'}
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </CardContent>
         </Card>

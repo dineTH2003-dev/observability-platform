@@ -142,7 +142,25 @@ export function Reports({ onNavigate }: ReportsProps = {}) {
     return Object.entries(grouped).map(([time, count]) => ({ time, count }));
   };
 
-  const isGenerateDisabled = !fromDate || !toDate || fromDate > toDate || !reportType || (reportType === 'infrastructure' && !selectedServerId);
+  // Local today date in YYYY-MM-DD format
+  const today = (() => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  })();
+
+  const isFutureDateInvalid = Boolean((fromDate && fromDate > today) || (toDate && toDate > today));
+  const isDateOrderInvalid = Boolean(fromDate && toDate && fromDate > toDate);
+  const isDateInvalid = isFutureDateInvalid || isDateOrderInvalid;
+
+  const isGenerateDisabled =
+    !fromDate ||
+    !toDate ||
+    isDateInvalid ||
+    !reportType ||
+    (reportType === 'infrastructure' && !selectedServerId);
 
   const buildReportQuery = () => {
     const params = new URLSearchParams();
@@ -201,6 +219,7 @@ export function Reports({ onNavigate }: ReportsProps = {}) {
 
   const handleDownloadPDF = async () => {
     setError('');
+    if (isGenerateDisabled) return;
     try {
       const query = buildReportQuery();
       // POST to the authenticated PDF route — JWT auto-attached by api interceptor
@@ -307,12 +326,27 @@ export function Reports({ onNavigate }: ReportsProps = {}) {
 
             <div>
               <Label className="text-slate-300 mb-2 block text-sm">From Date</Label>
-              <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="w-full bg-nebula-navy-dark border-nebula-navy-lighter text-white px-3 py-2 rounded" />
+              <input
+                type="date"
+                value={fromDate}
+                max={today}
+                onChange={(e) => setFromDate(e.target.value)}
+                style={{ colorScheme: 'dark' }}
+                className="w-full bg-nebula-navy-dark border-nebula-navy-lighter text-white px-3 py-2 rounded [&::-webkit-calendar-picker-indicator]:invert"
+              />
             </div>
 
             <div>
               <Label className="text-slate-300 mb-2 block text-sm">To Date</Label>
-              <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="w-full bg-nebula-navy-dark border-nebula-navy-lighter text-white px-3 py-2 rounded" />
+              <input
+                type="date"
+                value={toDate}
+                min={fromDate || undefined}
+                max={today}
+                onChange={(e) => setToDate(e.target.value)}
+                style={{ colorScheme: 'dark' }}
+                className="w-full bg-nebula-navy-dark border-nebula-navy-lighter text-white px-3 py-2 rounded [&::-webkit-calendar-picker-indicator]:invert"
+              />
             </div>
 
             <div className="flex items-end">
@@ -321,8 +355,17 @@ export function Reports({ onNavigate }: ReportsProps = {}) {
               </Button>
             </div>
           </div>
-          {fromDate && toDate && fromDate > toDate && <p className="text-red-400 text-sm mt-2">From Date cannot be after To Date</p>}
-          {error && <p className="text-red-400 text-sm mt-2">{error}</p>}
+          {isFutureDateInvalid && (
+            <p className="text-red-400 text-sm mt-2">
+              Invalid date range: Future dates are not allowed.
+            </p>
+          )}
+          {!isFutureDateInvalid && isDateOrderInvalid && (
+            <p className="text-red-400 text-sm mt-2">
+              Invalid date range: From Date cannot be later than To Date.
+            </p>
+          )}
+          {error && !isDateInvalid && <p className="text-red-400 text-sm mt-2">{error}</p>}
         </CardContent>
       </Card>
 

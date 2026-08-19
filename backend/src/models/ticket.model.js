@@ -5,12 +5,12 @@ exports.count = async () => {
   return parseInt(rows[0].count, 10);
 };
 
-exports.insert = async ({ ticket_id, title, purpose, context, priority }) => {
+exports.insert = async ({ ticket_id, title, purpose, context, priority, requester_id }) => {
   const { rows } = await pool.query(
-    `INSERT INTO tickets (ticket_id, title, purpose, context, priority)
-     VALUES ($1, $2, $3, $4, $5)
+    `INSERT INTO tickets (ticket_id, title, purpose, context, priority, requester_id)
+     VALUES ($1, $2, $3, $4, $5, $6)
      RETURNING *`,
-    [ticket_id, title, purpose, context, priority]
+    [ticket_id, title, purpose, context, priority, requester_id]
   );
   return rows[0];
 };

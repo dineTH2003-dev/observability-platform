@@ -7,10 +7,6 @@ import { Checkbox } from '../../components/ui/checkbox';
 import { PasswordStrength } from '../../components/profile/PasswordStrength';
 import logoImage from '../../../assets/logo.png';
 import { authService } from '../../services/authService';
-import {
-  PASSWORD_VALIDATION_MESSAGE,
-  getPasswordValidation,
-} from '../../utils/passwordValidation';
 
 interface SignupProps {
   onSwitchToLogin: () => void;
@@ -26,6 +22,21 @@ export function Signup({ onSwitchToLogin }: SignupProps) {
   const [registrationComplete, setRegistrationComplete] = useState(false);
   const [isResending, setIsResending] = useState(false);
   const [resendMessage, setResendMessage] = useState('');
+
+  // Basic frontend password validation used to gate submission
+  function getPasswordValidation(pw: string) {
+    const checks = [
+      (v: string) => v.length >= 8,
+      (v: string) => /[A-Z]/.test(v),
+      (v: string) => /[a-z]/.test(v),
+      (v: string) => /\d/.test(v),
+      (v: string) => /[^A-Za-z\d]/.test(v),
+    ];
+
+    const passed = checks.map((t) => t(pw));
+    return { isValid: passed.every(Boolean), details: passed };
+  }
+
   const passwordValidation = getPasswordValidation(password);
   const hasConfirmPassword = confirmPassword.length > 0;
   const passwordsMatch = password === confirmPassword;
@@ -35,7 +46,8 @@ export function Signup({ onSwitchToLogin }: SignupProps) {
     e.preventDefault();
 
     if (!passwordValidation.isValid) {
-      alert(PASSWORD_VALIDATION_MESSAGE);
+      alert('Password must be at least 8 characters and include uppercase, lowercase, a number, and a special character.');
+
       return;
     }
 
@@ -66,26 +78,19 @@ export function Signup({ onSwitchToLogin }: SignupProps) {
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col md:flex-row bg-nebula-navy-dark">
+    <div className="min-h-screen w-full flex">
       {/* Left Panel - Signup Form */}
-      <div className="w-full md:w-1/2 min-h-screen bg-nebula-navy-dark flex items-center justify-center py-6 lg:py-8">
-        <div className="w-full max-w-md px-6 sm:px-8 md:px-6 lg:px-10">
+      <div className="w-1/2 h-screen bg-nebula-navy-dark flex items-center justify-center">
+        <div className="w-full max-w-md px-12">
           {registrationComplete ? (
             <div className="text-center">
               <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full border border-nebula-navy-lighter bg-nebula-navy-light">
-                  <MailCheck className="size-8 text-emerald-400" />
-                </div>
-                <h1 className="text-3xl font-semibold text-white mb-3">Check Your Email</h1>
-                <p className="text-slate-400 text-sm leading-6 mb-8">
-                  We've sent a verification link to your email address. Please click the link in that email to activate your CloudSight account.
-                </p>
-              <Button
-                type="button"
-                onClick={onSwitchToLogin}
-                className="w-full h-12 bg-gradient-to-r from-nebula-purple to-nebula-blue hover:from-nebula-purple-dark hover:to-nebula-blue text-white font-medium"
-              >
-                Go to Sign In
-              </Button>
+                <MailCheck className="size-8 text-emerald-400" />
+              </div>
+              <h1 className="text-3xl font-semibold text-white mb-3">Check Your Email</h1>
+              <p className="text-slate-400 text-sm leading-6 mb-8">
+                We've sent a verification link to your email address. Please click the link in that email to activate your CloudSight account.
+              </p>
               <Button
                 type="button"
                 variant="outline"
@@ -101,7 +106,7 @@ export function Signup({ onSwitchToLogin }: SignupProps) {
               <p className="text-xs text-slate-500 mt-8">©2026 CloudSight. All Rights Reserved.</p>
             </div>
           ) : (
-          <>
+            <>
           {/* Header */}
           <div className="mb-6">
             <h1 className="text-3xl font-semibold text-white mb-2">Create Account</h1>
@@ -203,7 +208,7 @@ export function Signup({ onSwitchToLogin }: SignupProps) {
 
             <Button
               type="submit"
-              className="w-full h-12 bg-gradient-to-r from-nebula-purple to-nebula-blue hover:from-nebula-purple-dark hover:to-nebula-blue text-white font-medium mt-6"
+              className="w-full h-12 bg-gradient-to-r from-cyan-500 via-blue-500 to-blue-600 hover:from-cyan-600 hover:via-blue-600 hover:to-blue-700 text-white font-medium shadow-lg shadow-blue-500/50 mt-6"
               disabled={!canSubmit}
             >
               Create Account
@@ -229,7 +234,7 @@ export function Signup({ onSwitchToLogin }: SignupProps) {
       </div>
 
       {/* Right Panel - Branding */}
-      <div className="w-full min-h-[280px] md:w-1/2 md:h-screen md:sticky md:top-0 bg-gradient-to-br from-nebula-purple via-purple-500 to-nebula-pink flex items-center justify-center">
+      <div className="w-1/2 h-screen bg-gradient-to-br from-nebula-purple via-purple-500 to-nebula-pink flex items-center justify-center">
         <div className="flex flex-col items-center justify-center gap-6">
           <img
             src={logoImage}

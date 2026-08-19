@@ -5,6 +5,8 @@ import {
   Cpu,
   HardDrive,
   Wrench,
+  Maximize2,
+  Minimize2,
 } from 'lucide-react';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -20,7 +22,6 @@ import {
 import {
   ComposedChart,
   Area,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -103,63 +104,88 @@ function formatPercent(value: number) {
   return `${value.toFixed(1)}%`;
 }
 
+const CYAN = '#06b6d4';
+
 function ServiceMetricChart({
   title,
-  color,
   unit,
   timeRange,
   data,
   dataKey,
 }: {
   title: string;
-  color: string;
+  color?: string;  // kept for API compatibility, not used
   unit: string;
   timeRange: TimeRange;
-  data: Array<Record<string, number | string | null | number[]>>;
+  data: Array<Record<string, number | string | number[] | null>>;
   dataKey: 'cpu_usage' | 'memory_usage' | 'disk_usage' | 'thread_count';
 }) {
-  const prefix = dataKey.split('_')[0]; // 'cpu'
-  const rangeKey = `${prefix}_range`; // 'cpu_range'
-  const anomalyKey = `${prefix}_anomaly`; // 'cpu_anomaly'
+  const [isAutoScaled, setIsAutoScaled] = useState(false);
+  const chartId = dataKey;
 
   return (
     <Card className="bg-nebula-navy-light border-nebula-navy-lighter">
       <CardContent className="p-6">
-        <h3 className="text-lg font-semibold text-white mb-4">{title}</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-white">{title}</h3>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsAutoScaled(!isAutoScaled)}
+            className="h-7 text-xs bg-slate-800/80 border-slate-700 hover:bg-slate-700 text-slate-300 gap-1.5 px-2.5 transition-colors"
+            title={isAutoScaled ? 'Reset to Fixed 0-100% Scale' : 'Auto Scale Y-Axis to fit values'}
+          >
+            {isAutoScaled ? (
+              <>
+                <Minimize2 className="w-3.5 h-3.5 text-cyan-400" />
+                <span className="text-cyan-400 font-medium">Fit Scale</span>
+              </>
+            ) : (
+              <>
+                <Maximize2 className="w-3.5 h-3.5 text-slate-400" />
+                <span>0-100% Scale</span>
+              </>
+            )}
+          </Button>
+        </div>
 
         <ResponsiveContainer width="100%" height={260}>
-          <ComposedChart data={data}>
+          <ComposedChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
             <defs>
-              <linearGradient id={`gradient-${title}`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={color} stopOpacity={0.25} />
-                <stop offset="95%" stopColor={color} stopOpacity={0.03} />
+              <linearGradient id={`gradient-${chartId}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={CYAN} stopOpacity={0.15} />
+                <stop offset="95%" stopColor={CYAN} stopOpacity={0} />
               </linearGradient>
             </defs>
+
             <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+
             <XAxis
               dataKey="timestamp"
               type="number"
               domain={['dataMin', 'dataMax']}
               tickCount={getTickCount(timeRange)}
-              stroke="#64748B"
-              style={{ fontSize: '12px' }}
-              tick={{ fill: '#64748B' }}
+              stroke="#475569"
+              tick={{ fill: '#64748B', fontSize: 11 }}
+              tickLine={false}
               tickFormatter={(value: number) => formatAxisLabel(new Date(value), timeRange)}
-              label={{ value: 'Hour', position: 'insideBottom', offset: -5, style: { fill: '#64748B', fontSize: '12px' } }}
             />
             <YAxis
-              stroke="#64748B"
-              style={{ fontSize: '12px' }}
-              tick={{ fill: '#64748B' }}
-              tickFormatter={(value: number) => `${value}`}
-              label={{ value: 'Messages', angle: -90, position: 'insideLeft', style: { fill: '#64748B', fontSize: '12px' } }}
+              stroke="#475569"
+              tick={{ fill: '#64748B', fontSize: 11 }}
+              tickLine={false}
+              tickFormatter={(value: number) => `${Number(value).toFixed(value < 1 && value > 0 ? 1 : 0)}${unit}`}
+              width={45}
+              domain={isAutoScaled ? ['auto', 'auto'] : (unit === '%' ? [0, 100] : [0, 'auto'])}
             />
             <Tooltip
               labelFormatter={(value: number) => formatTooltipLabel(value, timeRange)}
-              formatter={(value: number) => [
-                `${Number(value).toFixed(2)}${unit}`,
-                'Current',
-              ]}
+              formatter={(value: number, name: string) => {
+                if (name === 'Normal Range' && Array.isArray(value)) {
+                  return [`${Number(value[0]).toFixed(1)}% - ${Number(value[1]).toFixed(1)}%`, 'Normal Range'];
+                }
+                return [`${Number(value).toFixed(2)}${unit}`, 'Value'];
+              }}
               contentStyle={{
                 backgroundColor: '#0F172A',
                 border: '1px solid #1E293B',
@@ -168,37 +194,18 @@ function ServiceMetricChart({
                 fontSize: '12px'
               }}
             />
-            {/* Baseline Bounds */}
-            <Area
-              type="monotone"
-              dataKey={rangeKey}
-              stroke="none"
-              fill={color}
-              fillOpacity={0.15}
-              name="Normal Range"
-              isAnimationActive={false}
-            />
 
-            {/* Actual Metric Line */}
+            {/* Cyan real-time metric line */}
             <Area
               type="monotone"
               dataKey={dataKey}
-              stroke={color}
-              strokeWidth={2}
-              fill="none"
+              stroke={CYAN}
+              strokeWidth={1.5}
+              fill={`url(#gradient-${chartId})`}
+              fillOpacity={1}
               name="Current"
-            />
-
-            {/* Anomaly Line (Red Spikes) */}
-            <Line
-              type="monotone"
-              dataKey={anomalyKey}
-              stroke="#EF4444"
-              strokeWidth={2}
-              dot={{ r: 4, stroke: '#EF4444', fill: '#EF4444' }}
-              connectNulls={false}
+              dot={false}
               isAnimationActive={false}
-              name="Anomaly"
             />
           </ComposedChart>
         </ResponsiveContainer>
@@ -258,16 +265,13 @@ export function ServiceMetrics({ serviceId, onNavigate }: ServiceMetricsProps) {
       }
       setIsLoadingMetrics(false);
 
-      // Load baselines (non-critical — failure is silent)
-      if (timeRange === '15m' || timeRange === '1h') {
-        try {
-          const bData = await serviceMetricService.getServiceBaselines(serviceId, rangeConfig.limit);
-          if (!ignore) setBaselines(bData);
-        } catch (bErr) {
-          console.warn('Failed to load service baselines', bErr);
-        }
-      } else {
-        setBaselines([]);
+      // Always load 6 hours of baselines so nearest-neighbor matching always succeeds.
+      // Service baselines are ~12 min apart; 360 min gives ~30 entries per metric for reliable lookup.
+      try {
+        const bData = await serviceMetricService.getServiceBaselines(serviceId, 360);
+        if (!ignore) setBaselines(bData);
+      } catch (bErr) {
+        console.warn('Failed to load service baselines', bErr);
       }
     };
 
@@ -296,24 +300,29 @@ export function ServiceMetrics({ serviceId, onNavigate }: ServiceMetricsProps) {
     });
   }, [latestMetric, timeRange]);
 
-  // Build an O(1) lookup map from baselines keyed by "metricName:minuteBucket".
-  // This replaces the previous O(n²) loop that scanned all baselines for every metric point.
+  // Build an O(1) lookup map from baselines keyed by "metricName:bucket".
+  // Use 15-minute (900s) buckets so the search window covers the ~12 min baseline interval.
+  const BASELINE_BUCKET_MS = 15 * 60 * 1000; // 15 minutes
   const baselineMap = useMemo(() => {
     const map = new Map<string, typeof baselines[number]>();
     for (const b of baselines) {
-      const bucket = Math.floor(new Date(b.recorded_at).getTime() / 60000); // minute bucket
-      map.set(`${b.metric_name}:${bucket}`, b);
+      const bucket = Math.floor(new Date(b.recorded_at).getTime() / BASELINE_BUCKET_MS);
+      // Keep the most recent entry per bucket
+      const key = `${b.metric_name}:${bucket}`;
+      if (!map.has(key)) map.set(key, b);
     }
     return map;
   }, [baselines]);
 
   const getBounds = (metricName: string, timestamp: number) => {
-    const bucket = Math.floor(timestamp / 60000);
-    // Try exact bucket, then ±1 minute for clock-skew tolerance.
+    const bucket = Math.floor(timestamp / BASELINE_BUCKET_MS);
+    // Search ±2 buckets (±30 min total) to cover the ~12 min baseline interval
     return (
       baselineMap.get(`${metricName}:${bucket}`) ??
       baselineMap.get(`${metricName}:${bucket - 1}`) ??
       baselineMap.get(`${metricName}:${bucket + 1}`) ??
+      baselineMap.get(`${metricName}:${bucket - 2}`) ??
+      baselineMap.get(`${metricName}:${bucket + 2}`) ??
       null
     );
   };
@@ -325,19 +334,26 @@ export function ServiceMetrics({ serviceId, onNavigate }: ServiceMetricsProps) {
     const diskBounds = getBounds('disk_avg', ts);
     const threadBounds = getBounds('thread_count_avg', ts);
 
-    const cpuLower = cpuBounds?.lower_bound ?? cpuBounds?.cpu_lower ?? null;
-    const cpuUpper = cpuBounds?.upper_bound ?? cpuBounds?.cpu_upper ?? null;
-    const memLower = memBounds?.lower_bound ?? memBounds?.cpu_lower ?? null;
-    const memUpper = memBounds?.upper_bound ?? memBounds?.cpu_upper ?? null;
-    const diskLower = diskBounds?.lower_bound ?? diskBounds?.cpu_lower ?? null;
-    const diskUpper = diskBounds?.upper_bound ?? diskBounds?.cpu_upper ?? null;
-    const threadLower = threadBounds?.lower_bound ?? threadBounds?.cpu_lower ?? null;
-    const threadUpper = threadBounds?.upper_bound ?? threadBounds?.cpu_upper ?? null;
+    const clampPct = (val: number | null) => (val !== null ? Math.max(0, Math.min(100, Number(val))) : null);
 
-    const cpuUsage = Number(metric.cpu_usage) || 0;
-    const memUsage = Number(metric.memory_usage) || 0;
-    const diskUsage = Number(metric.disk_usage) || 0;
+    const cpuLower = clampPct(cpuBounds?.lower_bound ?? cpuBounds?.cpu_lower ?? null);
+    const cpuUpper = clampPct(cpuBounds?.upper_bound ?? cpuBounds?.cpu_upper ?? null);
+    const memLower = clampPct(memBounds?.lower_bound ?? memBounds?.cpu_lower ?? null);
+    const memUpper = clampPct(memBounds?.upper_bound ?? memBounds?.cpu_upper ?? null);
+    const diskLower = clampPct(diskBounds?.lower_bound ?? diskBounds?.cpu_lower ?? null);
+    const diskUpper = clampPct(diskBounds?.upper_bound ?? diskBounds?.cpu_upper ?? null);
+    const threadLower = threadBounds?.lower_bound != null ? Number(threadBounds.lower_bound) : (threadBounds?.cpu_lower != null ? Number(threadBounds.cpu_lower) : null);
+    const threadUpper = threadBounds?.upper_bound != null ? Number(threadBounds.upper_bound) : (threadBounds?.cpu_upper != null ? Number(threadBounds.cpu_upper) : null);
+
+    const cpuUsage = Math.min(100, Math.max(0, Number(metric.cpu_usage) || 0));
+    const memUsage = Math.min(100, Math.max(0, Number(metric.memory_usage) || 0));
+    const diskUsage = Math.min(100, Math.max(0, Number(metric.disk_usage) || 0));
     const threadCount = Number(metric.thread_count) || 0;
+
+    const cpuBandWidth = (cpuLower !== null && cpuUpper !== null && cpuUpper >= cpuLower) ? (cpuUpper - cpuLower) : null;
+    const memBandWidth = (memLower !== null && memUpper !== null && memUpper >= memLower) ? (memUpper - memLower) : null;
+    const diskBandWidth = (diskLower !== null && diskUpper !== null && diskUpper >= diskLower) ? (diskUpper - diskLower) : null;
+    const threadBandWidth = (threadLower !== null && threadUpper !== null && threadUpper >= threadLower) ? (threadUpper - threadLower) : null;
 
     return {
       timestamp: ts,
@@ -345,10 +361,22 @@ export function ServiceMetrics({ serviceId, onNavigate }: ServiceMetricsProps) {
       memory_usage: memUsage,
       disk_usage: diskUsage,
       thread_count: threadCount,
-      cpu_range: (cpuLower !== null && cpuUpper !== null) ? [cpuLower, cpuUpper] : null,
-      memory_range: (memLower !== null && memUpper !== null) ? [memLower, memUpper] : null,
-      disk_range: (diskLower !== null && diskUpper !== null) ? [diskLower, diskUpper] : null,
-      thread_range: (threadLower !== null && threadUpper !== null) ? [threadLower, threadUpper] : null,
+      cpu_upper: cpuUpper,
+      cpu_lower: cpuLower,
+      cpu_band_width: cpuBandWidth,
+      cpu_range: (cpuLower !== null && cpuUpper !== null && cpuUpper >= cpuLower) ? [cpuLower, cpuUpper] : null,
+      memory_upper: memUpper,
+      memory_lower: memLower,
+      memory_band_width: memBandWidth,
+      memory_range: (memLower !== null && memUpper !== null && memUpper >= memLower) ? [memLower, memUpper] : null,
+      disk_upper: diskUpper,
+      disk_lower: diskLower,
+      disk_band_width: diskBandWidth,
+      disk_range: (diskLower !== null && diskUpper !== null && diskUpper >= diskLower) ? [diskLower, diskUpper] : null,
+      thread_upper: threadUpper,
+      thread_lower: threadLower,
+      thread_band_width: threadBandWidth,
+      thread_range: (threadLower !== null && threadUpper !== null && threadUpper >= threadLower) ? [threadLower, threadUpper] : null,
       cpu_anomaly: (cpuLower !== null && cpuUsage < cpuLower) || (cpuUpper !== null && cpuUsage > cpuUpper) ? cpuUsage : null,
       memory_anomaly: (memLower !== null && memUsage < memLower) || (memUpper !== null && memUsage > memUpper) ? memUsage : null,
       disk_anomaly: (diskLower !== null && diskUsage < diskLower) || (diskUpper !== null && diskUsage > diskUpper) ? diskUsage : null,
@@ -499,7 +527,6 @@ export function ServiceMetrics({ serviceId, onNavigate }: ServiceMetricsProps) {
           <ServiceMetricChart
             title="CPU Utilization (%)"
             data={chartData}
-            color="#06b6d4"
             unit="%"
             timeRange={timeRange}
             dataKey="cpu_usage"
@@ -507,7 +534,6 @@ export function ServiceMetrics({ serviceId, onNavigate }: ServiceMetricsProps) {
           <ServiceMetricChart
             title="Memory Utilization (%)"
             data={chartData}
-            color="#3b82f6"
             unit="%"
             timeRange={timeRange}
             dataKey="memory_usage"
@@ -515,7 +541,6 @@ export function ServiceMetrics({ serviceId, onNavigate }: ServiceMetricsProps) {
           <ServiceMetricChart
             title="Disk Usage"
             data={chartData}
-            color="#f59e0b"
             unit=""
             timeRange={timeRange}
             dataKey="disk_usage"
@@ -523,7 +548,6 @@ export function ServiceMetrics({ serviceId, onNavigate }: ServiceMetricsProps) {
           <ServiceMetricChart
             title="Thread Count"
             data={chartData}
-            color="#8b5cf6"
             unit=""
             timeRange={timeRange}
             dataKey="thread_count"

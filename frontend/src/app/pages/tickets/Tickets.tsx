@@ -38,7 +38,7 @@ interface Ticket {
   reason?: string;
 }
 
-export function Tickets() {
+export function Tickets({ selectedTicketId, selectionEpoch }: { selectedTicketId?: string, selectionEpoch?: number }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -78,6 +78,15 @@ export function Tickets() {
   useEffect(() => {
     fetchTickets();
   }, [searchQuery, filterStatus]);
+
+  useEffect(() => {
+    if (selectedTicketId && tickets.length > 0) {
+      const ticket = tickets.find(t => t.id === selectedTicketId);
+      if (ticket) {
+        setSelectedTicket(ticket);
+      }
+    }
+  }, [selectedTicketId, selectionEpoch, tickets]);
 
   const getPriorityColor = (priority: TicketPriority) => {
     switch (priority) {

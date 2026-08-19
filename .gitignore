@@ -26,3 +26,6 @@ backend/database.txt
 Thumbs.db
 .idea/
 .vscode/
+
+# Generated report uploads
+backend/uploads/

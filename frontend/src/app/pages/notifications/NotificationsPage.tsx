@@ -10,6 +10,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../../components/ui/dialog';
+import { toast } from 'sonner';
 import type { Notification } from '../../components/ui/NotificationDropdown';
 import {
   fetchNotifications,
@@ -29,6 +38,9 @@ export function NotificationsPage({ onNavigate }: NotificationsPageProps = {}) {
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  // Delete confirmation state
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const formatRelativeTime = (dateString: string) => {
     try {
@@ -180,15 +192,28 @@ export function NotificationsPage({ onNavigate }: NotificationsPageProps = {}) {
     setNotifications(notifications.map(n => ({ ...n, read: true })));
   };
 
-  const handleDeleteNotification = async (id: string) => {
+  // Step 1: user clicks trash → open confirmation dialog
+  const requestDeleteNotification = (id: string) => {
+    setPendingDeleteId(id);
+  };
+
+  // Step 2: user confirms in the dialog → call API
+  const handleConfirmDelete = async () => {
+    if (!pendingDeleteId) return;
+    setDeleting(true);
     try {
-      await deleteNotificationApi(id);
+      await deleteNotificationApi(pendingDeleteId);
+      setNotifications(prev => prev.filter(n => n.id !== pendingDeleteId));
+      toast.success('Notification deleted successfully.');
     } catch (err) {
       console.error('Failed to delete notification:', err);
+      toast.error('Failed to delete notification. Please try again.');
+    } finally {
+      setDeleting(false);
+      setPendingDeleteId(null);
     }
-
-    setNotifications(notifications.filter(n => n.id !== id));
   };
+
 
   const handleNotificationClick = (notification: Notification) => {
     console.debug('[NotificationNav] click', {
@@ -446,7 +471,7 @@ export function NotificationsPage({ onNavigate }: NotificationsPageProps = {}) {
                           size="icon"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleDeleteNotification(notification.id);
+                            requestDeleteNotification(notification.id);
                           }}
                           className="text-slate-400 hover:text-red-400 hover:bg-red-500/10 h-8 w-8"
                         >
@@ -497,6 +522,42 @@ export function NotificationsPage({ onNavigate }: NotificationsPageProps = {}) {
           ))
         )}
       </div>
+
+      {/* ── Delete confirmation dialog ───────────────────────────────────── */}
+      <Dialog
+        open={!!pendingDeleteId}
+        onOpenChange={(open) => { if (!open && !deleting) setPendingDeleteId(null); }}
+      >
+        <DialogContent className="bg-nebula-navy-light border-nebula-navy-lighter text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Trash2 className="size-5 text-red-400" />
+              Delete Notification
+            </DialogTitle>
+            <DialogDescription className="text-slate-400">
+              Are you sure you want to permanently delete this notification?
+              This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setPendingDeleteId(null)}
+              disabled={deleting}
+              className="bg-transparent border-nebula-navy-lighter text-white hover:bg-nebula-navy-lighter"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmDelete}
+              disabled={deleting}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {deleting ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

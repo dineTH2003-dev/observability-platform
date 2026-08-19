@@ -1,0 +1,116 @@
+name: Deploy CloudSight Platform
+
+on:
+  push:
+    branches: [main]
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
+
+jobs:
+  # ────────────────────────────────────────────────────────────
+  # Job 1: Build Docker images and push to Amazon ECR
+  # ────────────────────────────────────────────────────────────
+  build-and-push:
+    name: Build & Push Docker Images
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build & push backend image
+        run: |
+          docker build -t $ECR_REGISTRY/cloudsight/backend:${{ github.sha }} \
+                        -t $ECR_REGISTRY/cloudsight/backend:latest \
+                        ./backend
+          docker push $ECR_REGISTRY/cloudsight/backend:${{ github.sha }}
+          docker push $ECR_REGISTRY/cloudsight/backend:latest
+
+      - name: Build & push ML worker image
+        run: |
+          docker build -t $ECR_REGISTRY/cloudsight/ml-worker:${{ github.sha }} \
+                        -t $ECR_REGISTRY/cloudsight/ml-worker:latest \
+                        ./ml
+          docker push $ECR_REGISTRY/cloudsight/ml-worker:${{ github.sha }}
+          docker push $ECR_REGISTRY/cloudsight/ml-worker:latest
+
+  # ────────────────────────────────────────────────────────────
+  # Job 2: Deploy backend + ML worker to EC2 via SSH
+  # ────────────────────────────────────────────────────────────
+  deploy-backend:
+    name: Deploy Backend to EC2
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            # Login to ECR
+            aws ecr get-login-password --region us-east-1 | \
+              docker login --username AWS --password-stdin ${{ secrets.ECR_REGISTRY }}
+
+            # Pull latest images
+            docker pull ${{ secrets.ECR_REGISTRY }}/cloudsight/backend:latest
+            docker pull ${{ secrets.ECR_REGISTRY }}/cloudsight/ml-worker:latest
+
+            # Restart containers with new images
+            cd ~/observability-platform
+            export ECR_REGISTRY=${{ secrets.ECR_REGISTRY }}
+            docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+
+            # Clean up old unused images
+            docker image prune -f
+
+  # ────────────────────────────────────────────────────────────
+  # Job 3: Build frontend and deploy to S3 + CloudFront
+  # ────────────────────────────────────────────────────────────
+  deploy-frontend:
+    name: Deploy Frontend to S3
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies & build
+        working-directory: frontend
+        run: |
+          npm ci
+          VITE_API_BASE_URL=https://${{ secrets.API_DOMAIN }}/api npm run build
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Upload to S3
+        run: aws s3 sync frontend/dist/ s3://${{ secrets.S3_BUCKET }} --delete
+
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.CLOUDFRONT_DIST_ID }} \
+            --paths "/*"

@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  backend:
+    image: ${ECR_REGISTRY}/cloudsight/backend:latest
+    restart: always
+    ports:
+      - "9000:9000"
+    env_file: .env.prod
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  ml-worker:
+    image: ${ECR_REGISTRY}/cloudsight/ml-worker:latest
+    restart: always
+    env_file: .env.prod
+    volumes:
+      - ml_artifacts:/app/artifacts
+    depends_on:
+      - backend
+
+volumes:
+  redis_data:
+  ml_artifacts:

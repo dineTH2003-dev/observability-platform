@@ -3,7 +3,7 @@ import axios from 'axios';
 // Reuse the same base URL pattern as authApi.ts
 // Vite proxy forwards /api → http://localhost:9000/api automatically
 const API = axios.create({
-  baseURL: 'http://localhost:9000/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:9000/api',
 });
 
 // Attach the JWT token from storage to every request

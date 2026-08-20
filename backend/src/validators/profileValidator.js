@@ -36,6 +36,10 @@ function normalizeProfilePayload(payload = {}) {
     normalized.email = String(payload.email).trim().toLowerCase();
   }
 
+  if (payload.role !== undefined) {
+    normalized.role = String(payload.role).trim().toLowerCase();
+  }
+
   return normalized;
 }
 

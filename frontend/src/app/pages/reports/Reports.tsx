@@ -437,7 +437,7 @@ export function Reports({ onNavigate }: ReportsProps = {}) {
               {reportType === 'performance' && (
                 <div className="space-y-6">
                   <div>
-                    <h3 className="text-lg font-semibold text-white mb-4">Service Resource Utilization (APM Data Unavailable)</h3>
+                    <h3 className="text-lg font-semibold text-white mb-4">Service Resource Utilization</h3>
                     <ResponsiveContainer width="100%" height={300}>
                       <LineChart data={preparePerformanceChartData()}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#374151" />

@@ -56,6 +56,7 @@ const globalLimiter = rateLimit({
   max: 1000,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { trustProxy: false },
   message: { message: "Too many requests from this IP, please try again later." },
 });
 app.use(globalLimiter);

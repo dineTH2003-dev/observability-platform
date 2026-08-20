@@ -312,6 +312,36 @@ CREATE TABLE IF NOT EXISTS notifications (
 -- ==============================================================================
 -- 8. MACHINE LEARNING ENGINE SCHEMA EXTENSIONS
 -- ==============================================================================
+
+-- Legacy ml_models table migration compatibility block (safely renames older schema shapes)
+DO $$
+DECLARE
+  legacy_table_name TEXT := 'ml_models_legacy';
+  legacy_pk_name TEXT := 'ml_models_legacy_pkey';
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'ml_models'
+  )
+  AND NOT EXISTS (
+    SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'ml_models' AND column_name = 'entity_type'
+  ) THEN
+    IF EXISTS (
+      SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = legacy_table_name
+    ) THEN
+      legacy_table_name := 'ml_models_legacy_' || to_char(clock_timestamp(), 'YYYYMMDDHH24MISS');
+      legacy_pk_name := legacy_table_name || '_pkey';
+    END IF;
+
+    EXECUTE format('ALTER TABLE ml_models RENAME TO %I', legacy_table_name);
+
+    IF to_regclass('public.ml_models_pkey') IS NOT NULL THEN
+      EXECUTE format('ALTER INDEX ml_models_pkey RENAME TO %I', legacy_pk_name);
+    END IF;
+
+    RAISE NOTICE 'Renamed legacy ml_models table to %', legacy_table_name;
+  END IF;
+END $$;
+
 CREATE TABLE IF NOT EXISTS ml_models (
   model_id        UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   entity_type     VARCHAR(30) NOT NULL CHECK (entity_type IN ('server', 'service', 'application', 'global')),

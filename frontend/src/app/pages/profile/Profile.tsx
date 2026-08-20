@@ -316,7 +316,7 @@ function mapProfileToForm(profile: UserProfile): ProfileFormValues {
     lastName: profile.lastName || "",
     email: profile.email || "",
     phone: profile.phone || "",
-    role: profile.role || "",
+    role: profile.role ? profile.role.trim().toLowerCase() : "",
     bio: profile.bio || "",
   };
 }

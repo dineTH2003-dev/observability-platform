@@ -188,13 +188,6 @@ chmod +x run_all.sh
 ./run_all.sh
 ```
 
----
-
-## 🔑 Default Credentials (Local Seed Data)
-
-| Email | Password | Role |
-|---|---|---|
-| `tracka@gmail.com` | `tracka` | Platform Administrator |
 
 ---
 

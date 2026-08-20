@@ -28,7 +28,9 @@ function formatJoinedDate(createdAt?: string) {
 }
 
 function roleLabel(role?: string) {
-  return role?.trim() || "Member";
+  if (!role?.trim()) return "Member";
+  const r = role.trim();
+  return r.charAt(0).toUpperCase() + r.slice(1);
 }
 
 export function ProfileCard({

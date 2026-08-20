@@ -28,16 +28,12 @@ function normalizeProfilePayload(payload = {}) {
     normalized[field] = stripHtml(String(payload[field]));
   }
 
-  if (payload.role !== undefined) {
-    normalized.role = String(payload.role).trim().toLowerCase();
-  }
-
   if (payload.email !== undefined) {
     normalized.email = String(payload.email).trim().toLowerCase();
   }
 
   if (payload.role !== undefined) {
-    normalized.role = String(payload.role).trim().toLowerCase();
+    normalized.role = stripHtml(String(payload.role)).trim().toLowerCase();
   }
 
   return normalized;

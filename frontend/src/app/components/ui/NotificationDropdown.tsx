@@ -35,7 +35,7 @@ interface NotificationDropdownProps {
 export function NotificationDropdown({ 
   notifications, 
   onViewAll, 
-  onMarkAsRead, 
+  onMarkAsRead: _onMarkAsRead, 
   onNotificationClick,
   onClearAll 
 }: NotificationDropdownProps) {

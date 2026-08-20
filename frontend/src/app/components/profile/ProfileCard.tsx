@@ -28,11 +28,10 @@ function formatJoinedDate(createdAt?: string) {
 }
 
 function roleLabel(role?: string) {
-  if (!role?.trim()) return "Member";
-  const r = role.trim().toLowerCase();
-  if (r === "admin") return "Admin";
-  if (r === "engineer") return "Engineer";
-  return role.trim().charAt(0).toUpperCase() + role.trim().slice(1);
+  const normalized = role?.trim().toLowerCase();
+  if (normalized === "admin") return "Admin";
+  if (normalized === "engineer") return "Engineer";
+  return role?.trim() || "Member";
 }
 
 export function ProfileCard({

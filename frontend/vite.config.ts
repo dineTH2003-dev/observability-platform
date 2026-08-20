@@ -1,5 +1,5 @@
-
-  import { defineConfig } from 'vite';
+/// <reference types="vitest" />
+import { defineConfig } from 'vite';
   import react from '@vitejs/plugin-react-swc';
   import path from 'path';
 
@@ -52,6 +52,17 @@
     build: {
       target: 'esnext',
       outDir: 'dist',
+    },
+    test: {
+      globals: true,
+      environment: 'happy-dom',
+      setupFiles: ['./src/tests/setup.ts'],
+      coverage: {
+        provider: 'v8',
+        reporter: ['text', 'lcov'],
+        include: ['src/**/*.ts', 'src/**/*.tsx'],
+        exclude: ['src/tests/**', 'src/main.tsx'],
+      },
     },
   server: {
     port: 3000,

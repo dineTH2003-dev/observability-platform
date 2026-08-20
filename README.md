@@ -52,6 +52,8 @@ The platform features an ensemble ML detection pipeline (`ml/app/jobs/score_real
 
 ## 🏗️ System Architecture
 
+![CloudSight Platform System Architecture](docs/full_architecture_diagram_1786787352402.png)
+
 ```
                                  ┌────────────────────────┐
                                  │   Infrastructure Agent │

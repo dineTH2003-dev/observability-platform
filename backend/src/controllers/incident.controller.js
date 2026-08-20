@@ -1,4 +1,5 @@
 const incidentService = require('../services/incident.service');
+const geminiService = require('../services/gemini.service');
 
 // GET /api/incidents
 async function getIncidents(req, res) {
@@ -25,6 +26,24 @@ async function getIncidentById(req, res) {
   try {
     const incident = await incidentService.getIncidentById(req.params.id);
     res.json(incident);
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ message: err.message });
+  }
+}
+
+// GET /api/incidents/:id/recommendation
+async function getIncidentRecommendation(req, res) {
+  try {
+    const incident = await incidentService.getIncidentById(req.params.id);
+    if (!incident) {
+      return res.status(404).json({ message: 'Incident not found' });
+    }
+    const recommendation = await geminiService.generateIncidentRecommendation(incident);
+    res.json({
+      success: true,
+      incident_id: incident.incident_id,
+      ...recommendation,
+    });
   } catch (err) {
     res.status(err.statusCode || 500).json({ message: err.message });
   }
@@ -78,8 +97,10 @@ module.exports = {
   getIncidents,
   getEngineers,
   getIncidentById,
+  getIncidentRecommendation,
   createIncident,
   assignEngineer,
   acknowledgeIncident,
   resolveIncident,
 };
+

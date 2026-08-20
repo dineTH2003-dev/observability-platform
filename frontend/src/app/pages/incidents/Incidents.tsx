@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { AlertTriangle, Search, Clock, User, CheckCircle, Eye, UserPlus, Activity, Lightbulb, TrendingUp } from 'lucide-react';
+import { AlertTriangle, Search, Clock, User, CheckCircle, Eye, UserPlus, Activity, Lightbulb, Sparkles, ArrowRight } from 'lucide-react';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -77,9 +77,35 @@ export function Incidents({ selectedIncidentId, selectionEpoch }: { selectedInci
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [selectedEngineer, setSelectedEngineer] = useState('');
   const [engineers, setEngineers] = useState<Engineer[]>([]);
+  const [aiRecommendation, setAiRecommendation] = useState<{ recommended_next_steps: string[]; rationale: string } | null>(null);
+  const [aiRecommendationLoading, setAiRecommendationLoading] = useState(false);
 
   // Load incidents and engineers from the real API on mount
   const [incidents, setIncidents] = useState<any[]>([]);
+
+  // Fetch AI recommendation dynamically on view or reassignment (stateless prompt analysis via Gemini AI)
+  useEffect(() => {
+    if (!selectedIncident?.incident_id) {
+      setAiRecommendation(null);
+      return;
+    }
+    setAiRecommendationLoading(true);
+    incidentApi.fetchIncidentAIRecommendation(selectedIncident.incident_id)
+      .then((res) => {
+        if (res && Array.isArray(res.recommended_next_steps) && typeof res.rationale === 'string') {
+          setAiRecommendation({
+            recommended_next_steps: res.recommended_next_steps,
+            rationale: res.rationale,
+          });
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to fetch AI recommendation:', err);
+      })
+      .finally(() => {
+        setAiRecommendationLoading(false);
+      });
+  }, [selectedIncident?.incident_id, selectedIncident?.assignedTo]);
 
   // Real-time incident events
   const { newIncident, updatedIncident } = useLiveIncidents();
@@ -511,44 +537,73 @@ export function Incidents({ selectedIncidentId, selectionEpoch }: { selectedInci
                   </CardContent>
                 </Card>
 
-                {/* AI Recommendation */}
-                {selectedIncident.hasRecommendation && selectedIncident.recommendation && (
-                  <Card className="bg-gradient-to-br from-purple-500/10 to-blue-500/10 border-purple-500/30">
-                    <CardContent className="p-4">
-                      <h4 className="text-white font-semibold mb-4 flex items-center gap-2">
-                        <Lightbulb className="size-5 text-purple-400" />
-                        AI-Powered Recommendation
-                      </h4>
-                      <div className="space-y-3">
-                        <div>
-                          <Label className="text-purple-300">Likely Cause</Label>
-                          <p className="text-white mt-1">{selectedIncident.recommendation.cause}</p>
+                {/* Gemini AI Recommendations Section */}
+                <Card className="bg-gradient-to-br from-purple-950/40 via-slate-900/80 to-indigo-950/40 border border-purple-500/30 shadow-lg shadow-purple-950/20 overflow-hidden">
+                  <CardContent className="p-5 space-y-4">
+                    <div className="border-b border-purple-500/20 pb-3">
+                      <div>
+                        <h4 className="text-white font-semibold text-base">
+                          AI Incident Recommendations
+                        </h4>
+                        <p className="text-xs text-slate-400">Automated payload prompt analysis & recommendations</p>
+                      </div>
+                    </div>
+
+                    {aiRecommendationLoading ? (
+                      <div className="py-6 flex flex-col items-center justify-center space-y-3">
+                        <div className="flex items-center gap-2 text-purple-400">
+                          <Sparkles className="size-5 animate-spin" />
+                          <span className="text-sm font-medium">Analyzing incident context...</span>
                         </div>
-                        <div>
-                          <Label className="text-purple-300">Suggested Action</Label>
-                          <p className="text-white mt-1">{selectedIncident.recommendation.action}</p>
+                        <div className="w-full space-y-2 px-4">
+                          <div className="h-3 bg-purple-500/10 rounded animate-pulse w-3/4"></div>
+                          <div className="h-3 bg-purple-500/10 rounded animate-pulse w-5/6"></div>
+                          <div className="h-3 bg-purple-500/10 rounded animate-pulse w-1/2"></div>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <Label className="text-purple-300">Expected Impact</Label>
-                            <p className="text-green-400 font-medium mt-1 flex items-center gap-1">
-                              <TrendingUp className="size-4" />
-                              {selectedIncident.recommendation.impact}
-                            </p>
+                      </div>
+                    ) : aiRecommendation ? (
+                      <div className="space-y-4 pt-1">
+                        {/* Rationale Section */}
+                        <div className="p-3.5 bg-slate-900/60 border border-slate-800 rounded-xl space-y-1.5">
+                          <div className="flex items-center gap-2 text-amber-400 font-semibold text-xs uppercase tracking-wider">
+                            <Lightbulb className="size-4" />
+                            <span>Rationale & Analysis</span>
                           </div>
-                          <div>
-                            <Label className="text-purple-300">Confidence</Label>
-                            <p className="text-white mt-1">
-                              <span className="px-2 py-1 rounded text-xs font-medium bg-green-500/20 text-green-400">
-                                {selectedIncident.recommendation.confidence}
-                              </span>
-                            </p>
+                          <p className="text-sm text-slate-300 leading-relaxed font-normal">
+                            {aiRecommendation.rationale}
+                          </p>
+                        </div>
+
+                        {/* Recommended Next Steps Section */}
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 text-purple-300 font-semibold text-xs uppercase tracking-wider px-1">
+                            <ArrowRight className="size-4" />
+                            <span>Recommended Next Steps</span>
+                          </div>
+                          <div className="space-y-2">
+                            {aiRecommendation.recommended_next_steps.map((step: string, idx: number) => (
+                              <div
+                                key={idx}
+                                className="flex items-start gap-3 p-3 bg-slate-900/40 hover:bg-purple-950/20 border border-slate-800/80 hover:border-purple-500/30 rounded-xl transition-all duration-200"
+                              >
+                                <div className="flex-shrink-0 w-6 h-6 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 text-white text-xs font-bold flex items-center justify-center shadow-sm mt-0.5">
+                                  {idx + 1}
+                                </div>
+                                <p className="text-sm text-slate-200 leading-snug flex-1">
+                                  {step}
+                                </p>
+                              </div>
+                            ))}
                           </div>
                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
-                )}
+                    ) : (
+                      <div className="p-4 text-center text-slate-400 text-sm">
+                        No recommendation returned.
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
 
                 {/* Activity Timeline */}
                 <Card className="bg-nebula-navy-dark border-nebula-navy-lighter">

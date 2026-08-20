@@ -33,6 +33,11 @@ export const fetchIncidentById = (id: string) =>
     return res?.data ?? res;
   });
 
+// GET /api/incidents/:id/recommendation (Gemini AI recommendation prompt/analysis)
+export const fetchIncidentAIRecommendation = (id: string) =>
+  API.get(`/incidents/${id}/recommendation`).then((r) => r.data);
+
+
 // POST /api/incidents  (create incident + anomaly together)
 export const createIncident = (data: {
   title: string;

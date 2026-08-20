@@ -5,6 +5,7 @@ const {
   getIncidents,
   getEngineers,
   getIncidentById,
+  getIncidentRecommendation,
   createIncident,
   assignEngineer,
   acknowledgeIncident,
@@ -15,9 +16,11 @@ const {
 router.get('/',                   authenticate, getIncidents);
 router.post('/',                  authenticate, createIncident);
 router.get('/engineers',          authenticate, getEngineers);
+router.get('/:id/recommendation', authenticate, getIncidentRecommendation);
 router.get('/:id',                authenticate, getIncidentById);
 router.patch('/:id/assign',       authenticate, authorize(['admin']), assignEngineer);
 router.patch('/:id/acknowledge',  authenticate, acknowledgeIncident);
 router.patch('/:id/resolve',      authenticate, resolveIncident);
 
 module.exports = router;
+

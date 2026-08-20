@@ -19,8 +19,8 @@ import { ProfileSelect } from "./ProfileSelect";
 import type { ProfileFormValues } from "../../types/user";
 
 const ROLE_OPTIONS = [
-  { label: "Admin", value: "Admin" },
-  { label: "Engineer", value: "Engineer" },
+  { label: "Admin", value: "admin" },
+  { label: "Engineer", value: "engineer" },
 ];
 
 interface PersonalInformationProps {
@@ -212,7 +212,7 @@ export function PersonalInformation({
 
 function normalizeRole(role: string) {
   const normalized = role.trim().toLowerCase();
-  if (normalized === "admin") return "Admin";
-  if (normalized === "engineer") return "Engineer";
-  return "Engineer";
+  if (normalized === "admin") return "admin";
+  if (normalized === "engineer") return "engineer";
+  return "engineer";
 }

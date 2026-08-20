@@ -3,7 +3,11 @@ const ApiError = require("../utils/apiError");
 
 exports.createTicket = async (req, res) => {
   try {
-    const ticket = await ticketService.createTicket(req.body);
+    const payload = {
+      ...req.body,
+      requester_id: req.user.userId,
+    };
+    const ticket = await ticketService.createTicket(payload);
     res.status(201).json(ticket);
   } catch (err) {
     if (err instanceof ApiError) {

@@ -7,13 +7,27 @@ const REPORT_TYPES = {
   RELIABILITY: "reliability",
 };
 
+function getTodayString() {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 const getReport = async ({ type, from, to, scopeId }) => {
   if (!type || !from || !to) {
     throw new Error("type, from, and to are required");
   }
 
-  if (new Date(from) > new Date(to)) {
-    throw new Error("Invalid date range");
+  const today = getTodayString();
+
+  if (from > today || to > today) {
+    throw new Error("Invalid date range: Future dates are not allowed");
+  }
+
+  if (from > to) {
+    throw new Error("Invalid date range: From Date cannot be later than To Date");
   }
 
   const start = `${from} 00:00:00`;

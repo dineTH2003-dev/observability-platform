@@ -1,7 +1,8 @@
 const TicketModel = require("../models/ticket.model");
 const ApiError = require("../utils/apiError");
+const notificationService = require('./notification.service');
 
-exports.createTicket = async ({ title, purpose, context, priority }) => {
+exports.createTicket = async ({ title, purpose, context, priority, requester_id }) => {
   if (!purpose) throw new ApiError(400, "Purpose is required");
   const finalTitle = title || context || purpose || "Ticket";
   const count = await TicketModel.count();
@@ -12,7 +13,14 @@ exports.createTicket = async ({ title, purpose, context, priority }) => {
     purpose,
     context: context || "",
     priority: priority || "medium",
+    requester_id,
   });
+
+  // Fire notification without blocking
+  notificationService.notifyTicketCreated(ticket).catch((err) => {
+    console.error('Failed to send ticket creation notification:', err);
+  });
+
   return ticket;
 };
 

@@ -9,23 +9,53 @@ function Switch({
   className,
   ...props
 }: React.ComponentProps<typeof SwitchPrimitive.Root>) {
+  // Debug logging
+  React.useEffect(() => {
+    console.log('🎛️ Switch Rendered - checked:', props.checked);
+  }, [props.checked]);
+
+  const handleCheckedChange = (newValue: boolean) => {
+    console.log('🎛️ Switch Click - Current:', props.checked, '→ New:', newValue);
+    if (props.onCheckedChange) {
+      props.onCheckedChange(newValue);
+    }
+  };
+
   return (
     <SwitchPrimitive.Root
       data-slot="switch"
-      className={cn(
-        "peer data-[state=checked]:bg-primary data-[state=unchecked]:bg-switch-background focus-visible:border-ring focus-visible:ring-ring/50 dark:data-[state=unchecked]:bg-input/80 inline-flex h-[1.15rem] w-8 shrink-0 items-center rounded-full border border-transparent transition-all outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50",
-        className,
-      )}
+      style={{
+        display: 'inline-flex',
+        width: '44px',
+        height: '24px',
+        backgroundColor: props.checked ? '#7c3aed' : '#475569',
+        borderRadius: '9999px',
+        alignItems: 'center',
+        padding: '2px',
+        transition: 'background-color 0.2s',
+        cursor: 'pointer',
+        border: 'none',
+        outline: 'none',
+      }}
+      className={className}
       {...props}
+      onCheckedChange={handleCheckedChange}
     >
       <SwitchPrimitive.Thumb
         data-slot="switch-thumb"
-        className={cn(
-          "bg-card dark:data-[state=unchecked]:bg-card-foreground dark:data-[state=checked]:bg-primary-foreground pointer-events-none block size-4 rounded-full ring-0 transition-transform data-[state=checked]:translate-x-[calc(100%-2px)] data-[state=unchecked]:translate-x-0",
-        )}
+        style={{
+          display: 'block',
+          width: '20px',
+          height: '20px',
+          backgroundColor: '#ffffff',
+          borderRadius: '9999px',
+          transform: props.checked ? 'translateX(20px)' : 'translateX(0)',
+          transition: 'transform 0.2s',
+        }}
       />
     </SwitchPrimitive.Root>
   );
 }
 
 export { Switch };
+

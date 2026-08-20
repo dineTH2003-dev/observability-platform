@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Bell, Plus, Users } from 'lucide-react';
+import { Bell, Plus, Users, Mail } from 'lucide-react';
+import { toast } from 'sonner';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Label } from '../../components/ui/label';
@@ -15,6 +16,7 @@ import {
 import type { AlertRule } from '../../types/alert';
 import { AlertRuleList } from '../../components/AlertRuleList';
 import { AlertRuleModal } from '../../components/AlertRuleModal';
+import { Switch } from '../../components/ui/switch';
 import {
   fetchAlertRules as apiFetchAlertRules,
   fetchAlertSettings as apiFetchAlertSettings,
@@ -30,6 +32,12 @@ export function AlertSettings() {
   const [alertRules, setAlertRules] = useState<AlertRule[]>([]);
   const [saveSettingsError, setSaveSettingsError] = useState<string | null>(null);
   const [saveSettingsSuccess, setSaveSettingsSuccess] = useState(false);
+  const [emailChannelEnabled, setEmailChannelEnabled] = useState(false);
+
+  // Debug logging for email channel toggle
+  useEffect(() => {
+    console.log('🔔 Email Channel State Changed:', emailChannelEnabled);
+  }, [emailChannelEnabled]);
 
   const [alertEvents, setAlertEvents] = useState({
     incidentCreated: true,
@@ -51,6 +59,7 @@ export function AlertSettings() {
       if (data) {
         setAlertEvents(data.alertEvents || {});
         setRecipients(data.recipients || {});
+        setEmailChannelEnabled(data.emailChannelEnabled ?? false);
       }
     } catch (err) {
       console.error('Failed to load settings', err);
@@ -86,8 +95,12 @@ export function AlertSettings() {
     try {
       await deleteAlertRule(ruleId);
       setAlertRules(rules => rules.filter(rule => rule.id !== ruleId));
+      toast.success('Alert rule deleted successfully.');
     } catch (err) {
       console.error('Delete failed', err);
+      toast.error('Failed to delete alert rule. Please try again.');
+      // Re-throw so AlertRuleList knows the deletion failed
+      throw err;
     }
   };
 
@@ -122,7 +135,7 @@ export function AlertSettings() {
     }
 
     try {
-      await apiSaveAlertSettings({ alertEvents, recipients });
+      await apiSaveAlertSettings({ alertEvents, recipients, emailChannelEnabled });
       setSaveSettingsSuccess(true);
       setTimeout(() => setSaveSettingsSuccess(false), 3000);
     } catch (err) {
@@ -284,6 +297,34 @@ export function AlertSettings() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Email Notifications Toggle */}
+          <Card className="bg-nebula-navy-light border-nebula-navy-lighter">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center">
+                    <Mail className="size-5 text-green-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">Email Notifications</h3>
+                    <p className="text-sm text-slate-400">
+                      Send email alerts for anomaly detection and incident assignment events
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-slate-400">
+                    {emailChannelEnabled ? 'Enabled' : 'Disabled'}
+                  </span>
+                  <Switch
+                    checked={emailChannelEnabled}
+                    onCheckedChange={setEmailChannelEnabled}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           <AlertRuleList
             alertRules={alertRules}

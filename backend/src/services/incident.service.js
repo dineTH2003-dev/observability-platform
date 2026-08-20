@@ -213,3 +213,18 @@ exports.getEngineers = async () => {
   );
   return rows;
 };
+
+// ─────────────────────────────────────────────────────────────
+//  RECOMMENDATION — on-demand generation / regeneration
+// ─────────────────────────────────────────────────────────────
+exports.generateRecommendation = async (incidentId) => {
+  // Verify the incident exists first
+  const incident = await IncidentModel.findById(incidentId);
+  if (!incident) throw new ApiError(404, 'Incident not found');
+
+  const recommendationService = require('./recommendation.service');
+  const recommendation = await recommendationService.generateForIncident(incidentId);
+
+  return recommendation;
+};
+

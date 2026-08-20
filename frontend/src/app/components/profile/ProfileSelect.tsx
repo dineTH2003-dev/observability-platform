@@ -49,16 +49,20 @@ export function ProfileSelect({
           <SelectTrigger
             aria-invalid={Boolean(error)}
             style={{ paddingLeft: "60px" }}
-            className="h-12 rounded-xl border-white/8 bg-[#0A1238] !pl-16 pr-10 text-left text-sm text-white shadow-inner shadow-black/20 transition duration-200 hover:border-white/12 focus-visible:ring-nebula-purple/30 disabled:opacity-70"
+            className="h-12 w-full rounded-xl border border-white/8 bg-[#0A1238] !pl-16 pr-10 text-left text-sm text-white shadow-inner shadow-black/20 transition duration-200 hover:border-white/12 focus-visible:ring-nebula-purple/30 disabled:opacity-70 flex items-center justify-between"
           >
             <SelectValue placeholder={placeholder} />
           </SelectTrigger>
-          <SelectContent className="rounded-xl border-white/8 bg-[#11193D] text-white shadow-xl shadow-black/40">
+          <SelectContent
+            position="popper"
+            sideOffset={6}
+            className="z-[100] min-w-[var(--radix-select-trigger-width)] rounded-xl border border-white/12 bg-[#0D153A] p-1.5 text-white shadow-2xl shadow-black/90 backdrop-blur-2xl"
+          >
             {options.map((option) => (
               <SelectItem
                 key={option.value}
                 value={option.value}
-                className="rounded-xl py-2 text-white focus:bg-white/8 focus:text-white"
+                className="rounded-lg px-3 py-2.5 text-sm text-slate-200 hover:bg-white/10 hover:text-white focus:bg-nebula-purple/30 focus:text-white data-[state=checked]:bg-nebula-purple/40 data-[state=checked]:text-white data-[state=checked]:font-semibold transition-colors cursor-pointer"
               >
                 {option.label}
               </SelectItem>

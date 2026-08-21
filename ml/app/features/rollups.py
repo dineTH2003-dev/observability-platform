@@ -132,7 +132,7 @@ def backfill_log_rollups(conn, *, hours: int = 24) -> int:
             COUNT(*) FILTER (WHERE level = 'warn' OR level = 'warning')::int AS warning_count,
             COUNT(*) FILTER (WHERE level = 'info')::int AS info_count,
             COUNT(*) FILTER (WHERE level = 'debug')::int AS debug_count
-          FROM logs
+          FROM log_entries
           WHERE timestamp >= NOW() - (%s || ' hours')::INTERVAL
           GROUP BY service_id, to_timestamp(floor(extract(epoch from timestamp) / 300) * 300)
         )

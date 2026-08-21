@@ -57,19 +57,36 @@ SelectTrigger.displayName = SelectPrimitive.Trigger.displayName;
 const SelectContent = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
->(({ className, children, position = "popper", ...props }, ref) => {
+>(({ className, children, position = "popper", side = "bottom", sideOffset = 4, avoidCollisions = false, ...props }, ref) => {
+  const [portalNode, setPortalNode] = React.useState<HTMLElement | null>(null);
+
+  React.useEffect(() => {
+    let el = document.getElementById("select-portal-root");
+    if (!el) {
+      el = document.createElement("div");
+      el.id = "select-portal-root";
+      el.style.position = "relative";
+      el.style.zIndex = "999999";
+      document.body.appendChild(el);
+    }
+    setPortalNode(el);
+  }, []);
+
   return (
-    <SelectPrimitive.Portal>
+    <SelectPrimitive.Portal container={portalNode}>
       <SelectPrimitive.Content
         ref={ref}
         data-slot="select-content"
         className={cn(
-          "bg-[#0E1738] text-white border-white/12 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 relative z-[100] max-h-(--radix-select-content-available-height) min-w-[8rem] origin-(--radix-select-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-xl border shadow-2xl",
+          "z-[999999] pointer-events-auto max-h-60 min-w-[8rem] overflow-x-hidden overflow-y-auto rounded-xl border border-white/12 bg-[#0E1738] text-white shadow-2xl shadow-black/90 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
           position === "popper" &&
             "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
           className,
         )}
         position={position}
+        side={side}
+        sideOffset={sideOffset}
+        avoidCollisions={avoidCollisions}
         {...props}
       >
         <SelectScrollUpButton />

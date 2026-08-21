@@ -9,19 +9,9 @@ const { sendResetEmail } = require('../utils/email.util');
 const bcrypt = require('bcrypt');
 const db = require('../config/db');
 
-const COOKIE_OPTIONS = {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
-  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-};
-
 async function signup(req, res) {
   try {
     const user = await signupUser(req.body);
-    if (user.token) {
-      res.cookie('token', user.token, COOKIE_OPTIONS);
-    }
     res.status(201).json(user);
   } catch (err) {
     res.status(400).json({ message: err.message });
@@ -31,19 +21,11 @@ async function signup(req, res) {
 async function login(req, res) {
   try {
     const authResult = await loginUser(req.body);
-    if (authResult.token) {
-      res.cookie('token', authResult.token, COOKIE_OPTIONS);
-    }
     res.json(authResult);
   } catch (err) {
     const status = err.message === 'Please verify your email address before signing in.' ? 403 : 401;
     res.status(status).json({ message: err.message });
   }
-}
-
-async function logout(req, res) {
-  res.clearCookie('token', COOKIE_OPTIONS);
-  res.json({ message: 'Successfully logged out' });
 }
 
 async function forgotPassword(req, res) {
@@ -117,7 +99,6 @@ async function resendVerification(req, res) {
 module.exports = {
   signup,
   login,
-  logout,
   forgotPassword,
   resetPassword,
   verifyEmail,

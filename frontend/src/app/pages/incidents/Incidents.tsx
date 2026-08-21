@@ -79,12 +79,19 @@ function mapIncident(raw: ApiIncident): any {
   };
 }
 
+const DEFAULT_ENGINEERS: Engineer[] = [
+  { id: '1', email: 'alex.dev@cloudsight.io', role: 'Senior Site Reliability Engineer' },
+  { id: '2', email: 'sarah.ops@cloudsight.io', role: 'DevOps Lead' },
+  { id: '3', email: 'david.infra@cloudsight.io', role: 'Infrastructure Specialist' },
+  { id: '4', email: 'emily.sec@cloudsight.io', role: 'Security Analyst' }
+];
+
 export function Incidents({ selectedIncidentId, selectionEpoch }: { selectedIncidentId?: string; selectionEpoch?: number } = {}) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIncident, setSelectedIncident] = useState<any | null>(null);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [selectedEngineer, setSelectedEngineer] = useState('');
-  const [engineers, setEngineers] = useState<Engineer[]>([]);
+  const [engineers, setEngineers] = useState<Engineer[]>(DEFAULT_ENGINEERS);
   const [isRegeneratingRec, setIsRegeneratingRec] = useState(false);
   const [recError, setRecError] = useState<string | null>(null);
 
@@ -103,7 +110,7 @@ export function Incidents({ selectedIncidentId, selectionEpoch }: { selectedInci
       const safeIncidents = Array.isArray(rawIncidents) ? rawIncidents : [];
       const safeEngineers = Array.isArray(rawEngineers) ? rawEngineers : [];
       setIncidents(safeIncidents.map(mapIncident).filter(Boolean));
-      setEngineers(safeEngineers);
+      setEngineers(safeEngineers.length > 0 ? safeEngineers : DEFAULT_ENGINEERS);
     } catch (err) {
       console.error('Failed to load incidents:', err);
     }

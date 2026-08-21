@@ -11,7 +11,6 @@ on:
 
 env:
   AWS_REGION: us-east-1
-  ECR_REGISTRY: ${{ secrets.ECR_REGISTRY }}
 
 jobs:
   # ────────────────────────────────────────────────────────────
@@ -35,23 +34,28 @@ jobs:
         run: aws sts get-caller-identity
 
       - name: Login to Amazon ECR
+        id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: Build & push backend image
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
-          docker build -t $ECR_REGISTRY/cloudsight/backend:${{ github.sha }} \
-                        -t $ECR_REGISTRY/cloudsight/backend:latest \
+          docker build -t $REGISTRY/cloudsight/backend:${{ github.sha }} \
+                        -t $REGISTRY/cloudsight/backend:latest \
                         ./backend
-          docker push $ECR_REGISTRY/cloudsight/backend:${{ github.sha }}
-          docker push $ECR_REGISTRY/cloudsight/backend:latest
+          docker push $REGISTRY/cloudsight/backend:${{ github.sha }}
+          docker push $REGISTRY/cloudsight/backend:latest
 
       - name: Build & push ML worker image
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
-          docker build -t $ECR_REGISTRY/cloudsight/ml-worker:${{ github.sha }} \
-                        -t $ECR_REGISTRY/cloudsight/ml-worker:latest \
+          docker build -t $REGISTRY/cloudsight/ml-worker:${{ github.sha }} \
+                        -t $REGISTRY/cloudsight/ml-worker:latest \
                         ./ml
-          docker push $ECR_REGISTRY/cloudsight/ml-worker:${{ github.sha }}
-          docker push $ECR_REGISTRY/cloudsight/ml-worker:latest
+          docker push $REGISTRY/cloudsight/ml-worker:${{ github.sha }}
+          docker push $REGISTRY/cloudsight/ml-worker:latest
 
   # ────────────────────────────────────────────────────────────
   # Job 2: Deploy backend + ML worker to EC2 via SSH

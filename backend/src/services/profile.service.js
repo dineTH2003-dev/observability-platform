@@ -135,7 +135,7 @@ async function updateProfile(userId, data) {
       data.lastName,
       data.email,
       data.phone || null,
-      data.role || null,
+      existing.role,
       data.department || null,
       data.location || null,
       data.bio || null,

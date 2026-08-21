@@ -4,9 +4,7 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "nodemon src/server.js",
-    "test": "jest --detectOpenHandles --forceExit",
-    "test:api": "jest tests/integration --detectOpenHandles --forceExit"
+    "dev": "nodemon src/server.js"
   },
   "keywords": [],
   "author": "",

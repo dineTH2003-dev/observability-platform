@@ -162,7 +162,7 @@ export function PersonalInformation({
             />
             <div className="md:col-span-1">
               <ProfileSelect
-                disabled={disabled}
+                disabled={true}
                 error={errors.role}
                 icon={UserRound}
                 label="Role"

@@ -171,6 +171,28 @@ export function PersonalInformation({
                 onChange={(value) => onChange("role", value)}
               />
             </div>
+
+            {/* Column 2 */}
+            <div className="flex flex-col gap-5">
+              <ProfileInput
+                disabled={disabled}
+                error={errors.lastName}
+                icon={UserRound}
+                label="Last Name"
+                placeholder="Enter last name"
+                value={values.lastName}
+                onChange={(value) => onChange("lastName", value)}
+              />
+              <ProfileInput
+                disabled={disabled}
+                error={errors.phone}
+                icon={Phone}
+                label="Phone Number"
+                placeholder="Enter phone number"
+                value={values.phone}
+                onChange={(value) => onChange("phone", value)}
+              />
+            </div>
           </div>
 
           {/* Bio Area (full width) */}

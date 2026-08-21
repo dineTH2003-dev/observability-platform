@@ -10,6 +10,7 @@ import { ServiceMetrics } from './pages/infrastructure/ServiceMetrics';
 import { Logs } from './pages/monitoring/Logs';
 import { Anomalies } from './pages/anomalies/Anomalies';
 import { Reports } from './pages/reports/Reports';
+import { ReportHistory } from './pages/reports/ReportHistory';
 import { AlertSettings } from './pages/settings/alertSettings';
 import { Settings } from './pages/settings/settings';
 import { Login } from './pages/auth/Login';
@@ -49,7 +50,7 @@ function AppContent() {
   const [authView, setAuthView] = useState<AuthView>(() => {
     return authPathToView[window.location.pathname] ?? 'login';
   });
-  const { currentPage, selectedAnomalyId, selectedServiceId, handleNavigate } = useNavigation();
+  const { currentPage, selectedAnomalyId, selectedServiceId, selectedIncidentId, selectedTicketId, selectionEpoch, handleNavigate } = useNavigation();
 
   function showAuthView(view: AuthView, path: string) {
     setAuthView(view);
@@ -100,7 +101,7 @@ function AppContent() {
     );
   }
 
-  const pagesRequiringAdmin = ['reports', 'alert-settings', 'settings'];
+  const pagesRequiringAdmin = ['reports', 'reports-history', 'alert-settings', 'settings'];
   const pageIsAdminOnly = pagesRequiringAdmin.includes(currentPage);
 
   if (pageIsAdminOnly && !hasRole(['admin'])) {
@@ -129,13 +130,18 @@ function AppContent() {
       {currentPage === 'services' && <Services onNavigate={handleNavigate} />}
       {currentPage === 'service-metrics' && (<ServiceMetrics serviceId={selectedServiceId} onNavigate={handleNavigate} />)}
       {currentPage === 'logs' && <Logs />}
-      {currentPage === 'anomalies' && <Anomalies selectedAnomalyId={selectedAnomalyId} />}
+      {currentPage === 'anomalies' && <Anomalies selectedAnomalyId={selectedAnomalyId} selectionEpoch={selectionEpoch} />}
       {currentPage === 'reports' && (
         <ProtectedRoute allowedRoles={['admin']}>
-          <Reports />
+          <Reports onNavigate={handleNavigate} />
         </ProtectedRoute>
       )}
-      {currentPage === 'incidents' && <Incidents />}
+      {currentPage === 'reports-history' && (
+        <ProtectedRoute allowedRoles={['admin']}>
+          <ReportHistory onNavigate={handleNavigate} />
+        </ProtectedRoute>
+      )}
+      {currentPage === 'incidents' && <Incidents selectedIncidentId={selectedIncidentId} selectionEpoch={selectionEpoch} />}
       {currentPage === 'alert-settings' && (
         <ProtectedRoute allowedRoles={['admin']}>
           <AlertSettings />
@@ -148,7 +154,7 @@ function AppContent() {
       )}
       {currentPage === 'metrics' && <Metrics />}
       {currentPage === 'notifications' && <NotificationsPage onNavigate={handleNavigate} />}
-      {currentPage === 'tickets' && <Tickets />}
+      {currentPage === 'tickets' && <Tickets selectedTicketId={selectedTicketId} selectionEpoch={selectionEpoch} />}
     </MainLayout>
   );
 }

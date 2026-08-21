@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select';
-import { FileText, Download } from 'lucide-react';
+import { FileText, Download, History } from 'lucide-react';
 import api from '../../../api/api';
 import { hostService } from '../../services/hostService';
 import { serviceService } from '../../services/serviceService';
@@ -30,7 +30,11 @@ import {
 
 type ReportType = 'infrastructure' | 'performance' | 'incident' | 'reliability' | null;
 
-export function Reports() {
+interface ReportsProps {
+  onNavigate?: (page: string) => void;
+}
+
+export function Reports({ onNavigate }: ReportsProps = {}) {
   const [reportType, setReportType] = useState<ReportType>(null);
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
@@ -138,7 +142,25 @@ export function Reports() {
     return Object.entries(grouped).map(([time, count]) => ({ time, count }));
   };
 
-  const isGenerateDisabled = !fromDate || !toDate || fromDate > toDate || !reportType || (reportType === 'infrastructure' && !selectedServerId);
+  // Local today date in YYYY-MM-DD format
+  const today = (() => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  })();
+
+  const isFutureDateInvalid = Boolean((fromDate && fromDate > today) || (toDate && toDate > today));
+  const isDateOrderInvalid = Boolean(fromDate && toDate && fromDate > toDate);
+  const isDateInvalid = isFutureDateInvalid || isDateOrderInvalid;
+
+  const isGenerateDisabled =
+    !fromDate ||
+    !toDate ||
+    isDateInvalid ||
+    !reportType ||
+    (reportType === 'infrastructure' && !selectedServerId);
 
   const buildReportQuery = () => {
     const params = new URLSearchParams();
@@ -197,6 +219,7 @@ export function Reports() {
 
   const handleDownloadPDF = async () => {
     setError('');
+    if (isGenerateDisabled) return;
     try {
       const query = buildReportQuery();
       // POST to the authenticated PDF route — JWT auto-attached by api interceptor
@@ -219,9 +242,21 @@ export function Reports() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-white">Reports</h1>
-        <p className="text-slate-400 text-sm mt-1">Generate operational insights</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-white">Reports</h1>
+          <p className="text-slate-400 text-sm mt-1">Generate operational insights</p>
+        </div>
+        {onNavigate && (
+          <Button
+            variant="outline"
+            className="border-nebula-navy-lighter text-slate-300 hover:bg-nebula-navy-lighter hover:text-white"
+            onClick={() => onNavigate('reports-history')}
+          >
+            <History className="size-4 mr-2" />
+            Export History
+          </Button>
+        )}
       </div>
 
       <Card className="bg-nebula-navy-light border-nebula-navy-lighter">
@@ -291,12 +326,27 @@ export function Reports() {
 
             <div>
               <Label className="text-slate-300 mb-2 block text-sm">From Date</Label>
-              <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="w-full bg-nebula-navy-dark border-nebula-navy-lighter text-white px-3 py-2 rounded" />
+              <input
+                type="date"
+                value={fromDate}
+                max={today}
+                onChange={(e) => setFromDate(e.target.value)}
+                style={{ colorScheme: 'dark' }}
+                className="w-full bg-nebula-navy-dark border-nebula-navy-lighter text-white px-3 py-2 rounded [&::-webkit-calendar-picker-indicator]:invert"
+              />
             </div>
 
             <div>
               <Label className="text-slate-300 mb-2 block text-sm">To Date</Label>
-              <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="w-full bg-nebula-navy-dark border-nebula-navy-lighter text-white px-3 py-2 rounded" />
+              <input
+                type="date"
+                value={toDate}
+                min={fromDate || undefined}
+                max={today}
+                onChange={(e) => setToDate(e.target.value)}
+                style={{ colorScheme: 'dark' }}
+                className="w-full bg-nebula-navy-dark border-nebula-navy-lighter text-white px-3 py-2 rounded [&::-webkit-calendar-picker-indicator]:invert"
+              />
             </div>
 
             <div className="flex items-end">
@@ -305,8 +355,17 @@ export function Reports() {
               </Button>
             </div>
           </div>
-          {fromDate && toDate && fromDate > toDate && <p className="text-red-400 text-sm mt-2">From Date cannot be after To Date</p>}
-          {error && <p className="text-red-400 text-sm mt-2">{error}</p>}
+          {isFutureDateInvalid && (
+            <p className="text-red-400 text-sm mt-2">
+              Invalid date range: Future dates are not allowed.
+            </p>
+          )}
+          {!isFutureDateInvalid && isDateOrderInvalid && (
+            <p className="text-red-400 text-sm mt-2">
+              Invalid date range: From Date cannot be later than To Date.
+            </p>
+          )}
+          {error && !isDateInvalid && <p className="text-red-400 text-sm mt-2">{error}</p>}
         </CardContent>
       </Card>
 
@@ -378,7 +437,7 @@ export function Reports() {
               {reportType === 'performance' && (
                 <div className="space-y-6">
                   <div>
-                    <h3 className="text-lg font-semibold text-white mb-4">Service Resource Utilization (APM Data Unavailable)</h3>
+                    <h3 className="text-lg font-semibold text-white mb-4">Service Resource Utilization</h3>
                     <ResponsiveContainer width="100%" height={300}>
                       <LineChart data={preparePerformanceChartData()}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#374151" />

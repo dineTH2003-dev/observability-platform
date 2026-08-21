@@ -1,4 +1,4 @@
-import { useEffect,useState } from 'react';
+import { useEffect, useState } from 'react';
 import api from '../../../api/api';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -12,9 +12,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select';
-import { 
-  TicketIcon, Plus, Search, Filter, MessageSquare, CheckCircle, 
-  XCircle, Clock, AlertCircle, Settings, Key, FileText 
+import {
+  TicketIcon, Plus, Filter, MessageSquare,
+  XCircle, AlertCircle, Settings, Key, FileText
 } from 'lucide-react';
 
 type TicketPurpose = 'Alert Configuration Request' | 'Service / Application Management' | 'Access / Permission Request' | 'Incident Follow-up' | 'General Inquiry' | null;
@@ -38,11 +38,11 @@ interface Ticket {
   reason?: string;
 }
 
-export function Tickets() {
+export function Tickets({ selectedTicketId, selectionEpoch }: { selectedTicketId?: string, selectionEpoch?: number }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
-  const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [filterPurpose, setFilterPurpose] = useState<string>('all');
+  const [filterPriority, setFilterPriority] = useState<string>('all');
 
   const [tickets, setTickets] = useState<Ticket[]>([]);
 
@@ -50,8 +50,8 @@ export function Tickets() {
     try {
       const { data } = await api.get('/tickets', {
         params: {
-          search: searchQuery,
-          status: filterStatus,
+          purpose: filterPurpose,
+          priority: filterPriority,
         },
       });
 
@@ -64,8 +64,26 @@ export function Tickets() {
         requester: "You",
         role: "Engineer",
         context: t.context,
-        created: new Date(t.created_at).toLocaleString(),
-        updated: new Date(t.created_at).toLocaleString(),
+        created: new Date(t.created_at).toLocaleString('en-US', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: true,
+          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        }),
+        updated: new Date(t.updated_at || t.created_at).toLocaleString('en-US', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: true,
+          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        }),
         description: t.title,
       }));
 
@@ -77,7 +95,16 @@ export function Tickets() {
 
   useEffect(() => {
     fetchTickets();
-  }, [searchQuery, filterStatus]);
+  }, [filterPurpose, filterPriority]);
+
+  useEffect(() => {
+    if (selectedTicketId && tickets.length > 0) {
+      const ticket = tickets.find(t => t.id === selectedTicketId);
+      if (ticket) {
+        setSelectedTicket(ticket);
+      }
+    }
+  }, [selectedTicketId, selectionEpoch, tickets]);
 
   const getPriorityColor = (priority: TicketPriority) => {
     switch (priority) {
@@ -117,34 +144,39 @@ export function Tickets() {
         </Button>
       </div>
 
-      {/* Filters & Search */}
+      {/* Filters */}
       <Card className="bg-nebula-navy-light border-nebula-navy-lighter">
         <CardContent className="p-4">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
-                <Input
-                  placeholder="Search tickets by ID, title, or purpose..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 bg-nebula-navy-dark border-nebula-navy-lighter text-white placeholder:text-slate-500"
-                />
-              </div>
-            </div>
-            <div className="w-full md:w-48">
-              <Select value={filterStatus} onValueChange={setFilterStatus}>
-                <SelectTrigger className="bg-nebula-navy-dark border-nebula-navy-lighter text-white">
-                  <Filter className="size-4 mr-2" />
-                  <SelectValue />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Filter by Purpose */}
+            <div>
+              <Select value={filterPurpose} onValueChange={setFilterPurpose}>
+                <SelectTrigger className="w-full bg-nebula-navy-dark border-nebula-navy-lighter text-white">
+                  <Filter className="size-4 mr-2 text-slate-400" />
+                  <SelectValue placeholder="All Purposes" />
                 </SelectTrigger>
                 <SelectContent className="bg-nebula-navy-light border-nebula-navy-lighter text-white">
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="open">Open</SelectItem>
-                  <SelectItem value="in-review">In Review</SelectItem>
-                  <SelectItem value="approved">Approved</SelectItem>
-                  <SelectItem value="rejected">Rejected</SelectItem>
-                  <SelectItem value="resolved">Resolved</SelectItem>
+                  <SelectItem value="all">All Purposes</SelectItem>
+                  <SelectItem value="Alert Configuration Request">Alert Configuration Request</SelectItem>
+                  <SelectItem value="Service / Application Management">Service / Application Management</SelectItem>
+                  <SelectItem value="Access / Permission Request">Access / Permission Request</SelectItem>
+                  <SelectItem value="Incident Follow-up">Incident Follow-up</SelectItem>
+                  <SelectItem value="General Inquiry">General Inquiry</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {/* Filter by Priority */}
+            <div>
+              <Select value={filterPriority} onValueChange={setFilterPriority}>
+                <SelectTrigger className="w-full bg-nebula-navy-dark border-nebula-navy-lighter text-white">
+                  <Filter className="size-4 mr-2 text-slate-400" />
+                  <SelectValue placeholder="All Priorities" />
+                </SelectTrigger>
+                <SelectContent className="bg-nebula-navy-light border-nebula-navy-lighter text-white">
+                  <SelectItem value="all">All Priorities</SelectItem>
+                  <SelectItem value="low">Low</SelectItem>
+                  <SelectItem value="medium">Medium</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -160,9 +192,7 @@ export function Tickets() {
               <thead>
                 <tr className="border-b border-nebula-navy-lighter">
                   <th className="text-left py-3 px-4 text-xs font-semibold text-slate-400 uppercase tracking-wide">ID</th>
-                  <th className="text-left py-3 px-4 text-xs font-semibold text-slate-400 uppercase tracking-wide">Title</th>
                   <th className="text-left py-3 px-4 text-xs font-semibold text-slate-400 uppercase tracking-wide">Purpose</th>
-                  <th className="text-left py-3 px-4 text-xs font-semibold text-slate-400 uppercase tracking-wide">Context</th>
                   <th className="text-left py-3 px-4 text-xs font-semibold text-slate-400 uppercase tracking-wide">Priority</th>
                   <th className="text-left py-3 px-4 text-xs font-semibold text-slate-400 uppercase tracking-wide">Created</th>
                   <th className="text-left py-3 px-4 text-xs font-semibold text-slate-400 uppercase tracking-wide">Actions</th>
@@ -170,26 +200,20 @@ export function Tickets() {
               </thead>
               <tbody>
                 {tickets.map((ticket) => (
-                  <tr 
-                    key={ticket.id} 
-                    className="border-b border-nebula-navy-lighter/50 hover:bg-nebula-navy-dark/50 cursor-pointer"
-                    onClick={() => setSelectedTicket(ticket)}
+                  <tr
+                    key={ticket.id}
+                    className="border-b border-nebula-navy-lighter/50 hover:bg-nebula-navy-dark/50"
                   >
                     <td className="py-3 px-4">
                       <span className="text-sm font-mono text-nebula-cyan">{ticket.id}</span>
                     </td>
                     <td className="py-3 px-4">
-                      <p className="text-sm text-white font-medium max-w-xs truncate">{ticket.title}</p>
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-2 text-slate-300">
+                      <div className="flex items-center gap-2 text-slate-200 font-medium">
                         {getPurposeIcon(ticket.purpose)}
                         <span className="text-sm">{ticket.purpose}</span>
                       </div>
                     </td>
-                    <td className="py-3 px-4">
-                      <span className="text-sm text-slate-400">{ticket.context}</span>
-                    </td>
+
                     <td className="py-3 px-4">
                       <span className={`text-sm font-medium ${getPriorityColor(ticket.priority)}`}>
                         {ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1)}
@@ -228,7 +252,7 @@ export function Tickets() {
 
       {/* Create Ticket Modal */}
       {showCreateModal && (
-        <CreateTicketModal 
+        <CreateTicketModal
           onClose={() => setShowCreateModal(false)}
           onCreated={fetchTickets}
         />
@@ -244,7 +268,6 @@ export function Tickets() {
 
 // Create Ticket Modal Component
 function CreateTicketModal({ onClose, onCreated }: any) {
-  const [title, setTitle] = useState('');
   const [context, setContext] = useState('');
   const [description, setDescription] = useState('');
   const [ticketPurpose, setTicketPurpose] = useState<TicketPurpose>(null);
@@ -256,7 +279,6 @@ function CreateTicketModal({ onClose, onCreated }: any) {
   const handleSubmit = async () => {
     try {
       await api.post('/tickets', {
-        title,
         purpose: ticketPurpose,
         context,
         priority,
@@ -326,22 +348,9 @@ function CreateTicketModal({ onClose, onCreated }: any) {
               </Select>
             </div>
 
-            {/* Section 1.5: Title */}
-            {ticketPurpose && (
-              <div>
-                <Label className="text-white mb-2 block">Title *</Label>
-                <Input
-                  value={title}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)}
-                  placeholder="Enter ticket title"
-                  className="bg-nebula-navy-dark border-nebula-navy-lighter text-white placeholder:text-slate-500"
-                />
-              </div>
-            )}
-
             {/* Section 2: Dynamic Context Fields */}
             {ticketPurpose === 'Alert Configuration Request' && (
-              <AlertConfigurationForm 
+              <AlertConfigurationForm
                 description={description}
                 setDescription={setDescription}
                 reasonRequest={reasonRequest}
@@ -356,7 +365,7 @@ function CreateTicketModal({ onClose, onCreated }: any) {
             )}
 
             {ticketPurpose === 'Service / Application Management' && (
-              <ServiceManagementForm 
+              <ServiceManagementForm
                 context={context}
                 setContext={setContext}
                 description={description}
@@ -367,7 +376,7 @@ function CreateTicketModal({ onClose, onCreated }: any) {
             )}
 
             {ticketPurpose === 'Access / Permission Request' && (
-              <AccessRequestForm 
+              <AccessRequestForm
                 description={description}
                 setDescription={setDescription}
                 reasonRequest={reasonRequest}
@@ -376,7 +385,7 @@ function CreateTicketModal({ onClose, onCreated }: any) {
             )}
 
             {ticketPurpose === 'Incident Follow-up' && (
-              <IncidentFollowupForm 
+              <IncidentFollowupForm
                 description={description}
                 setDescription={setDescription}
                 reasonRequest={reasonRequest}
@@ -385,7 +394,7 @@ function CreateTicketModal({ onClose, onCreated }: any) {
             )}
 
             {ticketPurpose === 'General Inquiry' && (
-              <GeneralInquiryForm 
+              <GeneralInquiryForm
                 description={description}
                 setDescription={setDescription}
               />
@@ -431,7 +440,7 @@ function AlertConfigurationForm({ description, setDescription, reasonRequest, se
   return (
     <div className="space-y-4 p-4 bg-nebula-navy-dark rounded-lg border border-nebula-navy-lighter">
       <h3 className="text-sm font-semibold text-white">Alert Configuration Details</h3>
-      
+
       <div>
         <Label className="text-slate-300 mb-2 block text-sm">Application *</Label>
         <Select value={appAlertConfig} onValueChange={setAppAlertConfig}>
@@ -440,7 +449,6 @@ function AlertConfigurationForm({ description, setDescription, reasonRequest, se
           </SelectTrigger>
           <SelectContent className="bg-nebula-navy-light border-nebula-navy-lighter text-white">
             <SelectItem value="user-service">User Service</SelectItem>
-            <SelectItem value="payment-gateway">Payment Gateway</SelectItem>
             <SelectItem value="api-gateway">API Gateway</SelectItem>
             <SelectItem value="auth-service">Auth Service</SelectItem>
           </SelectContent>
@@ -507,7 +515,7 @@ function ServiceManagementForm({ context, setContext, description, setDescriptio
   return (
     <div className="space-y-4 p-4 bg-nebula-navy-dark rounded-lg border border-nebula-navy-lighter">
       <h3 className="text-sm font-semibold text-white">Service Management Details</h3>
-      
+
       <div>
         <Label className="text-slate-300 mb-2 block text-sm">Application *</Label>
         <Select value={appService} onValueChange={setAppService}>
@@ -516,7 +524,6 @@ function ServiceManagementForm({ context, setContext, description, setDescriptio
           </SelectTrigger>
           <SelectContent className="bg-nebula-navy-light border-nebula-navy-lighter text-white">
             <SelectItem value="user-service">User Service</SelectItem>
-            <SelectItem value="payment-gateway">Payment Gateway</SelectItem>
             <SelectItem value="api-gateway">API Gateway</SelectItem>
           </SelectContent>
         </Select>
@@ -578,7 +585,7 @@ function AccessRequestForm({ description, setDescription, reasonRequest, setReas
   return (
     <div className="space-y-4 p-4 bg-nebula-navy-dark rounded-lg border border-nebula-navy-lighter">
       <h3 className="text-sm font-semibold text-white">Access Request Details</h3>
-      
+
       <div>
         <Label className="text-slate-300 mb-2 block text-sm">Resource Type *</Label>
         <Select value={resourceType} onValueChange={setResourceType}>
@@ -603,7 +610,6 @@ function AccessRequestForm({ description, setDescription, reasonRequest, setReas
           <SelectContent className="bg-nebula-navy-light border-nebula-navy-lighter text-white">
             <SelectItem value="user-service">User Service</SelectItem>
             <SelectItem value="auth-service">Auth Service</SelectItem>
-            <SelectItem value="payment-gateway">Payment Gateway</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -653,7 +659,7 @@ function IncidentFollowupForm({ description, setDescription, reasonRequest, setR
   return (
     <div className="space-y-4 p-4 bg-nebula-navy-dark rounded-lg border border-nebula-navy-lighter">
       <h3 className="text-sm font-semibold text-white">Incident Follow-up Details</h3>
-      
+
       <div>
         <Label className="text-slate-300 mb-2 block text-sm">Link Incident *</Label>
         <Select value={incident} onValueChange={setIncident}>
@@ -713,7 +719,7 @@ function GeneralInquiryForm({ description, setDescription }: any) {
   return (
     <div className="space-y-4 p-4 bg-nebula-navy-dark rounded-lg border border-nebula-navy-lighter">
       <h3 className="text-sm font-semibold text-white">General Inquiry Details</h3>
-      
+
       <div>
         <Label className="text-slate-300 mb-2 block text-sm">Inquiry Category *</Label>
         <Select value={inquiryCategory} onValueChange={setInquiryCategory}>
@@ -761,136 +767,96 @@ function TicketDetailsModal({ ticket, onClose }: { ticket: Ticket; onClose: () =
     }
   };
 
+  const getPriorityColor = (priority: TicketPriority) => {
+    switch (priority) {
+      case 'high':
+        return 'text-red-400';
+      case 'medium':
+        return 'text-yellow-400';
+      case 'low':
+        return 'text-blue-400';
+      default:
+        return 'text-slate-400';
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <Card className="bg-nebula-navy-light border-nebula-navy-lighter w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+      <Card className="bg-nebula-navy-light border-nebula-navy-lighter w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
         <CardContent className="p-6">
           {/* Header */}
-          <div className="flex items-start justify-between mb-6 pb-6 border-b border-nebula-navy-lighter">
+          <div className="flex items-start justify-between mb-6 pb-5 border-b border-nebula-navy-lighter">
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-2">
-                <span className="text-lg font-mono text-nebula-cyan">{ticket.id}</span>
-                <span className={`px-3 py-1 rounded text-xs font-medium border ${getStatusColor(ticket.status)}`}>
+                <span className="text-base font-mono font-semibold text-nebula-cyan tracking-wider mr-1.5">{ticket.id}</span>
+                <span className={`px-2.5 py-0.5 rounded text-xs font-medium border ${getStatusColor(ticket.status)}`}>
                   {ticket.status.replace('-', ' ').toUpperCase()}
                 </span>
               </div>
-              <h2 className="text-xl font-semibold text-white mb-2">{ticket.title}</h2>
-              <div className="flex items-center gap-4 text-sm text-slate-400">
+              <h2 className="text-xl font-semibold text-white mb-2">{ticket.purpose}</h2>
+              <div className="text-xs text-slate-400">
                 <span>Created {ticket.created}</span>
-                <span>•</span>
-                <span>Updated {ticket.updated}</span>
               </div>
             </div>
-            <Button variant="ghost" size="sm" onClick={onClose} className="text-slate-400 hover:text-white">
+            <Button variant="ghost" size="sm" onClick={onClose} className="text-slate-400 hover:text-white -mr-2 -mt-1">
               <XCircle className="size-5" />
             </Button>
           </div>
 
-          {/* Details Grid */}
-          <div className="grid grid-cols-2 gap-6 mb-6">
+          {/* Key Information */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 mb-5 bg-nebula-navy-dark/60 rounded-lg border border-nebula-navy-lighter/60">
             <div>
-              <Label className="text-slate-400 text-xs uppercase tracking-wide mb-1 block">Purpose</Label>
-              <p className="text-white">{ticket.purpose}</p>
+              <span className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1">Purpose</span>
+              <p className="text-white text-sm font-medium truncate" title={ticket.purpose}>{ticket.purpose || '—'}</p>
             </div>
             <div>
-              <Label className="text-slate-400 text-xs uppercase tracking-wide mb-1 block">Context</Label>
-              <p className="text-white">{ticket.context}</p>
-            </div>
-            <div>
-              <Label className="text-slate-400 text-xs uppercase tracking-wide mb-1 block">Requester</Label>
-              <p className="text-white">{ticket.requester}</p>
+              <span className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1">Requester</span>
+              <p className="text-white text-sm font-medium">{ticket.requester}</p>
               <p className="text-xs text-slate-500">{ticket.role}</p>
             </div>
             <div>
-              <Label className="text-slate-400 text-xs uppercase tracking-wide mb-1 block">Priority</Label>
-              <p className="text-white capitalize">{ticket.priority}</p>
+              <span className="text-slate-400 text-xs font-medium uppercase tracking-wider block mb-1">Priority</span>
+              <p className={`text-sm font-medium capitalize ${getPriorityColor(ticket.priority)}`}>{ticket.priority}</p>
             </div>
           </div>
 
           {/* Description */}
-          <div className="mb-6">
-            <Label className="text-slate-400 text-xs uppercase tracking-wide mb-2 block">Description</Label>
-            <div className="p-4 bg-nebula-navy-dark rounded-lg border border-nebula-navy-lighter">
-              <p className="text-white text-sm">{ticket.description}</p>
+          <div>
+            <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider mb-2 block">Description</Label>
+            <div className="p-4 bg-nebula-navy-dark rounded-lg border border-nebula-navy-lighter text-sm text-slate-200 leading-relaxed whitespace-pre-wrap">
+              {ticket.description || 'No description provided.'}
             </div>
           </div>
 
           {/* Requested Change */}
           {ticket.requestedChange && (
-            <div className="mb-6">
-              <Label className="text-slate-400 text-xs uppercase tracking-wide mb-2 block">Requested Change</Label>
-              <div className="p-4 bg-nebula-purple/10 rounded-lg border border-nebula-purple/30">
-                <p className="text-nebula-purple font-medium text-sm">{ticket.requestedChange}</p>
+            <div className="mt-5">
+              <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider mb-2 block">Requested Change</Label>
+              <div className="p-3.5 bg-nebula-purple/10 rounded-lg border border-nebula-purple/30 text-sm text-nebula-purple">
+                {ticket.requestedChange}
               </div>
             </div>
           )}
 
           {/* Reason */}
           {ticket.reason && (
-            <div className="mb-6">
-              <Label className="text-slate-400 text-xs uppercase tracking-wide mb-2 block">Reason</Label>
-              <div className="p-4 bg-nebula-navy-dark rounded-lg border border-nebula-navy-lighter">
-                <p className="text-white text-sm">{ticket.reason}</p>
+            <div className="mt-5">
+              <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider mb-2 block">Reason</Label>
+              <div className="p-4 bg-nebula-navy-dark rounded-lg border border-nebula-navy-lighter text-sm text-slate-200">
+                {ticket.reason}
               </div>
             </div>
           )}
 
           {/* Linked Incident */}
           {ticket.linkedIncident && (
-            <div className="mb-6">
-              <Label className="text-slate-400 text-xs uppercase tracking-wide mb-2 block">Linked Incident</Label>
-              <div className="p-3 bg-red-500/10 rounded-lg border border-red-500/30 inline-block">
-                <span className="text-red-400 font-mono text-sm">{ticket.linkedIncident}</span>
+            <div className="mt-5">
+              <Label className="text-slate-400 text-xs font-medium uppercase tracking-wider mb-2 block">Linked Incident</Label>
+              <div className="p-2.5 bg-red-500/10 rounded-lg border border-red-500/30 inline-block text-xs font-mono text-red-400">
+                {ticket.linkedIncident}
               </div>
             </div>
           )}
-
-          {/* Admin Actions */}
-          <div className="flex gap-3 pt-6 border-t border-nebula-navy-lighter">
-            <Button
-              variant="outline"
-              className="flex-1 border-green-500/30 text-green-400 hover:bg-green-500/10"
-            >
-              <CheckCircle className="size-4 mr-2" />
-              Approve
-            </Button>
-            <Button
-              variant="outline"
-              className="flex-1 border-red-500/30 text-red-400 hover:bg-red-500/10"
-            >
-              <XCircle className="size-4 mr-2" />
-              Reject
-            </Button>
-            <Button
-              variant="outline"
-              className="flex-1 border-purple-500/30 text-purple-400 hover:bg-purple-500/10"
-            >
-              <Clock className="size-4 mr-2" />
-              Mark In Review
-            </Button>
-            <Button
-              className="flex-1 bg-gradient-to-r from-nebula-purple to-nebula-blue hover:from-nebula-purple/90 hover:to-nebula-blue/90 text-white"
-            >
-              <CheckCircle className="size-4 mr-2" />
-              Resolve
-            </Button>
-          </div>
-
-          {/* Comment Section */}
-          <div className="mt-6 pt-6 border-t border-nebula-navy-lighter">
-            <Label className="text-white mb-2 block">Add Comment</Label>
-            <Textarea
-              placeholder="Add a comment or update..."
-              className="bg-nebula-navy-dark border-nebula-navy-lighter text-white placeholder:text-slate-500 mb-3"
-            />
-            <Button
-              size="sm"
-              className="bg-nebula-navy-dark border border-nebula-navy-lighter text-white hover:bg-nebula-navy"
-            >
-              <MessageSquare className="size-4 mr-2" />
-              Post Comment
-            </Button>
-          </div>
         </CardContent>
       </Card>
     </div>

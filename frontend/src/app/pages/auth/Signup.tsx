@@ -78,7 +78,7 @@ export function Signup({ onSwitchToLogin }: SignupProps) {
   };
 
   return (
-    <div className="min-h-screen w-full flex flex-col md:flex-row bg-nebula-navy-dark">
+    <div className="min-h-screen w-full flex">
       {/* Left Panel - Signup Form */}
       <div className="w-1/2 h-screen bg-nebula-navy-dark flex items-center justify-center">
         <div className="w-full max-w-md px-12">
@@ -234,7 +234,7 @@ export function Signup({ onSwitchToLogin }: SignupProps) {
       </div>
 
       {/* Right Panel - Branding */}
-      <div className="w-full min-h-[280px] md:w-1/2 md:h-screen md:sticky md:top-0 bg-gradient-to-br from-nebula-purple via-purple-500 to-nebula-pink flex items-center justify-center">
+      <div className="w-1/2 h-screen bg-gradient-to-br from-nebula-purple via-purple-500 to-nebula-pink flex items-center justify-center">
         <div className="flex flex-col items-center justify-center gap-6">
           <img
             src={logoImage}

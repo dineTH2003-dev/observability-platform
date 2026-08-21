@@ -12,6 +12,7 @@ exports.create = async (data) => {
     sender_user_id = null,
     incident_id = null,
     anomaly_id = null,
+    ticket_id = null,
     title,
     message,
     notification_type,
@@ -20,10 +21,10 @@ exports.create = async (data) => {
 
   const { rows } = await db.query(
     `INSERT INTO notifications
-       (recipient_user_id, sender_user_id, incident_id, anomaly_id, title, message, notification_type, is_read)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       (recipient_user_id, sender_user_id, incident_id, anomaly_id, ticket_id, title, message, notification_type, is_read)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
      RETURNING *`,
-    [recipient_user_id, sender_user_id, incident_id, anomaly_id, title, message, notification_type, is_read]
+    [recipient_user_id, sender_user_id, incident_id, anomaly_id, ticket_id, title, message, notification_type, is_read]
   );
   return rows[0];
 };
@@ -39,23 +40,24 @@ exports.createMany = async (notifications) => {
   let idx = 1;
 
   for (const n of notifications) {
-    values.push(`($${idx},$${idx+1},$${idx+2},$${idx+3},$${idx+4},$${idx+5},$${idx+6},$${idx+7})`);
+    values.push(`($${idx},$${idx+1},$${idx+2},$${idx+3},$${idx+4},$${idx+5},$${idx+6},$${idx+7},$${idx+8})`);
     params.push(
       n.recipient_user_id,
       n.sender_user_id || null,
       n.incident_id || null,
       n.anomaly_id || null,
+      n.ticket_id || null,
       n.title,
       n.message,
       n.notification_type,
       n.is_read || false
     );
-    idx += 8;
+    idx += 9;
   }
 
   const { rows } = await db.query(
     `INSERT INTO notifications
-       (recipient_user_id, sender_user_id, incident_id, anomaly_id, title, message, notification_type, is_read)
+       (recipient_user_id, sender_user_id, incident_id, anomaly_id, ticket_id, title, message, notification_type, is_read)
      VALUES ${values.join(',')}
      RETURNING *`,
     params

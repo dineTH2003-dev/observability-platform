@@ -19,8 +19,8 @@ import { ProfileSelect } from "./ProfileSelect";
 import type { ProfileFormValues } from "../../types/user";
 
 const ROLE_OPTIONS = [
-  { label: "Admin", value: "Admin" },
-  { label: "Engineer", value: "Engineer" },
+  { label: "Admin", value: "admin" },
+  { label: "Engineer", value: "engineer" },
 ];
 
 interface PersonalInformationProps {
@@ -123,27 +123,44 @@ export function PersonalInformation({
         {/* Form Inputs Grid */}
         <div className="space-y-6">
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-            {/* Column 1 */}
-            <div className="flex flex-col gap-5">
-              <ProfileInput
-                disabled={disabled}
-                error={errors.firstName}
-                icon={UserRound}
-                label="First Name"
-                placeholder="Enter first name"
-                value={values.firstName}
-                onChange={(value) => onChange("firstName", value)}
-              />
-              <ProfileInput
-                disabled={disabled}
-                error={errors.email}
-                icon={Mail}
-                label="Email"
-                placeholder="Enter email address"
-                type="email"
-                value={values.email}
-                onChange={(value) => onChange("email", value)}
-              />
+            <ProfileInput
+              disabled={disabled}
+              error={errors.firstName}
+              icon={UserRound}
+              label="First Name"
+              placeholder="Enter first name"
+              value={values.firstName}
+              onChange={(value) => onChange("firstName", value)}
+            />
+            <ProfileInput
+              disabled={disabled}
+              error={errors.lastName}
+              icon={UserRound}
+              label="Last Name"
+              placeholder="Enter last name"
+              value={values.lastName}
+              onChange={(value) => onChange("lastName", value)}
+            />
+            <ProfileInput
+              disabled={disabled}
+              error={errors.email}
+              icon={Mail}
+              label="Email"
+              placeholder="Enter email address"
+              type="email"
+              value={values.email}
+              onChange={(value) => onChange("email", value)}
+            />
+            <ProfileInput
+              disabled={disabled}
+              error={errors.phone}
+              icon={Phone}
+              label="Phone Number"
+              placeholder="Enter phone number"
+              value={values.phone}
+              onChange={(value) => onChange("phone", value)}
+            />
+            <div className="md:col-span-1">
               <ProfileSelect
                 disabled={disabled}
                 error={errors.role}
@@ -154,35 +171,16 @@ export function PersonalInformation({
                 onChange={(value) => onChange("role", value)}
               />
             </div>
-
-            {/* Column 2 */}
-            <div className="flex flex-col gap-5">
-              <ProfileInput
-                disabled={disabled}
-                error={errors.lastName}
-                icon={UserRound}
-                label="Last Name"
-                placeholder="Enter last name"
-                value={values.lastName}
-                onChange={(value) => onChange("lastName", value)}
-              />
-              <ProfileInput
-                disabled={disabled}
-                error={errors.phone}
-                icon={Phone}
-                label="Phone Number"
-                placeholder="Enter phone number"
-                value={values.phone}
-                onChange={(value) => onChange("phone", value)}
-              />
-            </div>
           </div>
 
           {/* Bio Area (full width) */}
           <div className="space-y-2 pt-2">
-            <Label className="text-white">Bio</Label>
-            <div className="group relative">
-              <div className="pointer-events-none absolute left-0 top-3 flex w-10 items-center justify-center text-slate-500 transition-colors group-focus-within:text-nebula-cyan">
+            <Label className="text-sm font-medium text-white">Bio</Label>
+            <div className="group relative flex items-start">
+              <div
+                style={{ left: "28px" }}
+                className="pointer-events-none absolute top-3.5 z-10 flex items-center justify-center text-slate-500 transition-colors group-focus-within:text-nebula-cyan"
+              >
                 <FileText className="size-4" />
               </div>
               <Textarea
@@ -190,13 +188,14 @@ export function PersonalInformation({
                 disabled={disabled}
                 value={values.bio}
                 maxLength={300}
+                style={{ paddingLeft: "60px" }}
                 onChange={(event) => onChange("bio", event.target.value)}
-                className="min-h-[120px] rounded-xl border-white/8 bg-[#0A1238] pl-12 pr-4 py-3 text-white placeholder:text-slate-500 shadow-inner shadow-black/20 transition duration-200 hover:border-white/12 focus-visible:ring-nebula-purple/30 disabled:opacity-80 resize-none overflow-hidden"
+                className="min-h-[120px] rounded-xl border-white/8 bg-[#0A1238] !pl-16 pr-4 py-3 text-sm text-white placeholder:text-slate-500 shadow-inner shadow-black/20 transition duration-200 hover:border-white/12 focus-visible:ring-nebula-purple/30 disabled:opacity-80 resize-none overflow-hidden"
                 placeholder="Tell your team a bit about yourself"
               />
             </div>
             <div className="flex items-center justify-between">
-              <p className="text-xs text-red-400">{errors.bio || ""}</p>
+              {errors.bio ? <p className="text-xs text-red-400">{errors.bio}</p> : <div />}
               <p className="text-xs text-slate-500">{values.bio.length}/300</p>
             </div>
           </div>
@@ -208,7 +207,7 @@ export function PersonalInformation({
 
 function normalizeRole(role: string) {
   const normalized = role.trim().toLowerCase();
-  if (normalized === "admin") return "Admin";
-  if (normalized === "engineer") return "Engineer";
-  return "Engineer";
+  if (normalized === "admin") return "admin";
+  if (normalized === "engineer") return "engineer";
+  return "engineer";
 }

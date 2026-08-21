@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from '../../components/ui/select';
 import * as incidentApi from '../../../api/incidentApi';
+import { fetchRecommendation } from '../../../api/incidentApi';
 import { useLiveIncidents } from '../../hooks/useLiveIncidents';
 
 // Shape returned by the backend API
@@ -35,6 +36,12 @@ interface ApiIncident {
   updated_at: string;
   acknowledged_at: string | null;
   resolved_at: string | null;
+  ai_recommendation?: {
+    cause: string;
+    actions: string[];
+    impact: string;
+    confidence: 'High' | 'Medium' | 'Low';
+  } | null;
   anomalies?: Array<{ title: string; anomaly_type: string; detected_at: string }>;
   timeline?: Array<{ occurred_at: string; message: string; event_type: string }>;
 }
@@ -63,7 +70,8 @@ function mapIncident(raw: ApiIncident): any {
       : `${Math.round((Date.now() - validCreated.getTime()) / 60000)}m`,
     entity: (raw.anomalies?.[0]?.anomaly_type ?? 'System') + ' anomaly',
     anomalies: raw.anomalies?.map((a) => `${a.anomaly_type} anomaly`) ?? [],
-    hasRecommendation: false,
+    hasRecommendation: !!raw.ai_recommendation,
+    recommendation: raw.ai_recommendation ?? null,
     timeline: raw.timeline?.map((t) => ({
       time: new Date(t.occurred_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
       event: t.message,
@@ -71,12 +79,21 @@ function mapIncident(raw: ApiIncident): any {
   };
 }
 
-export function Incidents() {
+const DEFAULT_ENGINEERS: Engineer[] = [
+  { id: '1', email: 'alex.dev@cloudsight.io', role: 'Senior Site Reliability Engineer' },
+  { id: '2', email: 'sarah.ops@cloudsight.io', role: 'DevOps Lead' },
+  { id: '3', email: 'david.infra@cloudsight.io', role: 'Infrastructure Specialist' },
+  { id: '4', email: 'emily.sec@cloudsight.io', role: 'Security Analyst' }
+];
+
+export function Incidents({ selectedIncidentId, selectionEpoch }: { selectedIncidentId?: string; selectionEpoch?: number } = {}) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIncident, setSelectedIncident] = useState<any | null>(null);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [selectedEngineer, setSelectedEngineer] = useState('');
-  const [engineers, setEngineers] = useState<Engineer[]>([]);
+  const [engineers, setEngineers] = useState<Engineer[]>(DEFAULT_ENGINEERS);
+  const [isRegeneratingRec, setIsRegeneratingRec] = useState(false);
+  const [recError, setRecError] = useState<string | null>(null);
 
   // Load incidents and engineers from the real API on mount
   const [incidents, setIncidents] = useState<any[]>([]);
@@ -93,7 +110,7 @@ export function Incidents() {
       const safeIncidents = Array.isArray(rawIncidents) ? rawIncidents : [];
       const safeEngineers = Array.isArray(rawEngineers) ? rawEngineers : [];
       setIncidents(safeIncidents.map(mapIncident).filter(Boolean));
-      setEngineers(safeEngineers);
+      setEngineers(safeEngineers.length > 0 ? safeEngineers : DEFAULT_ENGINEERS);
     } catch (err) {
       console.error('Failed to load incidents:', err);
     }
@@ -102,6 +119,20 @@ export function Incidents() {
   useEffect(() => {
     loadData();
   }, []);
+
+  // Auto-open incident detail when navigated via notification
+  useEffect(() => {
+    if (!selectedIncidentId) return;
+    incidentApi.fetchIncidentById(selectedIncidentId)
+      .then((raw) => {
+        if (raw) {
+          setSelectedIncident(mapIncident(raw));
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to fetch incident from notification:', err);
+      });
+  }, [selectedIncidentId, selectionEpoch]);
 
   // Live: prepend newly created incidents
   useEffect(() => {
@@ -223,6 +254,29 @@ export function Incidents() {
       }
     } catch (err) {
       console.error('Failed to resolve incident', err);
+    }
+  };
+
+  const handleRegenerateRecommendation = async () => {
+    if (!selectedIncident) return;
+    setIsRegeneratingRec(true);
+    setRecError(null);
+    try {
+      const recommendation = await fetchRecommendation(selectedIncident.incident_id);
+      if (!recommendation || typeof recommendation !== 'object') {
+        throw new Error('Invalid response from server');
+      }
+      setSelectedIncident((prev: any) => ({
+        ...prev,
+        hasRecommendation: true,
+        recommendation,
+      }));
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || 'Failed to generate recommendation';
+      console.error('Recommendation error:', msg);
+      setRecError(msg);
+    } finally {
+      setIsRegeneratingRec(false);
     }
   };
 
@@ -498,43 +552,96 @@ export function Incidents() {
                 </Card>
 
                 {/* AI Recommendation */}
-                {selectedIncident.hasRecommendation && selectedIncident.recommendation && (
-                  <Card className="bg-gradient-to-br from-purple-500/10 to-blue-500/10 border-purple-500/30">
-                    <CardContent className="p-4">
-                      <h4 className="text-white font-semibold mb-4 flex items-center gap-2">
+                <Card className="bg-gradient-to-br from-purple-500/10 to-blue-500/10 border-purple-500/30">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="text-white font-semibold flex items-center gap-2">
                         <Lightbulb className="size-5 text-purple-400" />
                         AI-Powered Recommendation
                       </h4>
-                      <div className="space-y-3">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleRegenerateRecommendation}
+                        disabled={isRegeneratingRec}
+                        className="bg-transparent border-purple-500/40 text-purple-300 hover:bg-purple-500/10 text-xs h-7 px-3"
+                      >
+                        {isRegeneratingRec ? (
+                          <>
+                            <Activity className="size-3 mr-1 animate-spin" />
+                            Generating...
+                          </>
+                        ) : (
+                          <>
+                            <TrendingUp className="size-3 mr-1" />
+                            {selectedIncident.hasRecommendation ? 'Regenerate' : 'Generate'}
+                          </>
+                        )}
+                      </Button>
+                    </div>
+
+                    {selectedIncident.hasRecommendation && selectedIncident.recommendation ? (
+                      <div className="space-y-4">
                         <div>
-                          <Label className="text-purple-300">Likely Cause</Label>
-                          <p className="text-white mt-1">{selectedIncident.recommendation.cause}</p>
+                          <Label className="text-purple-300 text-xs uppercase tracking-wide">Likely Cause</Label>
+                          <p className="text-white mt-1 text-sm leading-relaxed">{selectedIncident.recommendation.cause}</p>
                         </div>
                         <div>
-                          <Label className="text-purple-300">Suggested Action</Label>
-                          <p className="text-white mt-1">{selectedIncident.recommendation.action}</p>
+                          <Label className="text-purple-300 text-xs uppercase tracking-wide">Recommended Actions</Label>
+                          <ul className="mt-2 space-y-2">
+                            {(selectedIncident.recommendation.actions ?? []).map((action: string, idx: number) => (
+                              <li key={idx} className="flex items-start gap-2 text-sm text-slate-200">
+                                <span className="flex-shrink-0 w-5 h-5 rounded-full bg-purple-500/30 text-purple-300 text-xs flex items-center justify-center font-semibold mt-0.5">
+                                  {idx + 1}
+                                </span>
+                                <span>{action}</span>
+                              </li>
+                            ))}
+                          </ul>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                           <div>
-                            <Label className="text-purple-300">Expected Impact</Label>
-                            <p className="text-green-400 font-medium mt-1 flex items-center gap-1">
-                              <TrendingUp className="size-4" />
-                              {selectedIncident.recommendation.impact}
+                            <Label className="text-purple-300 text-xs uppercase tracking-wide">Expected Impact</Label>
+                            <p className="text-green-400 font-medium mt-1 flex items-start gap-1 text-sm">
+                              <TrendingUp className="size-4 flex-shrink-0 mt-0.5" />
+                              <span>{selectedIncident.recommendation.impact}</span>
                             </p>
                           </div>
                           <div>
-                            <Label className="text-purple-300">Confidence</Label>
+                            <Label className="text-purple-300 text-xs uppercase tracking-wide">Confidence</Label>
                             <p className="text-white mt-1">
-                              <span className="px-2 py-1 rounded text-xs font-medium bg-green-500/20 text-green-400">
+                              <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                selectedIncident.recommendation.confidence === 'High'
+                                  ? 'bg-green-500/20 text-green-400'
+                                  : selectedIncident.recommendation.confidence === 'Medium'
+                                  ? 'bg-yellow-500/20 text-yellow-400'
+                                  : 'bg-slate-500/20 text-slate-400'
+                              }`}>
                                 {selectedIncident.recommendation.confidence}
                               </span>
                             </p>
                           </div>
                         </div>
                       </div>
-                    </CardContent>
-                  </Card>
-                )}
+                    ) : (
+                      <div className="text-center py-6">
+                        <Lightbulb className="size-8 text-purple-500/40 mx-auto mb-2" />
+                        {recError ? (
+                          <>
+                            <p className="text-red-400 text-sm font-medium">Generation failed</p>
+                            <p className="text-red-400/70 text-xs mt-1 max-w-xs mx-auto break-words">{recError}</p>
+                            <p className="text-slate-500 text-xs mt-2">Check backend logs for details, then try again.</p>
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-slate-400 text-sm">No recommendation yet.</p>
+                            <p className="text-slate-500 text-xs mt-1">Click Generate to create an AI-powered recommendation for this incident.</p>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
 
                 {/* Activity Timeline */}
                 <Card className="bg-nebula-navy-dark border-nebula-navy-lighter">

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Search, AlertTriangle, Check, X, Clock, Fingerprint } from 'lucide-react';
+import { Search, AlertTriangle, Clock, Fingerprint } from 'lucide-react';
 import { Card, CardContent } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
@@ -33,6 +33,7 @@ interface Anomaly {
 
 interface AnomaliesProps {
     selectedAnomalyId?: string;
+    selectionEpoch?: number;
 }
 
 function toAnomaly(row: ApiAnomaly): Anomaly {
@@ -99,7 +100,7 @@ function labelText(label: string) {
     return label.replace(/_/g, ' ');
 }
 
-export function Anomalies({ selectedAnomalyId }: AnomaliesProps) {
+export function Anomalies({ selectedAnomalyId, selectionEpoch }: AnomaliesProps) {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedAnomaly, setSelectedAnomaly] = useState<string | null>(selectedAnomalyId || null);
     const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
@@ -107,6 +108,13 @@ export function Anomalies({ selectedAnomalyId }: AnomaliesProps) {
     const [detailLoading, setDetailLoading] = useState(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+
+    // Sync selectedAnomaly if selectedAnomalyId changes via navigation
+    useEffect(() => {
+        if (selectedAnomalyId) {
+            setSelectedAnomaly(selectedAnomalyId);
+        }
+    }, [selectedAnomalyId, selectionEpoch]);
 
     // Real-time anomaly events
     const { newAnomaly, updatedAnomaly } = useLiveAnomalies();
@@ -188,7 +196,7 @@ export function Anomalies({ selectedAnomalyId }: AnomaliesProps) {
             })
             .catch((err) => {
                 if (!mounted) return;
-                setError(err instanceof Error ? err.message : 'Failed to load anomaly details');
+                console.error('Failed to load anomaly details:', err);
                 setSelectedDetail(null);
             })
             .finally(() => {
@@ -214,6 +222,14 @@ export function Anomalies({ selectedAnomalyId }: AnomaliesProps) {
         anomaly.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (anomaly.detector || '').toLowerCase().includes(searchQuery.toLowerCase())
     );
+
+    useEffect(() => {
+        if (!selectedAnomaly) return;
+        const index = filteredAnomalies.findIndex(a => a.id === selectedAnomaly);
+        if (index < 0) return;
+        const nextPage = Math.floor(index / pageSize) + 1;
+        setCurrentPage((prev) => (prev === nextPage ? prev : nextPage));
+    }, [selectedAnomaly, anomalies, searchQuery, pageSize]);
 
     const totalPages = Math.max(1, Math.ceil(filteredAnomalies.length / pageSize));
     const paginatedAnomalies = filteredAnomalies.slice((currentPage - 1) * pageSize, currentPage * pageSize);
@@ -596,31 +612,6 @@ export function Anomalies({ selectedAnomalyId }: AnomaliesProps) {
                                                 {anomaly.resolvedTime && <span className="text-xs text-slate-500 mt-0.5">{anomaly.resolvedTime}</span>}
                                             </div>
                                         </div>
-                                    </div>
-
-                                    <div className="flex gap-2">
-                                        <Button
-                                            variant="outline"
-                                            onClick={(event) => {
-                                                event.stopPropagation();
-                                                submitFeedback(anomaly.id, 'true_positive');
-                                            }}
-                                            className="bg-transparent border-nebula-navy-lighter text-white hover:bg-nebula-navy-lighter"
-                                        >
-                                            <Check className="size-4 mr-2" />
-                                            True
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            onClick={(event) => {
-                                                event.stopPropagation();
-                                                submitFeedback(anomaly.id, 'false_positive');
-                                            }}
-                                            className="bg-transparent border-nebula-navy-lighter text-white hover:bg-nebula-navy-lighter"
-                                        >
-                                            <X className="size-4 mr-2" />
-                                            False
-                                        </Button>
                                     </div>
                                 </div>
                             </CardContent>

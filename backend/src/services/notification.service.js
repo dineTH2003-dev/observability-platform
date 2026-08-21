@@ -176,7 +176,7 @@ async function markEmailAsFailed(notificationId) {
 // ─────────────────────────────────────────────────────────────
 
 /**
- * Anomaly detected → notify all admins + send email
+ * Anomaly detected → notify all admins + send email to admins
  * 
  * Email behavior:
  * - Check email_channel_enabled
@@ -187,9 +187,6 @@ async function markEmailAsFailed(notificationId) {
  */
 exports.notifyAnomalyDetected = async (incident, anomaly) => {
   try {
-    const adminIds = await getAdminIds();
-    if (!adminIds.length) return;
-
     const title = incident ? incident.title : anomaly.title;
     const severity = anomaly.severity || (incident ? incident.severity : 'medium');
     const incidentId = incident ? incident.incident_id : null;
@@ -209,10 +206,16 @@ exports.notifyAnomalyDetected = async (incident, anomaly) => {
       }
     }
 
+    const recipientIds = await getAdminIds();
+    if (!recipientIds.length) {
+      logger.warn({ msg: 'No active admins found to receive anomaly notification' });
+      return;
+    }
+
     const message = `New anomaly detected on ${entityName}. Immediate attention may be required.`;
 
-    // Step 1: Create notifications (always, independent of email success)
-    const createdNotifications = await broadcastNotifications(adminIds, {
+    // Step 1: Create notifications for admins only (independent of email success)
+    const createdNotifications = await broadcastNotifications(recipientIds, {
       notification_type: 'anomaly_detected',
       title:             `Anomaly Detected: ${title}`,
       message:           message,
@@ -228,8 +231,10 @@ exports.notifyAnomalyDetected = async (incident, anomaly) => {
       return;
     }
 
-    // Step 3: For each notification, check deduplication and send email
+    // Step 3: For each notification, check deduplication and send email (to admins only)
+    const emailAdminIds = await getAdminIds();
     for (const notif of createdNotifications) {
+      if (!emailAdminIds.includes(notif.recipient_user_id)) continue;
       const alreadySent = await hasAnomalyEmailBeenSent(
         anomalyId,
         notif.recipient_user_id,
@@ -238,53 +243,42 @@ exports.notifyAnomalyDetected = async (incident, anomaly) => {
 
       if (alreadySent) {
         logger.debug({
-          msg: 'Anomaly email already sent, skipping',
+          msg: 'Anomaly email already sent to admin, skipping',
           anomalyId,
-          recipientId: notif.recipient_user_id,
+          recipientUserId: notif.recipient_user_id,
         });
         continue;
       }
 
       try {
-        // Fetch recipient email
         const { rows: recipients } = await db.query(
-          `SELECT email FROM users WHERE id = $1`,
+          `SELECT email, first_name FROM users WHERE id = $1`,
           [notif.recipient_user_id]
         );
+        const recipient = recipients[0];
+        if (!recipient || !recipient.email) continue;
 
-        const recipientEmail = recipients[0]?.email;
-        if (!recipientEmail) {
-          logger.warn({ msg: 'No email for anomaly recipient', userId: notif.recipient_user_id });
-          continue;
-        }
-
-        // Send email
         const emailHtml = `
-          <h2>Anomaly Detected: ${title}</h2>
+          <h2>New Anomaly Detected</h2>
+          <p>Hi ${recipient.first_name || 'Admin'},</p>
+          <p>An anomaly has been detected: <strong>${title}</strong></p>
           <p>${message}</p>
-          <p><strong>Severity:</strong> ${severity}</p>
-          <p>Log in to CloudSight to view details.</p>
+          ${incidentId ? `<p>Incident Created: INC-${incident.incident_number}</p>` : ''}
+          <p>Please log in to CloudSight to review this anomaly.</p>
         `;
-        
+
         await emailUtil.sendNotificationEmail(
-          recipientEmail,
-          `[CloudSight Alert] ${title}`,
+          recipient.email,
+          `[CloudSight Alert] Anomaly Detected: ${title}`,
           emailHtml
         );
 
-        // Email succeeded: mark as sent
         await markEmailAsSent(notif.notification_id);
-        logger.info({
-          msg: 'Anomaly email sent successfully',
-          anomalyId,
-          recipientId: notif.recipient_user_id,
-        });
       } catch (emailErr) {
-        // Email failed: log and mark as failed (do NOT mark as sent)
         logger.error({
-          msg: 'Failed to send anomaly email',
+          msg: 'Failed to send anomaly email to admin',
           anomalyId,
-          recipientId: notif.recipient_user_id,
+          recipientUserId: notif.recipient_user_id,
           error: emailErr.message,
         });
         await markEmailAsFailed(notif.notification_id);
@@ -292,38 +286,35 @@ exports.notifyAnomalyDetected = async (incident, anomaly) => {
     }
   } catch (err) {
     logger.error({ msg: 'notifyAnomalyDetected failed', error: err.message });
-    // Notifications already created in try block
-    // Email sending failures are caught individually
   }
 };
 
 /**
- * Engineer/Developer assigned → notify the assigned engineer + send email
- * 
- * Email behavior:
- * - Check email_channel_enabled
- * - Check if email already sent (incident_id + engineer_user_id + notification_type)
- * - Send email only if not previously sent
- * - Mark email_sent=TRUE only after successful send
- * - On SMTP failure: log error, keep notification, mark email_sent=FALSE (allow retry)
+ * Engineer/Developer assigned → notify the assigned engineer only + send email to assigned engineer
  */
 exports.notifyEngineerAssigned = async (incident, engineerId, actorId) => {
   try {
+    if (!engineerId) {
+      logger.warn({ msg: 'No engineerId provided for notifyEngineerAssigned', incidentId: incident.incident_id });
+      return;
+    }
+
     // Look up actor email/name for context
     const { rows } = await db.query(`SELECT email, first_name, last_name FROM users WHERE id = $1`, [actorId]);
     const actorEmail = rows[0] ? `${rows[0].first_name || ''} ${rows[0].last_name || ''}`.trim() || rows[0].email : 'An admin';
 
-    // Step 1: Create notification (always)
-    const notif = await NotificationModel.create({
+    const recipientIds = [engineerId];
+
+    // Step 1: Create in-app notification for the assigned engineer only
+    const created = await broadcastNotifications(recipientIds, {
       notification_type: 'anomaly_assigned',
-      title:             `Assigned to You: ${incident.title}`,
-      message:           `You have been assigned Incident INC-${incident.incident_number}.`,
-      recipient_user_id: engineerId,
+      title:             `Incident Assigned: ${incident.title}`,
+      message:           `Incident INC-${incident.incident_number} has been assigned to you by ${actorEmail}.`,
       sender_user_id:    actorId,
       incident_id:       incident.incident_id,
     });
 
-    emitToUser(engineerId, notif);
+    const notif = created[0];
 
     // Step 2: Send email if channel enabled (independent of dashboard notification)
     const emailConfig = await getEmailChannelConfig();
@@ -373,7 +364,7 @@ exports.notifyEngineerAssigned = async (incident, engineerId, actorId) => {
       );
 
       // Email succeeded: mark as sent
-      await markEmailAsSent(notif.notification_id);
+      if (notif) await markEmailAsSent(notif.notification_id);
       logger.info({
         msg: 'Assignment email sent successfully',
         incidentId: incident.incident_id,
@@ -387,23 +378,21 @@ exports.notifyEngineerAssigned = async (incident, engineerId, actorId) => {
         engineerId,
         error: emailErr.message,
       });
-      await markEmailAsFailed(notif.notification_id);
+      if (notif) await markEmailAsFailed(notif.notification_id);
     }
   } catch (err) {
     logger.error({ msg: 'notifyEngineerAssigned failed', error: err.message });
-    // Notification already created in try block
-    // Email sending failures are caught individually
   }
 };
 
 /**
- * Incident acknowledged → notify all admins
+ * Incident acknowledged → notify all admins only
  * NO EMAIL SENT (per requirements)
  */
 exports.notifyAnomalyAcknowledged = async (incident, actorId) => {
   try {
-    const adminIds = await getAdminIds();
-    if (!adminIds.length) return;
+    const recipientIds = await getAdminIds();
+    if (!recipientIds.length) return;
 
     const { rows } = await db.query(`SELECT email, first_name, last_name FROM users WHERE id = $1`, [actorId]);
     const actor = rows[0];
@@ -413,31 +402,36 @@ exports.notifyAnomalyAcknowledged = async (incident, actorId) => {
 
     const message = `Incident INC-${incident.incident_number} has been acknowledged by ${actorName}.`;
 
-    await broadcastNotifications(adminIds, {
+    await broadcastNotifications(recipientIds, {
       notification_type: 'anomaly_acknowledged',
       title:             `Acknowledged: ${incident.title}`,
       message:           message,
       sender_user_id:    actorId,
       incident_id:       incident.incident_id,
     });
-    // No email sent for acknowledgement
   } catch (err) {
     logger.error({ msg: 'notifyAnomalyAcknowledged failed', error: err.message });
   }
 };
 
 /**
- * Incident resolved → notify all admins
+ * Incident resolved → notify all admins only
  * NO EMAIL SENT (per requirements)
  */
 exports.notifyAnomalyResolved = async (incident, actorId) => {
   try {
-    const adminIds = await getAdminIds();
-    if (!adminIds.length) return;
+    const recipientIds = await getAdminIds();
+    if (!recipientIds.length) return;
 
-    const message = `Incident INC-${incident.incident_number} has been resolved.`;
+    const { rows } = await db.query(`SELECT email, first_name, last_name FROM users WHERE id = $1`, [actorId]);
+    const actor = rows[0];
+    let actorName = actor ? `${actor.first_name || ''} ${actor.last_name || ''}`.trim() : '';
+    if (!actorName && actor) actorName = actor.email;
+    if (!actorName) actorName = 'An engineer';
 
-    await broadcastNotifications(adminIds, {
+    const message = `Incident INC-${incident.incident_number} has been resolved by ${actorName}.`;
+
+    await broadcastNotifications(recipientIds, {
       notification_type: 'anomaly_resolved',
       title:             `Resolved: ${incident.title}`,
       message:           message,
@@ -481,35 +475,137 @@ exports.deleteNotification = async (notificationId, userId) => {
 
 /**
  * Custom Alert Rule triggered
- * NO EMAIL SENT (per requirements)
+ * In-app: Registered users matching rule.recipients (by email or role)
+ * Email: All valid configured email recipients (both registered and external) when email channel is enabled
  */
 exports.notifyCustomAlertRule = async (rule, entityDetails) => {
   try {
-    if (!rule.recipients || rule.recipients.length === 0) return;
+    if (!rule.recipients) return;
 
-    // Resolve recipients to user IDs (emails or roles)
-    const { rows } = await db.query(
-      `SELECT id FROM users 
-       WHERE email = ANY($1::text[]) 
-          OR role::text = ANY($1::text[])`,
-      [rule.recipients]
+    // Safely normalize rule.recipients whether array or JSON string
+    let rawRecipients = rule.recipients;
+    if (typeof rawRecipients === 'string') {
+      try {
+        rawRecipients = JSON.parse(rawRecipients);
+      } catch {
+        rawRecipients = [rawRecipients];
+      }
+    }
+    if (!Array.isArray(rawRecipients) || rawRecipients.length === 0) return;
+
+    const tokens = rawRecipients
+      .map(r => (typeof r === 'string' ? r.trim() : ''))
+      .filter(Boolean);
+    if (tokens.length === 0) return;
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const emailTokens = tokens.filter(t => emailRegex.test(t));
+    const roleTokens = tokens.filter(t => !emailRegex.test(t));
+
+    // 1. Resolve registered users for in-app notifications
+    const { rows: matchedUsers } = await db.query(
+      `SELECT id, email, first_name, role FROM users 
+       WHERE is_active = true 
+         AND (
+           email = ANY($1::text[]) 
+           OR role::text = ANY($2::text[])
+         )`,
+      [emailTokens.length ? emailTokens : ['__none__'], roleTokens.length ? roleTokens : ['__none__']]
     );
 
-    const recipientIds = rows.map(r => r.id);
-    if (recipientIds.length === 0) return;
+    const recipientIds = Array.from(new Set(matchedUsers.map(u => u.id)));
 
     const message = `Custom Alert "${rule.name}" triggered for ${entityDetails.entity_type} ${entityDetails.entity_id || ''}. Condition: ${rule.condition}`;
 
-    await broadcastNotifications(recipientIds, {
-      notification_type: 'custom_alert',
-      title:             `Alert Triggered: ${rule.name}`,
-      message:           message,
-      sender_user_id:    null,
-      incident_id:       null,
-      anomaly_id:        null,
-    });
-    // No email sent for custom alerts
+    // Step 1: Create in-app notifications for registered users
+    let createdNotifications = [];
+    if (recipientIds.length > 0) {
+      createdNotifications = await broadcastNotifications(recipientIds, {
+        notification_type: 'custom_alert',
+        title:             `Alert Triggered: ${rule.name}`,
+        message:           message,
+        sender_user_id:    null,
+        incident_id:       null,
+        anomaly_id:        null,
+      });
+    }
+
+    // Step 2: Send emails if email channel is enabled
+    const emailConfig = await getEmailChannelConfig();
+    if (!emailConfig.email_channel_enabled) {
+      return;
+    }
+
+    // Collect all destination email addresses (both direct email tokens and emails of users matching role tokens)
+    const emailDestinationSet = new Set(emailTokens.map(e => e.toLowerCase()));
+    for (const u of matchedUsers) {
+      if (u.email && emailRegex.test(u.email)) {
+        emailDestinationSet.add(u.email.toLowerCase());
+      }
+    }
+
+    const emailDestinations = Array.from(emailDestinationSet);
+    if (emailDestinations.length === 0) return;
+
+    const emailHtml = `
+      <h2>Custom Alert Triggered</h2>
+      <p>Alert rule <strong>${rule.name}</strong> has been triggered.</p>
+      <p><strong>Entity:</strong> ${entityDetails.entity_type} ${entityDetails.entity_id || ''}</p>
+      <p><strong>Condition:</strong> ${rule.condition}</p>
+      <p><strong>Severity:</strong> ${(rule.severity || 'medium').toUpperCase()}</p>
+      <p>${message}</p>
+      <p>Please log in to CloudSight to review this alert.</p>
+    `;
+
+    for (const email of emailDestinations) {
+      try {
+        await emailUtil.sendNotificationEmail(
+          email,
+          `[CloudSight Alert] ${rule.name}`,
+          emailHtml
+        );
+        logger.info({ msg: 'Custom alert email sent', ruleId: rule.id, email });
+      } catch (emailErr) {
+        logger.error({
+          msg: 'Failed to send custom alert email',
+          ruleId: rule.id,
+          email,
+          error: emailErr.message,
+        });
+      }
+    }
+
+    // Mark email_sent = TRUE for matched in-app notification rows
+    for (const notif of createdNotifications) {
+      await markEmailAsSent(notif.notification_id);
+    }
   } catch (err) {
     logger.error({ msg: 'notifyCustomAlertRule failed', error: err.message });
+  }
+};
+
+exports.notifyTicketCreated = async (ticket) => {
+  try {
+    const adminIds = await getAdminIds();
+    if (!adminIds.length) return;
+
+    // Severity mapping based on priority
+    // Ticket priority: 'low', 'medium', 'high'
+    const severity = ticket.priority === 'high' ? 'high' : 
+                     ticket.priority === 'medium' ? 'medium' : 'low';
+
+    const title = 'New Ticket Created';
+    const message = `Ticket ${ticket.ticket_id} created: ${ticket.title}`;
+
+    await broadcastNotifications(adminIds, {
+      ticket_id: ticket.ticket_id,
+      title,
+      message,
+      notification_type: 'ticket_created',
+      is_read: false,
+      severity
+    });
+  } catch (err) {
+    logger.error({ msg: 'notifyTicketCreated failed', error: err.message });
   }
 };

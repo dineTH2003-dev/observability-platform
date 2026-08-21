@@ -28,6 +28,9 @@ function formatJoinedDate(createdAt?: string) {
 }
 
 function roleLabel(role?: string) {
+  const normalized = role?.trim().toLowerCase();
+  if (normalized === "admin") return "Admin";
+  if (normalized === "engineer") return "Engineer";
   return role?.trim() || "Member";
 }
 

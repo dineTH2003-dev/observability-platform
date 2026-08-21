@@ -4,8 +4,9 @@ const {
   validatePassword,
 } = require("../utils/passwordValidation");
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PHONE_REGEX = /^[+]?[0-9()\-\s]{7,20}$/;
+const NAME_REGEX = /^[a-zA-Z\s'-]+$/;
+const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+const ALLOWED_ROLES = ["Admin", "Engineer"];
 const TEXT_FIELDS = [
   "firstName",
   "lastName",
@@ -32,7 +33,38 @@ function normalizeProfilePayload(payload = {}) {
     normalized.email = String(payload.email).trim().toLowerCase();
   }
 
+  if (payload.role !== undefined) {
+    normalized.role = stripHtml(String(payload.role)).trim().toLowerCase();
+  }
+
   return normalized;
+}
+
+function validatePhoneHelper(phone) {
+  const trimmed = String(phone || "").trim();
+  if (!trimmed) return null;
+
+  if (!/^\+?[0-9()\-\s]+$/.test(trimmed)) {
+    return "Phone number can only contain numbers, spaces, hyphens, parentheses, and leading '+'";
+  }
+
+  const digitsOnly = trimmed.replace(/[^0-9]/g, "");
+
+  if (trimmed.startsWith("0")) {
+    if (digitsOnly.length !== 10) {
+      return "Local phone numbers starting with 0 must be 10 digits (e.g., 0764678547)";
+    }
+  } else if (trimmed.startsWith("+")) {
+    if (digitsOnly.length < 7 || digitsOnly.length > 15) {
+      return "International phone numbers must be between 7 and 15 digits";
+    }
+  } else {
+    if (digitsOnly.length < 7 || digitsOnly.length > 14) {
+      return "Phone number must be between 7 and 14 digits";
+    }
+  }
+
+  return null;
 }
 
 function validateProfileUpdate(payload = {}) {
@@ -42,16 +74,36 @@ function validateProfileUpdate(payload = {}) {
     throw new ApiError(400, "First name must be between 2 and 50 characters");
   }
 
-  if (!data.lastName) {
-    throw new ApiError(400, "Last name is required");
+  if (!NAME_REGEX.test(data.firstName)) {
+    throw new ApiError(400, "First name can only contain letters, spaces, hyphens, and apostrophes");
   }
 
-  if (!data.email || !EMAIL_REGEX.test(data.email)) {
+  if (!data.lastName || data.lastName.length < 2 || data.lastName.length > 50) {
+    throw new ApiError(400, "Last name must be between 2 and 50 characters");
+  }
+
+  if (!NAME_REGEX.test(data.lastName)) {
+    throw new ApiError(400, "Last name can only contain letters, spaces, hyphens, and apostrophes");
+  }
+
+  if (!data.email || data.email.length > 100 || !EMAIL_REGEX.test(data.email)) {
     throw new ApiError(400, "Please provide a valid email address");
   }
 
-  if (data.phone && !PHONE_REGEX.test(data.phone)) {
-    throw new ApiError(400, "Please provide a valid phone number");
+  if (data.phone) {
+    const phoneError = validatePhoneHelper(data.phone);
+    if (phoneError) {
+      throw new ApiError(400, phoneError);
+    }
+  }
+
+  if (data.role) {
+    const isRoleValid = ALLOWED_ROLES.some(
+      (role) => role.toLowerCase() === data.role.toLowerCase()
+    );
+    if (!isRoleValid) {
+      throw new ApiError(400, "Please select a valid role (Admin or Engineer)");
+    }
   }
 
   if (data.bio && data.bio.length > 300) {

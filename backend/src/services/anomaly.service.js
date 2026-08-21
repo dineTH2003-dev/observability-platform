@@ -117,6 +117,21 @@ exports.createFromMlDetection = async (payload) => {
 
     await client.query("COMMIT");
 
+    // ── AI Recommendation (fire-and-forget, after commit) ──
+    if (incident) {
+      try {
+        const recommendationService = require("./recommendation.service");
+        // Enrich the anomaly object with ml_details for a richer prompt
+        const enrichedAnomaly = {
+          ...anomaly,
+          ...normalized.ml,
+        };
+        recommendationService.generateAndAttach(enrichedAnomaly, incident).catch(() => {});
+      } catch (err) {
+        // Never block incident creation
+      }
+    }
+
     // Trigger Notification Service
     try {
       const notificationService = require('./notification.service');

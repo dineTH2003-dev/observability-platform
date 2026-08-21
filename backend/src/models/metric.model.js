@@ -21,7 +21,8 @@ exports.getServiceMetrics = async (serviceId, timeRange = '1h', limit = 60) => {
   let intervalStr = '1 hour';
   let bucketSecs = 60;
 
-  if (timeRange === '20m') { intervalStr = '20 minutes'; bucketSecs = 60; } // 1 min bucket
+  if (timeRange === '5m') { intervalStr = '5 minutes'; bucketSecs = 10; } // 10 sec bucket for 5m window
+  else if (timeRange === '20m') { intervalStr = '20 minutes'; bucketSecs = 60; } // 1 min bucket
   else if (timeRange === '15m') { intervalStr = '15 minutes'; bucketSecs = 60; } // backward compatible
   else if (timeRange === '1h') { intervalStr = '1 hour'; bucketSecs = 60; } // 1 min bucket
   else if (timeRange === '6h') { intervalStr = '6 hours'; bucketSecs = 300; } // 5 min bucket

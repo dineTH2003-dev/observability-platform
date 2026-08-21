@@ -145,7 +145,7 @@ export function PersonalInformation({
                 onChange={(value) => onChange("email", value)}
               />
               <ProfileSelect
-                disabled={disabled}
+                disabled={true}
                 error={errors.role}
                 icon={UserRound}
                 label="Role"

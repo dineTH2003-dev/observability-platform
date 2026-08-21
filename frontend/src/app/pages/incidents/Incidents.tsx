@@ -52,10 +52,35 @@ interface Engineer {
   role: string;
 }
 
+function parseRecommendation(rawRec: any): any {
+  if (!rawRec) return null;
+  let parsed = rawRec;
+  if (typeof rawRec === 'string') {
+    try {
+      parsed = JSON.parse(rawRec);
+    } catch {
+      return null;
+    }
+  }
+  if (typeof parsed === 'string') {
+    try {
+      parsed = JSON.parse(parsed);
+    } catch {
+      return null;
+    }
+  }
+  if (typeof parsed === 'object' && parsed !== null) {
+    return parsed;
+  }
+  return null;
+}
+
 function mapIncident(raw: ApiIncident): any {
   if (!raw) return null;
   const createdAt = raw.created_at ? new Date(raw.created_at) : new Date();
   const validCreated = !isNaN(createdAt.getTime()) ? createdAt : new Date();
+
+  const recommendation = parseRecommendation(raw.ai_recommendation);
 
   return {
     id: `INC-${raw.incident_number || '000'}`,
@@ -70,8 +95,8 @@ function mapIncident(raw: ApiIncident): any {
       : `${Math.round((Date.now() - validCreated.getTime()) / 60000)}m`,
     entity: (raw.anomalies?.[0]?.anomaly_type ?? 'System') + ' anomaly',
     anomalies: raw.anomalies?.map((a) => `${a.anomaly_type} anomaly`) ?? [],
-    hasRecommendation: !!raw.ai_recommendation,
-    recommendation: raw.ai_recommendation ?? null,
+    hasRecommendation: !!(recommendation && (recommendation.cause || (Array.isArray(recommendation.actions) && recommendation.actions.length > 0))),
+    recommendation,
     timeline: raw.timeline?.map((t) => ({
       time: new Date(t.occurred_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
       event: t.message,
@@ -255,8 +280,9 @@ export function Incidents({ selectedIncidentId, selectionEpoch }: { selectedInci
     setIsRegeneratingRec(true);
     setRecError(null);
     try {
-      const recommendation = await fetchRecommendation(selectedIncident.incident_id);
-      if (!recommendation || typeof recommendation !== 'object') {
+      const rawRec = await fetchRecommendation(selectedIncident.incident_id);
+      const recommendation = parseRecommendation(rawRec);
+      if (!recommendation) {
         throw new Error('Invalid response from server');
       }
       setSelectedIncident((prev: any) => ({

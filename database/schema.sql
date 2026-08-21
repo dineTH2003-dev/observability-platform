@@ -261,6 +261,7 @@ CREATE TABLE IF NOT EXISTS incidents (
   assigned_to     UUID REFERENCES users(id) ON DELETE SET NULL,
   acknowledged_at TIMESTAMPTZ,
   resolved_at     TIMESTAMPTZ,
+  ai_recommendation JSONB,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

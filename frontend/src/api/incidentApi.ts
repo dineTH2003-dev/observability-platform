@@ -67,3 +67,13 @@ export const fetchEngineers = () =>
     if (Array.isArray(res?.data)) return res.data;
     return [];
   });
+
+// ─── AI Recommendation ───────────────────────────────────────
+
+// POST /api/incidents/:id/recommendation  (generate or regenerate AI recommendation)
+export const fetchRecommendation = (incidentId: string) =>
+  API.post(`/incidents/${incidentId}/recommendation`).then((r) => {
+    const res = r.data;
+    return res?.data ?? res;
+  });
+

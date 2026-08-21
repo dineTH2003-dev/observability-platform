@@ -74,6 +74,16 @@ async function resolveIncident(req, res) {
   }
 }
 
+// POST /api/incidents/:id/recommendation
+async function getRecommendation(req, res) {
+  try {
+    const recommendation = await incidentService.generateRecommendation(req.params.id);
+    res.json({ success: true, data: recommendation });
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ success: false, message: err.message });
+  }
+}
+
 module.exports = {
   getIncidents,
   getEngineers,
@@ -82,4 +92,6 @@ module.exports = {
   assignEngineer,
   acknowledgeIncident,
   resolveIncident,
+  getRecommendation,
 };
+

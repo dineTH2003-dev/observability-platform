@@ -27,6 +27,7 @@ import {
   PASSWORD_VALIDATION_MESSAGE,
   getPasswordValidation,
 } from "../../utils/passwordValidation";
+import { validateProfileForm } from "../../utils/profileValidation";
 
 const EMPTY_PROFILE_FORM: ProfileFormValues = {
   firstName: "",
@@ -42,9 +43,6 @@ const EMPTY_PASSWORD_FORM: PasswordChangePayload = {
   newPassword: "",
   confirmPassword: "",
 };
-
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PHONE_REGEX = /^[+]?[0-9()\-\s]{7,20}$/;
 
 interface ProfilePageProps {
   onLogout: () => void;
@@ -322,29 +320,7 @@ function mapProfileToForm(profile: UserProfile): ProfileFormValues {
 }
 
 function validateProfile(values: ProfileFormValues) {
-  const errors: Partial<Record<keyof ProfileFormValues, string>> = {};
-
-  if (!values.firstName.trim() || values.firstName.trim().length < 2 || values.firstName.trim().length > 50) {
-    errors.firstName = "First name must be between 2 and 50 characters";
-  }
-
-  if (!values.lastName.trim()) {
-    errors.lastName = "Last name is required";
-  }
-
-  if (!values.email.trim() || !EMAIL_REGEX.test(values.email.trim())) {
-    errors.email = "Enter a valid email address";
-  }
-
-  if (values.phone.trim() && !PHONE_REGEX.test(values.phone.trim())) {
-    errors.phone = "Enter a valid phone number";
-  }
-
-  if (values.bio.length > 300) {
-    errors.bio = "Bio must be 300 characters or less";
-  }
-
-  return errors;
+  return validateProfileForm(values);
 }
 
 function validatePassword(values: PasswordChangePayload) {

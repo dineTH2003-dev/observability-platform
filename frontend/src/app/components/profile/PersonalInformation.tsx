@@ -123,27 +123,44 @@ export function PersonalInformation({
         {/* Form Inputs Grid */}
         <div className="space-y-6">
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-            {/* Column 1 */}
-            <div className="flex flex-col gap-5">
-              <ProfileInput
-                disabled={disabled}
-                error={errors.firstName}
-                icon={UserRound}
-                label="First Name"
-                placeholder="Enter first name"
-                value={values.firstName}
-                onChange={(value) => onChange("firstName", value)}
-              />
-              <ProfileInput
-                disabled={disabled}
-                error={errors.email}
-                icon={Mail}
-                label="Email"
-                placeholder="Enter email address"
-                type="email"
-                value={values.email}
-                onChange={(value) => onChange("email", value)}
-              />
+            <ProfileInput
+              disabled={disabled}
+              error={errors.firstName}
+              icon={UserRound}
+              label="First Name"
+              placeholder="Enter first name"
+              value={values.firstName}
+              onChange={(value) => onChange("firstName", value)}
+            />
+            <ProfileInput
+              disabled={disabled}
+              error={errors.lastName}
+              icon={UserRound}
+              label="Last Name"
+              placeholder="Enter last name"
+              value={values.lastName}
+              onChange={(value) => onChange("lastName", value)}
+            />
+            <ProfileInput
+              disabled={disabled}
+              error={errors.email}
+              icon={Mail}
+              label="Email"
+              placeholder="Enter email address"
+              type="email"
+              value={values.email}
+              onChange={(value) => onChange("email", value)}
+            />
+            <ProfileInput
+              disabled={disabled}
+              error={errors.phone}
+              icon={Phone}
+              label="Phone Number"
+              placeholder="Enter phone number"
+              value={values.phone}
+              onChange={(value) => onChange("phone", value)}
+            />
+            <div className="md:col-span-1">
               <ProfileSelect
                 disabled={true}
                 error={errors.role}

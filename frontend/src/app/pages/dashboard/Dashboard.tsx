@@ -369,7 +369,10 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         </Card>
 
         {/* Hosts */}
-        <Card className="bg-nebula-navy-light border-nebula-navy-lighter hover:border-nebula-purple/50 transition-colors cursor-pointer">
+        <Card 
+          className="bg-nebula-navy-light border-nebula-navy-lighter hover:border-nebula-purple/50 transition-colors cursor-pointer"
+          onClick={() => onNavigate('hosts')}
+        >
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-nebula-purple/20 to-nebula-blue/20 flex items-center justify-center">
@@ -383,7 +386,10 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         </Card>
 
         {/* Applications */}
-        <Card className="bg-nebula-navy-light border-nebula-navy-lighter hover:border-nebula-blue/50 transition-colors cursor-pointer">
+        <Card 
+          className="bg-nebula-navy-light border-nebula-navy-lighter hover:border-nebula-blue/50 transition-colors cursor-pointer"
+          onClick={() => onNavigate('applications')}
+        >
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-nebula-blue/20 to-nebula-cyan/20 flex items-center justify-center">
@@ -397,7 +403,10 @@ export function Dashboard({ onNavigate }: DashboardProps) {
         </Card>
 
         {/* Services */}
-        <Card className="bg-nebula-navy-light border-nebula-navy-lighter hover:border-nebula-cyan/50 transition-colors cursor-pointer">
+        <Card 
+          className="bg-nebula-navy-light border-nebula-navy-lighter hover:border-nebula-cyan/50 transition-colors cursor-pointer"
+          onClick={() => onNavigate('services')}
+        >
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-nebula-cyan/20 to-nebula-blue/20 flex items-center justify-center">

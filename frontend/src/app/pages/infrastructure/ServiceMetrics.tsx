@@ -37,9 +37,10 @@ interface ServiceMetricsProps {
   onNavigate?: (page: string) => void;
 }
 
-type TimeRange = '15m' | '1h' | '6h' | '24h' | '7d';
+type TimeRange = '5m' | '15m' | '1h' | '6h' | '24h' | '7d';
 
 const TIME_RANGE_OPTIONS: Array<{ value: TimeRange; label: string; limit: number }> = [
+  { value: '5m', label: 'Last 5 min', limit: 30 },
   { value: '15m', label: 'Last 15 min', limit: 15 },
   { value: '1h', label: 'Last 1 hour', limit: 60 },
   { value: '6h', label: 'Last 6 hours', limit: 72 },
@@ -48,6 +49,10 @@ const TIME_RANGE_OPTIONS: Array<{ value: TimeRange; label: string; limit: number
 ];
 
 function formatAxisLabel(date: Date, timeRange: TimeRange) {
+  if (timeRange === '5m') {
+    return date.toLocaleTimeString([], { minute: '2-digit', second: '2-digit' });
+  }
+
   if (timeRange === '7d') {
     return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
   }
@@ -81,6 +86,8 @@ function formatTooltipLabel(timestamp: number, timeRange: TimeRange) {
 
 function getTickCount(timeRange: TimeRange) {
   switch (timeRange) {
+    case '5m':
+      return 5;
     case '15m':
       return 4;
     case '1h':

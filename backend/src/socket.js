@@ -4,11 +4,21 @@ const { Server } = require('socket.io');
 let io;
 
 const initSocket = (server) => {
+  // Allowed origins must match Express CORS config.
+  // FRONTEND_URL is set in .env.prod to the Amplify app URL.
+  const allowedOrigins = [
+    process.env.FRONTEND_URL,       // e.g. https://main.xxxxx.amplifyapp.com
+    "http://localhost:5173",        // Vite dev server
+    "http://localhost:3000",
+    "http://127.0.0.1:5173",
+  ].filter(Boolean);
+
   io = new Server(server, {
     cors: {
-      origin: "*", // allow frontend access
-      methods: ["GET", "POST"]
-    }
+      origin: allowedOrigins,
+      methods: ["GET", "POST"],
+      credentials: true,            // Required for JWT Authorization header
+    },
   });
 
   io.on('connection', (socket) => {

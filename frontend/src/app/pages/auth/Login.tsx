@@ -12,6 +12,7 @@ interface LoginProps {
     accessToken: string;
     refreshToken: string;
     user: { id: string; email: string; role: 'admin' | 'engineer' };
+    keepSignedIn?: boolean;
   }) => void;
   onSwitchToSignup: () => void;
   onSwitchToForgotPassword: () => void;
@@ -32,6 +33,7 @@ export function Login({ onLogin, onSwitchToSignup, onSwitchToForgotPassword }: L
         accessToken: data.accessToken,
         refreshToken: data.refreshToken,
         user: data.user,
+        keepSignedIn,
       });
     } catch (err: any) {
       console.error(err);

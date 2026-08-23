@@ -16,11 +16,21 @@ def save_artifact(model, entity_type: str, entity_id: int, metric_group: str) ->
     path.mkdir(parents=True, exist_ok=True)
     artifact_path = path / f"{entity_id}-{artifact_id}.joblib"
     joblib.dump(model, artifact_path)
-    return str(artifact_path)
+    return artifact_path.relative_to(settings.artifact_dir).as_posix()
 
 
 def load_artifact(artifact_uri: str):
-    return joblib.load(Path(artifact_uri))
+    artifact_path = Path(artifact_uri)
+    if not artifact_path.exists():
+        # Older rows may contain absolute paths from another checkout.
+        normalized_uri = artifact_uri.replace("\\", "/")
+        marker = "/artifacts/"
+        if marker in normalized_uri:
+            relative_uri = normalized_uri.split(marker, 1)[1]
+            artifact_path = settings.artifact_dir / Path(relative_uri)
+        else:
+            artifact_path = settings.artifact_dir / artifact_path
+    return joblib.load(artifact_path)
 
 
 def register_model(

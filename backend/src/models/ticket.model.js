@@ -49,3 +49,19 @@ exports.find = async ({ search, status, priority, purpose }) => {
   const { rows } = await pool.query(query, values);
   return rows;
 };
+
+exports.findByTicketId = async (ticketId) => {
+  const { rows } = await pool.query(
+    `SELECT * FROM tickets WHERE ticket_id = $1 OR id::text = $1`,
+    [ticketId]
+  );
+  return rows[0];
+};
+
+exports.deleteByTicketId = async (ticketId) => {
+  const { rows } = await pool.query(
+    `DELETE FROM tickets WHERE ticket_id = $1 OR id::text = $1 RETURNING *`,
+    [ticketId]
+  );
+  return rows[0];
+};

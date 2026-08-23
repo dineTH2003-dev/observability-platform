@@ -45,6 +45,8 @@ class ApiService {
         localStorage.removeItem("refreshToken");
         localStorage.removeItem("user");
         sessionStorage.removeItem("accessToken");
+        sessionStorage.removeItem("refreshToken");
+        sessionStorage.removeItem("user");
 
         if (window.location.pathname !== "/login") {
           window.location.replace("/login");

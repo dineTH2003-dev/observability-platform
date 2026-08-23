@@ -27,3 +27,20 @@ exports.createTicket = async ({ title, purpose, context, priority, requester_id 
 exports.getTickets = async ({ search, status, priority, purpose }) => {
   return await TicketModel.find({ search, status, priority, purpose });
 };
+
+exports.deleteTicket = async (ticketId, user) => {
+  const ticket = await TicketModel.findByTicketId(ticketId);
+  if (!ticket) {
+    throw new ApiError(404, "Ticket not found");
+  }
+
+  const role = (user?.role || "").toLowerCase();
+  const isAdmin = role === "admin";
+  const isOwner = ticket.requester_id && String(ticket.requester_id) === String(user?.userId);
+
+  if (!isAdmin && !isOwner) {
+    throw new ApiError(403, "You do not have permission to delete this ticket.");
+  }
+
+  return await TicketModel.deleteByTicketId(ticketId);
+};

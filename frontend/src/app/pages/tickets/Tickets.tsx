@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import api from '../../../api/api';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -13,9 +14,23 @@ import {
   SelectValue,
 } from '../../components/ui/select';
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '../../components/ui/dialog';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '../../components/ui/tooltip';
+import {
   TicketIcon, Plus, Filter, MessageSquare,
-  XCircle, AlertCircle, Settings, Key, FileText
+  XCircle, AlertCircle, Settings, Key, FileText,
+  Trash2, RefreshCw
 } from 'lucide-react';
+import { useAuth } from '../../hooks/useAuth';
 
 type TicketPurpose = 'Alert Configuration Request' | 'Service / Application Management' | 'Access / Permission Request' | 'Incident Follow-up' | 'General Inquiry' | null;
 type TicketStatus = 'open' | 'in-review' | 'approved' | 'rejected' | 'resolved';
@@ -28,6 +43,7 @@ interface Ticket {
   status: TicketStatus;
   priority: TicketPriority;
   requester: string;
+  requesterId?: string;
   role: string;
   context: string;
   created: string;
@@ -39,12 +55,45 @@ interface Ticket {
 }
 
 export function Tickets({ selectedTicketId, selectionEpoch }: { selectedTicketId?: string, selectionEpoch?: number }) {
+  const { user } = useAuth();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<Ticket | null>(null);
+  const [deleteTicket, setDeleteTicket] = useState<Ticket | null>(null);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [filterPurpose, setFilterPurpose] = useState<string>('all');
   const [filterPriority, setFilterPriority] = useState<string>('all');
 
   const [tickets, setTickets] = useState<Ticket[]>([]);
+
+  const isAdmin = user?.role?.toLowerCase() === 'admin';
+  const canDelete = (ticket: Ticket) => {
+    if (isAdmin) return true;
+    if (!user?.id || !ticket.requesterId) return false;
+    return String(ticket.requesterId) === String(user.id);
+  };
+
+  const handleDeleteTicket = async () => {
+    if (!deleteTicket) return;
+    setDeleting(true);
+    try {
+      await api.delete(`/tickets/${deleteTicket.id}`);
+      setTickets((prev) => prev.filter((t) => t.id !== deleteTicket.id));
+      toast.success('Ticket deleted', {
+        description: `Ticket ${deleteTicket.id} has been deleted successfully.`,
+      });
+      setIsDeleteOpen(false);
+      setDeleteTicket(null);
+    } catch (err: any) {
+      console.error('Delete ticket failed:', err);
+      const message = err?.response?.data?.message || err?.message || 'You do not have permission to delete this ticket.';
+      toast.error('Deletion failed', {
+        description: message,
+      });
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const fetchTickets = async () => {
     try {
@@ -62,6 +111,7 @@ export function Tickets({ selectedTicketId, selectionEpoch }: { selectedTicketId
         status: t.status?.toLowerCase().replace(" ", "-") || "open",
         priority: t.priority?.toLowerCase() || "medium",
         requester: "You",
+        requesterId: t.requester_id,
         role: "Engineer",
         context: t.context,
         created: new Date(t.created_at).toLocaleString('en-US', {
@@ -223,17 +273,40 @@ export function Tickets({ selectedTicketId, selectionEpoch }: { selectedTicketId
                       <span className="text-sm text-slate-400">{ticket.created}</span>
                     </td>
                     <td className="py-3 px-4">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="border-nebula-purple text-nebula-purple hover:bg-nebula-purple/10"
-                        onClick={(e: React.MouseEvent) => {
-                          e.stopPropagation();
-                          setSelectedTicket(ticket);
-                        }}
-                      >
-                        View
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-nebula-purple text-nebula-purple hover:bg-nebula-purple/10"
+                          onClick={(e: React.MouseEvent) => {
+                            e.stopPropagation();
+                            setSelectedTicket(ticket);
+                          }}
+                        >
+                          View
+                        </Button>
+                        {canDelete(ticket) && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={(e: React.MouseEvent) => {
+                                  e.stopPropagation();
+                                  setDeleteTicket(ticket);
+                                  setIsDeleteOpen(true);
+                                }}
+                                className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+                              >
+                                <Trash2 className="size-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent className="bg-nebula-navy-dark border-nebula-navy-lighter text-white" sideOffset={5}>
+                              <p>Delete</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -262,6 +335,39 @@ export function Tickets({ selectedTicketId, selectionEpoch }: { selectedTicketId
       {selectedTicket && (
         <TicketDetailsModal ticket={selectedTicket} onClose={() => setSelectedTicket(null)} />
       )}
+
+      {/* Delete Ticket Confirmation Dialog */}
+      <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
+        <DialogContent className="bg-nebula-navy-light border-nebula-navy-lighter text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-red-400 flex items-center gap-2">
+              <Trash2 className="size-4" /> Delete Ticket
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-slate-300 text-sm">
+            Are you sure you want to delete ticket{' '}
+            <span className="text-white font-semibold">{deleteTicket?.id}</span>?{' '}
+            This action cannot be undone.
+          </p>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsDeleteOpen(false)}
+              disabled={deleting}
+              className="bg-transparent border-nebula-navy-lighter text-slate-300 hover:bg-nebula-navy-dark hover:text-white"
+            >
+              Cancel
+            </Button>
+            <Button
+              className="bg-red-600 hover:bg-red-700 text-white min-w-[120px]"
+              onClick={handleDeleteTicket}
+              disabled={deleting}
+            >
+              {deleting ? <RefreshCw className="size-4 animate-spin" /> : 'Delete Ticket'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -278,10 +384,17 @@ function CreateTicketModal({ onClose, onCreated }: any) {
   const [reasonRequest, setReasonRequest] = useState('');
   const handleSubmit = async () => {
     try {
-      await api.post('/tickets', {
+      const response = await api.post('/tickets', {
         purpose: ticketPurpose,
         context,
         priority,
+      });
+
+      const ticketId = response?.data?.ticket_id;
+      toast.success('Ticket created', {
+        description: ticketId
+          ? `Ticket ${ticketId} has been created successfully.`
+          : 'Ticket has been created successfully.',
       });
 
       onCreated();

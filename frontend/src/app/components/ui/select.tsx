@@ -77,8 +77,9 @@ const SelectContent = React.forwardRef<
       <SelectPrimitive.Content
         ref={ref}
         data-slot="select-content"
+        style={{ maxHeight: '220px', overflowY: 'auto' }}
         className={cn(
-          "z-[999999] pointer-events-auto max-h-60 min-w-[8rem] overflow-x-hidden overflow-y-auto rounded-xl border border-white/12 bg-[#0E1738] text-white shadow-2xl shadow-black/90 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
+          "z-[999999] pointer-events-auto max-h-[220px] min-w-[8rem] overflow-y-auto rounded-xl border border-white/12 bg-[#0E1738] text-white shadow-2xl shadow-black/90 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
           position === "popper" &&
             "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
           className,
@@ -89,17 +90,16 @@ const SelectContent = React.forwardRef<
         avoidCollisions={avoidCollisions}
         {...props}
       >
-        <SelectScrollUpButton />
         <SelectPrimitive.Viewport
+          style={{ maxHeight: '210px', overflowY: 'auto' }}
           className={cn(
-            "p-1",
+            "p-1 max-h-[210px] overflow-y-auto",
             position === "popper" &&
               "w-full min-w-[var(--radix-select-trigger-width)] scroll-my-1",
           )}
         >
           {children}
         </SelectPrimitive.Viewport>
-        <SelectScrollDownButton />
       </SelectPrimitive.Content>
     </SelectPrimitive.Portal>
   );

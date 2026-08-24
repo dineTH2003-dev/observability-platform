@@ -15,6 +15,7 @@ export interface AuthContextType {
     accessToken: string;
     refreshToken: string;
     user: UserProfile;
+    keepSignedIn?: boolean;
   }) => void;
   signup: () => void;
   logout: () => void;
@@ -26,7 +27,7 @@ export interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 function parseStoredUser(): UserProfile | null {
-  const stored = localStorage.getItem('user');
+  const stored = localStorage.getItem('user') || sessionStorage.getItem('user');
   if (!stored) return null;
 
   try {
@@ -40,6 +41,9 @@ function clearStoredAuth() {
   localStorage.removeItem('accessToken');
   localStorage.removeItem('refreshToken');
   localStorage.removeItem('user');
+  sessionStorage.removeItem('accessToken');
+  sessionStorage.removeItem('refreshToken');
+  sessionStorage.removeItem('user');
 }
 
 function isUsableAccessToken(token: string | null): token is string {
@@ -63,7 +67,7 @@ function isUsableAccessToken(token: string | null): token is string {
 }
 
 function getInitialAuthState() {
-  const accessToken = localStorage.getItem('accessToken');
+  const accessToken = localStorage.getItem('accessToken') || sessionStorage.getItem('accessToken');
   const user = parseStoredUser();
 
   if (!user || !isUsableAccessToken(accessToken)) {
@@ -85,8 +89,6 @@ const [isLoading, setIsLoading] = useState<boolean>(true);
 
 const clearAuth = () => {
   clearStoredAuth();
-  sessionStorage.removeItem("accessToken");
-  sessionStorage.removeItem("refreshToken");
   setUser(null);
   setIsAuthenticated(false);
 };
@@ -94,7 +96,11 @@ const clearAuth = () => {
 const refreshProfile = async () => {
   const profile = await getProfile();
   setUser(profile);
-  localStorage.setItem("user", JSON.stringify(profile));
+  if (localStorage.getItem('accessToken')) {
+    localStorage.setItem('user', JSON.stringify(profile));
+  } else if (sessionStorage.getItem('accessToken')) {
+    sessionStorage.setItem('user', JSON.stringify(profile));
+  }
   setIsAuthenticated(true);
 };
 
@@ -102,10 +108,14 @@ const refreshProfile = async () => {
     accessToken: string;
     refreshToken: string;
     user: UserProfile;
+    keepSignedIn?: boolean;
   }) => {
-    localStorage.setItem("accessToken", authData.accessToken);
-    localStorage.setItem("refreshToken", authData.refreshToken);
-    localStorage.setItem("user", JSON.stringify(authData.user));
+    clearStoredAuth();
+
+    const storage = authData.keepSignedIn ? localStorage : sessionStorage;
+    storage.setItem('accessToken', authData.accessToken);
+    storage.setItem('refreshToken', authData.refreshToken);
+    storage.setItem('user', JSON.stringify(authData.user));
 
     setUser(authData.user);
     setIsAuthenticated(isUsableAccessToken(authData.accessToken));

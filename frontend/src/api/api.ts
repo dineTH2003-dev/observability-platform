@@ -24,6 +24,7 @@ api.interceptors.response.use(
       localStorage.removeItem("user");
       sessionStorage.removeItem("accessToken");
       sessionStorage.removeItem("refreshToken");
+      sessionStorage.removeItem("user");
 
       if (typeof window !== "undefined") {
         window.location.href = "/";

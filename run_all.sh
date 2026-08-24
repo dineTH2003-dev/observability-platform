@@ -29,7 +29,17 @@ echo "-> Starting ML Worker..."
 # Add a slight delay before starting mock agent to ensure backend is up
 sleep 2
 echo "-> Starting Mock Agent (Data Simulator)..."
-(source ml/.venv/bin/activate && python mock_agent.py) &
+if [ -f "ml/.venv/Scripts/python.exe" ]; then
+    ML_PYTHON="ml/.venv/Scripts/python.exe"
+elif [ -f "ml/.venv/bin/python" ]; then
+    ML_PYTHON="ml/.venv/bin/python"
+else
+    echo "ML virtual environment not found; mock agent was not started." >&2
+    ML_PYTHON=""
+fi
+if [ -n "$ML_PYTHON" ]; then
+    "$ML_PYTHON" mock_agent.py &
+fi
 
 echo "============================================"
 echo "All services are starting up!"

@@ -30,3 +30,21 @@ exports.getTickets = async (req, res) => {
     res.status(500).json({ message: "Error fetching tickets" });
   }
 };
+
+exports.deleteTicket = async (req, res) => {
+  try {
+    const { ticketId } = req.params;
+    const deletedTicket = await ticketService.deleteTicket(ticketId, req.user);
+    res.json({
+      success: true,
+      message: "Ticket deleted successfully",
+      ticket: deletedTicket,
+    });
+  } catch (err) {
+    if (err instanceof ApiError) {
+      return res.status(err.statusCode).json({ message: err.message });
+    }
+    console.error(err);
+    res.status(500).json({ message: "Error deleting ticket" });
+  }
+};

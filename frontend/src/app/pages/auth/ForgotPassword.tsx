@@ -18,7 +18,8 @@ export function ForgotPassword({ onBackToLogin }: ForgotPasswordProps) {
     e.preventDefault();
 
     try {
-      await axios.post("http://localhost:9000/api/auth/forgot-password", {
+      const apiBase = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:9000/api';
+      await axios.post(`${apiBase}/auth/forgot-password`, {
         email,
       });
 

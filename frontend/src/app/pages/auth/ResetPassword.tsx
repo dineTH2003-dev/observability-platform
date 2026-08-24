@@ -31,7 +31,8 @@ export function ResetPassword({ onBackToLogin }: ResetPasswordProps) {
     try {
       setLoading(true);
 
-      await axios.post("http://localhost:9000/api/auth/reset-password", {
+      const apiBase = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:9000/api';
+      await axios.post(`${apiBase}/auth/reset-password`, {
         token,
         newPassword: password,
       });

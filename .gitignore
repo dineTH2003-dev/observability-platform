@@ -29,5 +29,10 @@ Thumbs.db
 
 # Generated report uploads
 backend/uploads/
-ml
+
+
+# SSH Private Keys — NEVER commit these to git
+*.pem
+*.key
+cloudsight-key.pem
 
